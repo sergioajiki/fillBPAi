@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://hibernate.sourceforge.net/hibernate-configuration-3.0.dtd">
+
+<hibernate-configuration>
+    <session-factory>
+
+        <!-- =========================
+             Configuração do Banco H2
+             ========================= -->
+
+        <!-- Driver JDBC -->
+        <property name="hibernate.connection.driver_class">
+            org.h2.Driver
+        </property>
+
+        <!-- URL do banco (arquivo local) -->
+        <property name="hibernate.connection.url">
+            jdbc:h2:file:./database/fillbpai;AUTO_SERVER=TRUE
+        </property>
+
+        <!-- Usuário e senha padrão do H2 -->
+        <property name="hibernate.connection.username">sa</property>
+        <property name="hibernate.connection.password"></property>
+
+        <!-- Dialeto específico do H2 -->
+        <property name="hibernate.dialect">
+            org.hibernate.dialect.H2Dialect
+        </property>
+
+        <!-- =========================
+             Comportamento do Hibernate
+             ========================= -->
+
+        <!-- Cria/atualiza tabelas automaticamente -->
+        <property name="hibernate.hbm2ddl.auto">update</property>
+
+        <!-- Mostra SQL no console -->
+        <property name="hibernate.show_sql">true</property>
+
+        <!-- Formata o SQL -->
+        <property name="hibernate.format_sql">true</property>
+
+        <!-- Charset -->
+        <property name="hibernate.connection.charSet">UTF-8</property>
+
+    </session-factory>
+</hibernate-configuration>

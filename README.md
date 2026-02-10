@@ -32,7 +32,7 @@ fillBPAi
     └── main
         ├── java
         │   └── br.gov.ses.fillbpai
-        │       ├── app
+        │       ├── br.gov.ses.fillbpai.app
         │       ├── controller
         │       ├── model
         │       ├── dao
