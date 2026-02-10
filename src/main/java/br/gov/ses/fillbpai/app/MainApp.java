@@ -6,6 +6,8 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
+import br.gov.ses.fillbpai.util.HibernateUtil;
+
 /**
  * Classe principal da aplicação JavaFX.
  *
@@ -33,6 +35,11 @@ public class MainApp extends Application {
         primaryStage.setTitle("fillBPAi");
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        // Teste de inicialização do Hibernate
+        HibernateUtil.getSessionFactory();
+        System.out.println("Hibernate iniciado com sucesso!");
+
     }
 
     /**
