@@ -67,7 +67,7 @@ public class MainApp extends Application {
 
         /*
          * 2️⃣ Teste de persistência (temporário para validação)
-         */
+
         AtendimentoBPAi atendimento = new AtendimentoBPAi();
         atendimento.setTipoServico("Consulta");
         atendimento.setDataAgendamento(LocalDate.now());
@@ -90,7 +90,7 @@ public class MainApp extends Application {
         new AtendimentoBPAiRepository().salvar(atendimento);
 
         System.out.println("Registro salvo com sucesso!");
-
+           */
         /*
          * 3️⃣ Construção da Interface Gráfica
          */
