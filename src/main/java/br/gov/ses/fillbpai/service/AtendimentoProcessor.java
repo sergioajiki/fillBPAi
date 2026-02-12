@@ -2,6 +2,7 @@ package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.util.DateUtils;
+import br.gov.ses.fillbpai.util.TimeUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -72,14 +73,14 @@ public class AtendimentoProcessor {
             }
         }
 
-        // Converter Hora Atendimento (mantido simples por enquanto)
+// Converter Hora Atendimento usando TimeUtils
         if (!isNullOrEmpty(atendimento.getHoraAtendimentoString())) {
             try {
-                LocalTime hora = LocalTime.parse(
+                LocalTime hora = TimeUtils.parse(
                         atendimento.getHoraAtendimentoString()
                 );
                 atendimento.setHoraAtendimento(hora);
-            } catch (DateTimeParseException e) {
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
                         "Hora de atendimento inválida: "
                                 + atendimento.getHoraAtendimentoString()
