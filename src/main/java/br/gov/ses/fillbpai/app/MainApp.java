@@ -10,15 +10,45 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.repository.AtendimentoBPAiRepository;
 import br.gov.ses.fillbpai.util.HibernateUtil;
 
+import org.h2.tools.Server;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 
 /**
  * Classe principal da aplicação JavaFX.
  *
- * Responsável por inicializar o JavaFX e abrir a janela principal.
+ * Responsável por:
+ * - Inicializar infraestrutura (H2 + Hibernate)
+ * - Iniciar a interface JavaFX
+ * - Encerrar recursos corretamente ao fechar o sistema
  */
 public class MainApp extends Application {
+
+    /**
+     * Instância do servidor Web do H2 (Console).
+     */
+    private Server h2Server;
+
+    /**
+     * Inicializa o H2 Console programaticamente.
+     * Permite acessar via navegador:
+     * http://localhost:8082
+     */
+    private void startH2Console() {
+        try {
+            h2Server = Server.createWebServer(
+                    "-web",
+                    "-webAllowOthers",
+                    "-webPort", "8082"
+            ).start();
+
+            System.out.println("H2 Console iniciado em: " + h2Server.getURL());
+
+        } catch (Exception e) {
+            System.err.println("Erro ao iniciar H2 Console: " + e.getMessage());
+        }
+    }
 
     /**
      * Método chamado automaticamente pelo JavaFX
@@ -27,24 +57,17 @@ public class MainApp extends Application {
     @Override
     public void start(Stage primaryStage) {
 
-        // 1. Componente simples para teste visual
-        Label label = new Label("fillBPAi - Aplicação iniciada com sucesso!");
+        /*
+         * 1️⃣ Inicializa infraestrutura antes da interface
+         */
+        startH2Console();                       // Inicia console do H2
+        HibernateUtil.getSessionFactory();      // Inicializa Hibernate
 
-        // 2. Layout básico
-        StackPane root = new StackPane(label);
-
-        // 3. Cena (conteúdo da janela)
-        Scene scene = new Scene(root, 600, 400);
-
-        // 4. Configuração da janela
-        primaryStage.setTitle("fillBPAi");
-        primaryStage.setScene(scene);
-        primaryStage.show();
-
-        // Teste de inicialização do Hibernate
-        HibernateUtil.getSessionFactory();
         System.out.println("Hibernate iniciado com sucesso!");
 
+        /*
+         * 2️⃣ Teste de persistência (temporário para validação)
+         */
         AtendimentoBPAi atendimento = new AtendimentoBPAi();
         atendimento.setTipoServico("Consulta");
         atendimento.setDataAgendamento(LocalDate.now());
@@ -58,7 +81,7 @@ public class MainApp extends Application {
         atendimento.setPaciente("Paciente Teste");
         atendimento.setCnsPaciente("123456789012345");
         atendimento.setRacaPaciente("Branca");
-        atendimento.setDataNascimento("1990-01-01");
+        atendimento.setDataNascimento("1990-01-01"); // Ainda como String
         atendimento.setCidConsulta("E11");
         atendimento.setTelefone("67999999999");
         atendimento.setTipoZona("Urbana");
@@ -68,9 +91,36 @@ public class MainApp extends Application {
 
         System.out.println("Registro salvo com sucesso!");
 
+        /*
+         * 3️⃣ Construção da Interface Gráfica
+         */
+
+        Label label = new Label("fillBPAi - Aplicação iniciada com sucesso!");
+
+        StackPane root = new StackPane(label);
+
+        Scene scene = new Scene(root, 600, 400);
+
+        primaryStage.setTitle("fillBPAi");
+        primaryStage.setScene(scene);
+        primaryStage.show();
     }
 
+    /**
+     * Método chamado automaticamente ao fechar a aplicação.
+     * Responsável por liberar recursos.
+     */
+    @Override
+    public void stop() {
 
+        if (h2Server != null) {
+            h2Server.stop();
+            System.out.println("H2 Console finalizado.");
+        }
+
+        HibernateUtil.shutdown();
+        System.out.println("Hibernate finalizado.");
+    }
 
     /**
      * Método main tradicional.
