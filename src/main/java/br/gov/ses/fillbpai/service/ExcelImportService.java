@@ -11,14 +11,21 @@ import java.text.DecimalFormat;
  * - Converter todas as células para String
  * - NÃO realizar validações ou conversões definitivas
  *
+ * IMPORTANTE:
+ * Esta classe NÃO valida regras de negócio.
+ * Apenas extrai dados do Excel.
+ *
  * A conversão para LocalDate/LocalTime será feita posteriormente
- * pela classe de processamento.
+ * pela classe AtendimentoProcessor.
  */
 public class ExcelImportService {
 
     /**
-     * Converte uma linha do Excel em um objeto AtendimentoBPAi
+     * Converte uma linha do Excel em um objeto AtendimentoBPAi.
+     *
      * Todos os valores são carregados inicialmente como String.
+     * Isso evita perda de informação e delega a validação
+     * para a camada de processamento.
      */
     public AtendimentoBPAi importarLinha(Row row) {
 
@@ -37,7 +44,7 @@ public class ExcelImportService {
         atendimento.setCnsPaciente(getString(row.getCell(10)));
         atendimento.setRacaPaciente(getString(row.getCell(11)));
 
-        // Data de nascimento agora usa campo auxiliar String
+        // Data de nascimento armazenada como String (conversão posterior)
         atendimento.setDataNascimentoString(getString(row.getCell(12)));
 
         atendimento.setCidConsulta(getString(row.getCell(13)));
@@ -49,8 +56,16 @@ public class ExcelImportService {
     }
 
     /**
-     * Método auxiliar para converter qualquer tipo de célula em String
-     * sem perder informação.
+     * Método auxiliar responsável por converter qualquer tipo de célula
+     * do Excel em String, preservando o valor original.
+     *
+     * Este método trata corretamente:
+     * - Strings
+     * - Números
+     * - Datas
+     * - Horas (incluindo padrão 1899 do Excel)
+     * - Booleanos
+     * - Fórmulas
      */
     private String getString(Cell cell) {
 
@@ -60,31 +75,72 @@ public class ExcelImportService {
 
         switch (cell.getCellType()) {
 
+            // ===============================
+            // TEXTO NORMAL
+            // ===============================
             case STRING:
                 return cell.getStringCellValue().trim();
 
+            // ===============================
+            // NÚMEROS (incluindo datas/horas)
+            // ===============================
             case NUMERIC:
+
+                // Verifica se a célula é formatada como Data/Hora
                 if (DateUtil.isCellDateFormatted(cell)) {
-                    // Se for data, converte para texto padrão ISO (yyyy-MM-dd)
-                    return cell.getLocalDateTimeCellValue()
-                            .toLocalDate()
-                            .toString();
-                } else {
-                    // Mantém formato sem notação científica
-                    DecimalFormat df = new DecimalFormat("0");
-                    df.setMaximumFractionDigits(0);
-                    return df.format(cell.getNumericCellValue());
+
+                    var dateTime = cell.getLocalDateTimeCellValue();
+
+                    /*
+                     * O Excel armazena horas como fração de dia.
+                     * Quando lido como data, aparece como:
+                     * 1899-12-31T08:30
+                     *
+                     * Se o ano for 1899, significa que é apenas hora.
+                     */
+                    if (dateTime.getYear() == 1899) {
+                        return dateTime.toLocalTime().toString();
+                    }
+
+                    // Caso seja uma data válida
+                    return dateTime.toLocalDate().toString();
                 }
 
+                /*
+                 * Caso seja número comum (CPF, CNS etc.)
+                 * Utilizamos DecimalFormat para evitar notação científica
+                 * e remover casas decimais indesejadas.
+                 */
+                DecimalFormat df = new DecimalFormat("0");
+                df.setMaximumFractionDigits(0);
+                return df.format(cell.getNumericCellValue());
+
+            // ===============================
+            // BOOLEANO
+            // ===============================
             case BOOLEAN:
                 return String.valueOf(cell.getBooleanCellValue());
 
+            // ===============================
+            // FÓRMULA
+            // ===============================
             case FORMULA:
+                /*
+                 * Mantemos a fórmula como texto.
+                 * Se quiser futuramente avaliar o resultado da fórmula,
+                 * podemos usar FormulaEvaluator.
+                 */
                 return cell.getCellFormula();
 
+            // ===============================
+            // CÉLULA EM BRANCO
+            // ===============================
             case BLANK:
                 return null;
 
+            // ===============================
+            // OUTROS TIPOS
+            // ===============================
             default:
                 return cell.toString().trim();
         }

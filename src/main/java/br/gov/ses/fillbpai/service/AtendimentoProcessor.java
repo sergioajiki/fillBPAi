@@ -1,10 +1,10 @@
 package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
+import br.gov.ses.fillbpai.util.DateUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 
 /**
@@ -17,12 +17,6 @@ import java.time.format.DateTimeParseException;
  * Apenas prepara o objeto para persistência.
  */
 public class AtendimentoProcessor {
-
-    private final DateTimeFormatter dateFormatterBR =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-    private final DateTimeFormatter timeFormatter =
-            DateTimeFormatter.ofPattern("HH:mm");
 
     /**
      * Processa e valida um atendimento antes da persistência.
@@ -63,15 +57,14 @@ public class AtendimentoProcessor {
 
     private void converterDatas(AtendimentoBPAi atendimento) {
 
-        // Converter Data Agendamento
+        // Converter Data Agendamento usando DateUtils
         if (!isNullOrEmpty(atendimento.getDataAgendamentoString())) {
             try {
-                LocalDate data = LocalDate.parse(
-                        atendimento.getDataAgendamentoString(),
-                        dateFormatterBR
+                LocalDate data = DateUtils.parse(
+                        atendimento.getDataAgendamentoString()
                 );
                 atendimento.setDataAgendamento(data);
-            } catch (DateTimeParseException e) {
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
                         "Data de agendamento inválida: "
                                 + atendimento.getDataAgendamentoString()
@@ -79,12 +72,11 @@ public class AtendimentoProcessor {
             }
         }
 
-        // Converter Hora Atendimento
+        // Converter Hora Atendimento (mantido simples por enquanto)
         if (!isNullOrEmpty(atendimento.getHoraAtendimentoString())) {
             try {
                 LocalTime hora = LocalTime.parse(
-                        atendimento.getHoraAtendimentoString(),
-                        timeFormatter
+                        atendimento.getHoraAtendimentoString()
                 );
                 atendimento.setHoraAtendimento(hora);
             } catch (DateTimeParseException e) {
@@ -95,15 +87,14 @@ public class AtendimentoProcessor {
             }
         }
 
-        // Converter Data Nascimento
+        // Converter Data Nascimento usando DateUtils
         if (!isNullOrEmpty(atendimento.getDataNascimentoString())) {
             try {
-                LocalDate nascimento = LocalDate.parse(
-                        atendimento.getDataNascimentoString(),
-                        dateFormatterBR
+                LocalDate nascimento = DateUtils.parse(
+                        atendimento.getDataNascimentoString()
                 );
                 atendimento.setDataNascimento(nascimento);
-            } catch (DateTimeParseException e) {
+            } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
                         "Data de nascimento inválida: "
                                 + atendimento.getDataNascimentoString()
@@ -145,4 +136,3 @@ public class AtendimentoProcessor {
         return value == null || value.trim().isEmpty();
     }
 }
-

@@ -6,33 +6,37 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
-import br.gov.ses.fillbpai.model.AtendimentoBPAi;
-import br.gov.ses.fillbpai.repository.AtendimentoBPAiRepository;
+import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
+import br.gov.ses.fillbpai.service.ImportacaoResultado;
 import br.gov.ses.fillbpai.util.HibernateUtil;
 
+import jakarta.persistence.EntityManager;
 import org.h2.tools.Server;
-
-import java.time.LocalDate;
-import java.time.LocalTime;
 
 /**
  * Classe principal da aplicação JavaFX.
  *
  * Responsável por:
  * - Inicializar infraestrutura (H2 + Hibernate)
- * - Iniciar a interface JavaFX
- * - Encerrar recursos corretamente ao fechar o sistema
+ * - Executar importação de arquivo Excel
+ * - Iniciar interface JavaFX
+ * - Encerrar recursos corretamente
  */
 public class MainApp extends Application {
 
     /**
-     * Instância do servidor Web do H2 (Console).
+     * Servidor Web do H2 (Console)
      */
     private Server h2Server;
 
     /**
-     * Inicializa o H2 Console programaticamente.
-     * Permite acessar via navegador:
+     * EntityManager compartilhado durante a execução
+     */
+    private EntityManager entityManager;
+
+    /**
+     * Inicia o console web do H2 programaticamente.
+     * Acesso via navegador:
      * http://localhost:8082
      */
     private void startH2Console() {
@@ -51,51 +55,34 @@ public class MainApp extends Application {
     }
 
     /**
-     * Método chamado automaticamente pelo JavaFX
-     * após a inicialização da aplicação.
+     * Método executado automaticamente após o launch().
      */
     @Override
     public void start(Stage primaryStage) {
 
         /*
-         * 1️⃣ Inicializa infraestrutura antes da interface
+         * 1️⃣ Inicializa infraestrutura
          */
-        startH2Console();                       // Inicia console do H2
-        HibernateUtil.getSessionFactory();      // Inicializa Hibernate
+        startH2Console(); // Inicia console H2
+
+        entityManager = HibernateUtil
+                .getSessionFactory()
+                .createEntityManager();
 
         System.out.println("Hibernate iniciado com sucesso!");
 
         /*
-         * 2️⃣ Teste de persistência (temporário para validação)
-
-        AtendimentoBPAi atendimento = new AtendimentoBPAi();
-        atendimento.setTipoServico("Consulta");
-        atendimento.setDataAgendamento(LocalDate.now());
-        atendimento.setHoraAtendimento(LocalTime.now());
-        atendimento.setEstabelecimento("SSD");
-        atendimento.setEspecialidadeMedico("Endocrinologia");
-        atendimento.setCpfMedico("12345678900");
-        atendimento.setCboMedico("225142");
-        atendimento.setMunicipio("Campo Grande");
-        atendimento.setCpfPaciente("98765432100");
-        atendimento.setPaciente("Paciente Teste");
-        atendimento.setCnsPaciente("123456789012345");
-        atendimento.setRacaPaciente("Branca");
-        atendimento.setDataNascimento("1990-01-01"); // Ainda como String
-        atendimento.setCidConsulta("E11");
-        atendimento.setTelefone("67999999999");
-        atendimento.setTipoZona("Urbana");
-        atendimento.setEnderecoCompleto("Rua Teste, 123");
-
-        new AtendimentoBPAiRepository().salvar(atendimento);
-
-        System.out.println("Registro salvo com sucesso!");
-           */
-        /*
-         * 3️⃣ Construção da Interface Gráfica
+         * 2️⃣ Executa importação do arquivo Excel
+         *
+         * ⚠ Aqui você pode depois substituir por
+         * botão na interface gráfica.
          */
+        executarImportacao();
 
-        Label label = new Label("fillBPAi - Aplicação iniciada com sucesso!");
+        /*
+         * 3️⃣ Construção da interface gráfica básica
+         */
+        Label label = new Label("fillBPAi - Sistema iniciado com sucesso!");
 
         StackPane root = new StackPane(label);
 
@@ -107,11 +94,52 @@ public class MainApp extends Application {
     }
 
     /**
-     * Método chamado automaticamente ao fechar a aplicação.
-     * Responsável por liberar recursos.
+     * Executa a importação e imprime relatório no console.
+     */
+    private void executarImportacao() {
+
+        try {
+
+            String caminhoArquivo = "data/bpai.xlsx";
+
+            AtendimentoImportacaoService service =
+                    new AtendimentoImportacaoService(entityManager);
+
+            ImportacaoResultado resultado =
+                    service.importar(caminhoArquivo);
+
+            /*
+             * Relatório final da importação
+             */
+            System.out.println("=================================");
+            System.out.println("RESULTADO DA IMPORTAÇÃO");
+            System.out.println("Total processados: " + resultado.getTotalProcessados());
+            System.out.println("Sucesso: " + resultado.getTotalSucesso());
+            System.out.println("Erros: " + resultado.getTotalErro());
+
+            if (!resultado.getErros().isEmpty()) {
+                System.out.println("Detalhes dos erros:");
+                resultado.getErros().forEach(System.out::println);
+            }
+
+            System.out.println("=================================");
+
+        } catch (Exception e) {
+            System.err.println("Erro geral na importação: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Executado automaticamente ao fechar a aplicação.
+     * Libera recursos corretamente.
      */
     @Override
     public void stop() {
+
+        if (entityManager != null && entityManager.isOpen()) {
+            entityManager.close();
+            System.out.println("EntityManager fechado.");
+        }
 
         if (h2Server != null) {
             h2Server.stop();
@@ -124,7 +152,6 @@ public class MainApp extends Application {
 
     /**
      * Método main tradicional.
-     * Responsável por iniciar o JavaFX.
      */
     public static void main(String[] args) {
         launch(args);
