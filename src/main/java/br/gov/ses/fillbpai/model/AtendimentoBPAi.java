@@ -7,6 +7,11 @@ import java.time.LocalTime;
 
 /**
  * Entidade que representa uma linha da planilha BPAi.
+ *
+ * Estratégia adotada:
+ * - Datas reais são armazenadas como LocalDate / LocalTime
+ * - Valores vindos do Excel são lidos como String
+ * - Campos auxiliares @Transient são usados para conversão antes da persistência
  */
 @Entity
 @Table(name = "atendimento_bpai")
@@ -16,7 +21,7 @@ public class AtendimentoBPAi {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "tipo_servico")
+    @Column(name = "tipo_servico", length = 100)
     private String tipoServico;
 
     @Column(name = "data_agendamento")
@@ -25,52 +30,68 @@ public class AtendimentoBPAi {
     @Column(name = "hora_atendimento")
     private LocalTime horaAtendimento;
 
+    @Column(length = 200)
     private String estabelecimento;
 
-    @Column(name = "especialidade_medico")
+    @Column(name = "especialidade_medico", length = 150)
     private String especialidadeMedico;
 
-    @Column(name = "cpf_medico")
+    @Column(name = "cpf_medico", length = 14)
     private String cpfMedico;
 
-    @Column(name = "cbo_medico")
+    @Column(name = "cbo_medico", length = 20)
     private String cboMedico;
 
+    @Column(length = 150)
     private String municipio;
 
-    @Column(name = "cpf_paciente")
+    @Column(name = "cpf_paciente", length = 14)
     private String cpfPaciente;
 
+    @Column(length = 200)
     private String paciente;
 
-    @Column(name = "cns_paciente")
+    @Column(name = "cns_paciente", length = 20)
     private String cnsPaciente;
 
-    @Column(name = "raca_paciente")
+    @Column(name = "raca_paciente", length = 50)
     private String racaPaciente;
 
     @Column(name = "data_nascimento")
-    private String dataNascimento;
+    private LocalDate dataNascimento;
 
-    @Column(name = "cid_consulta")
+    @Column(name = "cid_consulta", length = 20)
     private String cidConsulta;
 
+    @Column(length = 20)
     private String telefone;
 
-    @Column(name = "tipo_zona")
+    @Column(name = "tipo_zona", length = 50)
     private String tipoZona;
 
     @Column(name = "endereco_completo", length = 1000)
     private String enderecoCompleto;
 
+    /*
+     * Campos auxiliares para importação do Excel.
+     * NÃO são persistidos no banco.
+     */
+
+    @Transient
+    private String dataAgendamentoString;
+
+    @Transient
+    private String horaAtendimentoString;
+
+    @Transient
+    private String dataNascimentoString;
+
+    // ======================
     // Getters e Setters
+    // ======================
 
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public String getTipoServico() {
@@ -169,11 +190,11 @@ public class AtendimentoBPAi {
         this.racaPaciente = racaPaciente;
     }
 
-    public String getDataNascimento() {
+    public LocalDate getDataNascimento() {
         return dataNascimento;
     }
 
-    public void setDataNascimento(String dataNascimento) {
+    public void setDataNascimento(LocalDate dataNascimento) {
         this.dataNascimento = dataNascimento;
     }
 
@@ -208,5 +229,28 @@ public class AtendimentoBPAi {
     public void setEnderecoCompleto(String enderecoCompleto) {
         this.enderecoCompleto = enderecoCompleto;
     }
-}
 
+    public String getDataAgendamentoString() {
+        return dataAgendamentoString;
+    }
+
+    public void setDataAgendamentoString(String dataAgendamentoString) {
+        this.dataAgendamentoString = dataAgendamentoString;
+    }
+
+    public String getHoraAtendimentoString() {
+        return horaAtendimentoString;
+    }
+
+    public void setHoraAtendimentoString(String horaAtendimentoString) {
+        this.horaAtendimentoString = horaAtendimentoString;
+    }
+
+    public String getDataNascimentoString() {
+        return dataNascimentoString;
+    }
+
+    public void setDataNascimentoString(String dataNascimentoString) {
+        this.dataNascimentoString = dataNascimentoString;
+    }
+}
