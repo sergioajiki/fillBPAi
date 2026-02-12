@@ -6,7 +6,12 @@ import javafx.scene.control.Label;
 import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
 
+import br.gov.ses.fillbpai.model.AtendimentoBPAi;
+import br.gov.ses.fillbpai.repository.AtendimentoBPAiRepository;
 import br.gov.ses.fillbpai.util.HibernateUtil;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
 
 /**
  * Classe principal da aplicação JavaFX.
@@ -40,7 +45,32 @@ public class MainApp extends Application {
         HibernateUtil.getSessionFactory();
         System.out.println("Hibernate iniciado com sucesso!");
 
+        AtendimentoBPAi atendimento = new AtendimentoBPAi();
+        atendimento.setTipoServico("Consulta");
+        atendimento.setDataAgendamento(LocalDate.now());
+        atendimento.setHoraAtendimento(LocalTime.now());
+        atendimento.setEstabelecimento("SSD");
+        atendimento.setEspecialidadeMedico("Endocrinologia");
+        atendimento.setCpfMedico("12345678900");
+        atendimento.setCboMedico("225142");
+        atendimento.setMunicipio("Campo Grande");
+        atendimento.setCpfPaciente("98765432100");
+        atendimento.setPaciente("Paciente Teste");
+        atendimento.setCnsPaciente("123456789012345");
+        atendimento.setRacaPaciente("Branca");
+        atendimento.setDataNascimento("1990-01-01");
+        atendimento.setCidConsulta("E11");
+        atendimento.setTelefone("67999999999");
+        atendimento.setTipoZona("Urbana");
+        atendimento.setEnderecoCompleto("Rua Teste, 123");
+
+        new AtendimentoBPAiRepository().salvar(atendimento);
+
+        System.out.println("Registro salvo com sucesso!");
+
     }
+
+
 
     /**
      * Método main tradicional.
