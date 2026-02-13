@@ -39,6 +39,9 @@ public class AtendimentoBPAi {
     @Column(name = "especialidade_medico", length = 150)
     private String especialidadeMedico;
 
+    @Column(name = "medico", length = 200)
+    private String medico;
+
     @Column(name = "cpf_medico", length = 14)
     private String cpfMedico;
 
@@ -143,6 +146,14 @@ public class AtendimentoBPAi {
 
     public void setEspecialidadeMedico(String especialidadeMedico) {
         this.especialidadeMedico = especialidadeMedico;
+    }
+
+    public String getMedico() {
+        return medico;
+    }
+
+    public void setMedico(String medico) {
+        this.medico = medico;
     }
 
     public String getCpfMedico() {

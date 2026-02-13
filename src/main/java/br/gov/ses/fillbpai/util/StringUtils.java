@@ -1,40 +1,51 @@
 package br.gov.ses.fillbpai.util;
 
-/**
- * Classe utilitária para manipulação de Strings.
- */
 public class StringUtils {
-
     /**
      * Separa código e nome do estabelecimento.
      *
-     * Entrada esperada:
+     * Exemplo de entrada:
      * "123456 - HOSPITAL MUNICIPAL"
      *
-     * Retorno:
+     * Retorna:
      * [0] -> código
      * [1] -> nome
-     *
-     * Caso não exista hífen:
-     * código = null
-     * nome = valor original
      */
     public static String[] separarCodigoENome(String valor) {
 
-        if (valor == null || valor.trim().isEmpty()) {
-            return new String[]{null, null};
+        if (valor == null || !valor.contains("-")) {
+            return new String[]{null, valor};
         }
 
-        // Garante que o split ocorra apenas na primeira ocorrência
-        String[] partes = valor.split("\\s*-\\s*", 2);
-
-        if (partes.length < 2) {
-            return new String[]{null, valor.trim()};
-        }
+        String[] partes = valor.split("-", 2);
 
         String codigo = partes[0].trim();
         String nome = partes[1].trim();
 
         return new String[]{codigo, nome};
+    }
+
+    /**
+     * Separa especialidade e nome do médico.
+     *
+     * Exemplo de entrada:
+     * "CARDIOLOGIA - JOÃO DA SILVA"
+     *
+     * Retorna:
+     * [0] -> especialidade
+     * [1] -> nome do médico
+     */
+    public static String[] separarEspecialidadeEMedico(String valor) {
+
+        if (valor == null || !valor.contains("-")) {
+            return new String[]{valor, null};
+        }
+
+        String[] partes = valor.split("-", 2);
+
+        String especialidade = partes[0].trim();
+        String medico = partes[1].trim();
+
+        return new String[]{especialidade, medico};
     }
 }

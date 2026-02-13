@@ -12,7 +12,7 @@ import java.time.LocalTime;
  * Classe responsável por:
  * - Validar dados importados do Excel
  * - Converter Strings em tipos corretos
- * - Normalizar informações (CPF, telefone etc.)
+ * - Normalizar informações (CPF etc.)
  *
  * Esta classe NÃO acessa banco.
  * Apenas prepara o objeto para persistência.
@@ -25,41 +25,65 @@ public class AtendimentoProcessor {
     public void processar(AtendimentoBPAi atendimento) {
 
         // ===============================
-        // 1️⃣ Separar código e nome estabelecimento
+        // 1️⃣ Separações
         // ===============================
-        String valorOriginal = atendimento.getEstabelecimento();
 
-        if (valorOriginal != null && !valorOriginal.trim().isEmpty()) {
-
-            String[] partes =
-                    StringUtils.separarCodigoENome(valorOriginal);
-
-            atendimento.setCodEstabelecimento(partes[0]); // código
-            atendimento.setEstabelecimento(partes[1]);    // nome
-
-            System.out.println("Original: " + valorOriginal);
-            System.out.println("Código: " + partes[0]);
-            System.out.println("Nome: " + partes[1]);
-
-        }
+        separarEstabelecimento(atendimento);
+        separarEspecialidadeEMedico(atendimento);
 
         // ===============================
         // 2️⃣ Validações
         // ===============================
+
         validarCamposObrigatorios(atendimento);
 
         // ===============================
         // 3️⃣ Conversões
         // ===============================
+
         converterDatas(atendimento);
 
         // ===============================
         // 4️⃣ Normalizações
         // ===============================
+
         normalizarCpf(atendimento);
+    }
 
+    /**
+     * Separa código e nome do estabelecimento.
+     */
+    private void separarEstabelecimento(AtendimentoBPAi atendimento) {
 
+        String valorOriginal = atendimento.getEstabelecimento();
 
+        if (isNullOrEmpty(valorOriginal)) {
+            return;
+        }
+
+        String[] partes =
+                StringUtils.separarCodigoENome(valorOriginal);
+
+        atendimento.setCodEstabelecimento(partes[0]);
+        atendimento.setEstabelecimento(partes[1]);
+    }
+
+    /**
+     * Separa especialidade e nome do médico.
+     */
+    private void separarEspecialidadeEMedico(AtendimentoBPAi atendimento) {
+
+        String valorOriginal = atendimento.getEspecialidadeMedico();
+
+        if (isNullOrEmpty(valorOriginal)) {
+            return;
+        }
+
+        String[] partes =
+                StringUtils.separarEspecialidadeEMedico(valorOriginal);
+
+        atendimento.setEspecialidadeMedico(partes[0]);
+        atendimento.setMedico(partes[1]);
     }
 
     // ===============================
@@ -91,7 +115,6 @@ public class AtendimentoProcessor {
             try {
                 LocalDate data =
                         DateUtils.parse(atendimento.getDataAgendamentoString());
-
                 atendimento.setDataAgendamento(data);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
@@ -105,7 +128,6 @@ public class AtendimentoProcessor {
             try {
                 LocalTime hora =
                         TimeUtils.parse(atendimento.getHoraAtendimentoString());
-
                 atendimento.setHoraAtendimento(hora);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
@@ -119,7 +141,6 @@ public class AtendimentoProcessor {
             try {
                 LocalDate nascimento =
                         DateUtils.parse(atendimento.getDataNascimentoString());
-
                 atendimento.setDataNascimento(nascimento);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(

@@ -198,6 +198,20 @@ public class RelatorioController {
                             ? a.getEstabelecimento()
                             : "");
 
+            /*
+             * Remonta especialidade + médico
+             * no formato original da planilha:
+             *
+             * "CARDIOLOGIA - JOÃO DA SILVA"
+             */
+            String especialidadeMedicoFormatado =
+                    (a.getEspecialidadeMedico() != null
+                            ? a.getEspecialidadeMedico()
+                            : "")
+                            + (a.getMedico() != null && !a.getMedico().isEmpty()
+                            ? " - " + a.getMedico()
+                            : "");
+
             listaUI.add(new AtendimentoBPAiDTO(
                     a.getTipoServico(),
                     a.getDataAgendamento() != null
@@ -207,7 +221,7 @@ public class RelatorioController {
                             ? a.getHoraAtendimento().format(horaFormat)
                             : "",
                     estabelecimentoFormatado,
-                    a.getEspecialidadeMedico(),
+                    especialidadeMedicoFormatado,
                     a.getCpfMedico(),
                     a.getCboMedico(),
                     a.getMunicipio(),
