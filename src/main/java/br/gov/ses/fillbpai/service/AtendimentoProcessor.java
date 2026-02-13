@@ -3,10 +3,10 @@ package br.gov.ses.fillbpai.service;
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
+import br.gov.ses.fillbpai.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeParseException;
 
 /**
  * Classe responsável por:
@@ -21,16 +21,45 @@ public class AtendimentoProcessor {
 
     /**
      * Processa e valida um atendimento antes da persistência.
-     *
-     * @throws IllegalArgumentException se algum dado estiver inválido
      */
     public void processar(AtendimentoBPAi atendimento) {
 
+        // ===============================
+        // 1️⃣ Separar código e nome estabelecimento
+        // ===============================
+        String valorOriginal = atendimento.getEstabelecimento();
+
+        if (valorOriginal != null && !valorOriginal.trim().isEmpty()) {
+
+            String[] partes =
+                    StringUtils.separarCodigoENome(valorOriginal);
+
+            atendimento.setCodEstabelecimento(partes[0]); // código
+            atendimento.setEstabelecimento(partes[1]);    // nome
+
+            System.out.println("Original: " + valorOriginal);
+            System.out.println("Código: " + partes[0]);
+            System.out.println("Nome: " + partes[1]);
+
+        }
+
+        // ===============================
+        // 2️⃣ Validações
+        // ===============================
         validarCamposObrigatorios(atendimento);
 
+        // ===============================
+        // 3️⃣ Conversões
+        // ===============================
         converterDatas(atendimento);
 
+        // ===============================
+        // 4️⃣ Normalizações
+        // ===============================
         normalizarCpf(atendimento);
+
+
+
     }
 
     // ===============================
@@ -58,12 +87,11 @@ public class AtendimentoProcessor {
 
     private void converterDatas(AtendimentoBPAi atendimento) {
 
-        // Converter Data Agendamento usando DateUtils
         if (!isNullOrEmpty(atendimento.getDataAgendamentoString())) {
             try {
-                LocalDate data = DateUtils.parse(
-                        atendimento.getDataAgendamentoString()
-                );
+                LocalDate data =
+                        DateUtils.parse(atendimento.getDataAgendamentoString());
+
                 atendimento.setDataAgendamento(data);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
@@ -73,12 +101,11 @@ public class AtendimentoProcessor {
             }
         }
 
-// Converter Hora Atendimento usando TimeUtils
         if (!isNullOrEmpty(atendimento.getHoraAtendimentoString())) {
             try {
-                LocalTime hora = TimeUtils.parse(
-                        atendimento.getHoraAtendimentoString()
-                );
+                LocalTime hora =
+                        TimeUtils.parse(atendimento.getHoraAtendimentoString());
+
                 atendimento.setHoraAtendimento(hora);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(
@@ -88,12 +115,11 @@ public class AtendimentoProcessor {
             }
         }
 
-        // Converter Data Nascimento usando DateUtils
         if (!isNullOrEmpty(atendimento.getDataNascimentoString())) {
             try {
-                LocalDate nascimento = DateUtils.parse(
-                        atendimento.getDataNascimentoString()
-                );
+                LocalDate nascimento =
+                        DateUtils.parse(atendimento.getDataNascimentoString());
+
                 atendimento.setDataNascimento(nascimento);
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException(

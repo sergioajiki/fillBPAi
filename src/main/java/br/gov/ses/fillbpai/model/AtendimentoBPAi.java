@@ -30,7 +30,10 @@ public class AtendimentoBPAi {
     @Column(name = "hora_atendimento")
     private LocalTime horaAtendimento;
 
-    @Column(length = 200)
+    @Column(name = "cod_estabelecimento", length = 10)
+    private String codEstabelecimento;
+
+    @Column(name = "estabelecimento", length = 200)
     private String estabelecimento;
 
     @Column(name = "especialidade_medico", length = 150)
@@ -116,6 +119,14 @@ public class AtendimentoBPAi {
 
     public void setHoraAtendimento(LocalTime horaAtendimento) {
         this.horaAtendimento = horaAtendimento;
+    }
+
+    public String getCodEstabelecimento() {
+        return codEstabelecimento;
+    }
+
+    public void setCodEstabelecimento(String codEstabelecimento) {
+        this.codEstabelecimento = codEstabelecimento;
     }
 
     public String getEstabelecimento() {
@@ -252,5 +263,9 @@ public class AtendimentoBPAi {
 
     public void setDataNascimentoString(String dataNascimentoString) {
         this.dataNascimentoString = dataNascimentoString;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 }
