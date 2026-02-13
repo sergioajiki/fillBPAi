@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.service;
 import java.util.ArrayList;
 import java.util.List;
 
+import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 /**
  * Representa o resumo final da importação.
  */
@@ -13,6 +14,8 @@ public class ImportacaoResultado {
     private int totalErro;
 
     private List<String> erros = new ArrayList<>();
+
+    private List<AtendimentoBPAi> registrosImportados;
 
     public void adicionarSucesso() {
         totalProcessados++;
@@ -39,6 +42,14 @@ public class ImportacaoResultado {
 
     public List<String> getErros() {
         return erros;
+    }
+
+    public List<AtendimentoBPAi> getRegistrosImportados() {
+        return registrosImportados;
+    }
+
+    public void setRegistrosImportados(List<AtendimentoBPAi> registrosImportados) {
+        this.registrosImportados = registrosImportados;
     }
 }
 

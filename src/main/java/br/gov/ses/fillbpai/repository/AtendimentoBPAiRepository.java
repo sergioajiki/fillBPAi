@@ -4,6 +4,8 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
 
+import java.util.List;
+
 /**
  * Camada responsável apenas por persistência.
  * Não contém regra de negócio.
@@ -17,23 +19,13 @@ public class AtendimentoBPAiRepository {
     }
 
     public void salvar(AtendimentoBPAi atendimento) {
-
-        EntityTransaction transaction = entityManager.getTransaction();
-
-        try {
-            transaction.begin();
-
             entityManager.persist(atendimento);
-
-            transaction.commit();
-
-        } catch (Exception e) {
-
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
-
-            throw e;
-        }
     }
+
+    public List<AtendimentoBPAi> buscarTodos() {
+        return entityManager
+                .createQuery("FROM AtendimentoBPAi", AtendimentoBPAi.class)
+                .getResultList();
+    }
+
 }
