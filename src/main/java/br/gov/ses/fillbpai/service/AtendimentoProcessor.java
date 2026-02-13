@@ -13,7 +13,7 @@ import java.time.LocalTime;
  * - Validar dados importados do Excel
  * - Converter Strings em tipos corretos
  * - Normalizar informações (CPF etc.)
- *
+ * <p>
  * Esta classe NÃO acessa banco.
  * Apenas prepara o objeto para persistência.
  */
@@ -32,6 +32,12 @@ public class AtendimentoProcessor {
         separarEspecialidadeEMedico(atendimento);
 
         // ===============================
+        // 2️⃣ Definir SIGTAP
+        // ===============================
+
+        atendimento.setSigtap(definirSigtap(atendimento.getTipoServico()));
+
+        // ===============================
         // 2️⃣ Validações
         // ===============================
 
@@ -48,6 +54,27 @@ public class AtendimentoProcessor {
         // ===============================
 
         normalizarCpf(atendimento);
+    }
+
+    private String definirSigtap(String tipoServico) {
+
+        if (tipoServico == null) {
+            return null;
+        }
+
+        switch (tipoServico.trim().toUpperCase()) {
+
+            case "TELECONSULTA":
+                return "03.01.01.030-7";
+
+            case "TELEINTERCONSULTA":
+                return "08.04.01.006-4";
+
+            default:
+                throw new IllegalArgumentException(
+                        "Tipo de serviço inválido para SIGTAP: " + tipoServico
+                );
+        }
     }
 
     /**

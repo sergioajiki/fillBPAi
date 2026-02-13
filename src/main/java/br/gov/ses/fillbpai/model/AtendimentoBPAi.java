@@ -7,7 +7,7 @@ import java.time.LocalTime;
 
 /**
  * Entidade que representa uma linha da planilha BPAi.
- *
+ * <p>
  * Estratégia adotada:
  * - Datas reais são armazenadas como LocalDate / LocalTime
  * - Valores vindos do Excel são lidos como String
@@ -23,6 +23,9 @@ public class AtendimentoBPAi {
 
     @Column(name = "tipo_servico", length = 100)
     private String tipoServico;
+
+    @Column(name = "sigtap", length = 20)
+    private String sigtap;
 
     @Column(name = "data_agendamento")
     private LocalDate dataAgendamento;
@@ -106,6 +109,14 @@ public class AtendimentoBPAi {
 
     public void setTipoServico(String tipoServico) {
         this.tipoServico = tipoServico;
+    }
+
+    public String getSigtap() {
+        return sigtap;
+    }
+
+    public void setSigtap(String sigtap) {
+        this.sigtap = sigtap;
     }
 
     public LocalDate getDataAgendamento() {
