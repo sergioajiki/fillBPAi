@@ -6,170 +6,77 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.layout.VBox;
-import javafx.stage.Stage;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * Controller responsável por exibir
- * SOMENTE os dados importados nesta execução.
+ * Controller responsável pela TABELA DE RESULTADO.
  *
- * 🔹 Não consulta banco
- * 🔹 Não contém regra de negócio
- * 🔹 Apenas monta a tela e exibe dados recebidos
+ * ✔ NÃO abre nova janela
+ * ✔ NÃO consulta banco
+ * ✔ NÃO contém regra de negócio
+ * ✔ Apenas exibe dados recebidos
+ *
+ * Ele funciona como componente reutilizável dentro
+ * da tela principal.
  */
 public class RelatorioController {
 
     /**
-     * Lista contendo apenas os registros
-     * importados na execução atual.
+     * Tabela visual exibida na tela.
      */
-    private final List<AtendimentoBPAi> registrosImportados;
+    private TableView<AtendimentoBPAiDTO> table;
 
     /**
-     * Construtor recebe apenas os registros
-     * da execução atual.
+     * Lista observável vinculada à tabela.
+     * Permite atualização dinâmica dos dados.
+     */
+    private ObservableList<AtendimentoBPAiDTO> listaUI;
+
+    /**
+     * Cria o componente visual (layout da tabela).
      *
-     * Isso garante que:
-     * ✔ Não exibimos o banco inteiro
-     * ✔ A tela é independente do repositório
+     * Este método deve ser chamado apenas UMA vez
+     * pela tela principal (MainController).
+     *
+     * Depois disso, apenas atualizarDados() será chamado.
      */
-    public RelatorioController(List<AtendimentoBPAi> registrosImportados) {
-        this.registrosImportados = registrosImportados;
-    }
-
-    /**
-     * Método principal que cria e exibe a janela
-     * do relatório.
-     */
-    public void exibirRelatorio() {
-
-        Stage stage = new Stage();
-        stage.setTitle("Relatório de Importação BPAi");
+    public BorderPane criarComponente() {
 
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(10));
 
-        TableView<AtendimentoBPAiDTO> table = new TableView<>();
+        table = new TableView<>();
+        listaUI = FXCollections.observableArrayList();
 
-        // Criação dinâmica das colunas
+        // Cria colunas dinamicamente
         adicionarColunas(table);
 
-        // Carrega apenas dados recebidos
-        carregarDados(table);
-
-        // Label com total importado nesta execução
-        Label totalLabel = new Label(
-                "Total importado nesta execução: "
-                        + (registrosImportados != null
-                        ? registrosImportados.size()
-                        : 0)
-        );
-
-        VBox bottom = new VBox(10, totalLabel);
-        bottom.setPadding(new Insets(10));
+        // Vincula lista à tabela
+        table.setItems(listaUI);
 
         root.setCenter(table);
-        root.setBottom(bottom);
 
-        stage.setScene(new Scene(root, 1500, 600));
-        stage.show();
+        return root;
     }
 
     /**
-     * Cria todas as colunas da tabela.
+     * Atualiza os dados exibidos na tabela.
      *
-     * Cada coluna mapeia para uma propriedade do DTO.
+     * Deve ser chamado após cada importação.
+     *
+     * @param registrosImportados lista da execução atual
      */
-    private void adicionarColunas(TableView<AtendimentoBPAiDTO> table) {
+    public void atualizarDados(List<AtendimentoBPAi> registrosImportados) {
 
-        table.getColumns().addAll(
-                criarColuna("Tipo Serviço", "tipoServico"),
-                criarColuna("Data Agendamento", "dataAgendamento"),
-                criarColuna("Hora Atendimento", "horaAtendimento"),
-                criarColuna("Estabelecimento", "estabelecimento"),
-                criarColuna("Especialidade Médico", "especialidadeMedico"),
-                criarColuna("CPF Médico", "cpfMedico"),
-                criarColuna("CBO Médico", "cboMedico"),
-                criarColuna("Município", "municipio"),
-                criarColuna("CPF Paciente", "cpfPaciente"),
-                criarColuna("Paciente", "paciente"),
-                criarColuna("CNS Paciente", "cnsPaciente"),
-                criarColuna("Raça Paciente", "racaPaciente"),
-                criarColuna("Data Nascimento", "dataNascimento"),
-                criarColuna("CID Consulta", "cidConsulta"),
-                criarColuna("Telefone", "telefone"),
-                criarColuna("Tipo Zona", "tipoZona"),
-                criarColuna("Endereço Completo", "enderecoCompleto")
-        );
-    }
+        // Limpa dados anteriores
+        listaUI.clear();
 
-    /**
-     * Método genérico para criar uma coluna.
-     *
-     * Utiliza reflection para buscar dinamicamente
-     * o getter correspondente no DTO.
-     *
-     * Isso evita repetição de código.
-     */
-    private TableColumn<AtendimentoBPAiDTO, String> criarColuna(
-            String titulo,
-            String propriedade
-    ) {
-
-        TableColumn<AtendimentoBPAiDTO, String> coluna =
-                new TableColumn<>(titulo);
-
-        coluna.setCellValueFactory(data ->
-                new SimpleStringProperty(
-                        getValor(data.getValue(), propriedade)
-                )
-        );
-
-        coluna.setPrefWidth(150);
-
-        return coluna;
-    }
-
-    /**
-     * Usa reflection para acessar dinamicamente
-     * o getter da propriedade informada.
-     *
-     * Exemplo:
-     * propriedade = "paciente"
-     * chama -> getPaciente()
-     */
-    private String getValor(AtendimentoBPAiDTO dto, String propriedade) {
-
-        try {
-            Object valor = dto.getClass()
-                    .getMethod("get" +
-                            propriedade.substring(0, 1).toUpperCase() +
-                            propriedade.substring(1))
-                    .invoke(dto);
-
-            return valor != null ? valor.toString() : "";
-
-        } catch (Exception e) {
-            return "";
-        }
-    }
-
-    /**
-     * Carrega dados apenas da lista recebida
-     * na importação.
-     *
-     * NÃO consulta banco.
-     */
-    private void carregarDados(TableView<AtendimentoBPAiDTO> table) {
-
-        if (registrosImportados == null ||
-                registrosImportados.isEmpty()) {
+        if (registrosImportados == null || registrosImportados.isEmpty()) {
             return;
         }
 
@@ -179,16 +86,16 @@ public class RelatorioController {
         DateTimeFormatter horaFormat =
                 DateTimeFormatter.ofPattern("HH:mm");
 
-        ObservableList<AtendimentoBPAiDTO> listaUI =
-                FXCollections.observableArrayList();
-
         for (AtendimentoBPAi a : registrosImportados) {
 
             /*
-             * Remonta o estabelecimento para exibição
-             * no formato original da planilha:
+             * Reconstrói estabelecimento no formato original da planilha:
              *
              * "123456 - HOSPITAL MUNICIPAL"
+             *
+             * No banco:
+             * codEstabelecimento → 123456
+             * estabelecimento → HOSPITAL MUNICIPAL
              */
             String estabelecimentoFormatado =
                     (a.getCodEstabelecimento() != null
@@ -199,10 +106,13 @@ public class RelatorioController {
                             : "");
 
             /*
-             * Remonta especialidade + médico
-             * no formato original da planilha:
+             * Reconstrói especialidade + médico:
              *
              * "CARDIOLOGIA - JOÃO DA SILVA"
+             *
+             * No banco:
+             * especialidadeMedico → CARDIOLOGIA
+             * medico → JOÃO DA SILVA
              */
             String especialidadeMedicoFormatado =
                     (a.getEspecialidadeMedico() != null
@@ -238,7 +148,82 @@ public class RelatorioController {
                     a.getEnderecoCompleto()
             ));
         }
+    }
 
-        table.setItems(listaUI);
+    /**
+     * Cria dinamicamente as colunas da tabela.
+     *
+     * Usa reflexão para evitar repetição de código.
+     */
+    private void adicionarColunas(TableView<AtendimentoBPAiDTO> table) {
+
+        table.getColumns().addAll(
+                criarColuna("Tipo Serviço", "tipoServico"),
+                criarColuna("Data Agendamento", "dataAgendamento"),
+                criarColuna("Hora Atendimento", "horaAtendimento"),
+                criarColuna("Estabelecimento", "estabelecimento"),
+                criarColuna("Especialidade Médico", "especialidadeMedico"),
+                criarColuna("CPF Médico", "cpfMedico"),
+                criarColuna("CBO Médico", "cboMedico"),
+                criarColuna("Município", "municipio"),
+                criarColuna("CPF Paciente", "cpfPaciente"),
+                criarColuna("Paciente", "paciente"),
+                criarColuna("CNS Paciente", "cnsPaciente"),
+                criarColuna("Raça Paciente", "racaPaciente"),
+                criarColuna("Data Nascimento", "dataNascimento"),
+                criarColuna("CID Consulta", "cidConsulta"),
+                criarColuna("Telefone", "telefone"),
+                criarColuna("Tipo Zona", "tipoZona"),
+                criarColuna("Endereço Completo", "enderecoCompleto")
+        );
+    }
+
+    /**
+     * Método genérico para criação de coluna.
+     *
+     * @param titulo Nome exibido na coluna
+     * @param propriedade Nome da propriedade no DTO
+     */
+    private TableColumn<AtendimentoBPAiDTO, String> criarColuna(
+            String titulo,
+            String propriedade
+    ) {
+
+        TableColumn<AtendimentoBPAiDTO, String> coluna =
+                new TableColumn<>(titulo);
+
+        coluna.setCellValueFactory(data ->
+                new SimpleStringProperty(
+                        getValor(data.getValue(), propriedade)
+                )
+        );
+
+        coluna.setPrefWidth(150);
+
+        return coluna;
+    }
+
+    /**
+     * Usa reflection para chamar dinamicamente
+     * o getter correspondente no DTO.
+     *
+     * Exemplo:
+     * propriedade = "paciente"
+     * chama -> getPaciente()
+     */
+    private String getValor(AtendimentoBPAiDTO dto, String propriedade) {
+
+        try {
+            Object valor = dto.getClass()
+                    .getMethod("get" +
+                            propriedade.substring(0, 1).toUpperCase() +
+                            propriedade.substring(1))
+                    .invoke(dto);
+
+            return valor != null ? valor.toString() : "";
+
+        } catch (Exception e) {
+            return "";
+        }
     }
 }

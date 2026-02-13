@@ -1,52 +1,46 @@
 package br.gov.ses.fillbpai.app;
 
-import br.gov.ses.fillbpai.config.DatabaseInitializer;
 import br.gov.ses.fillbpai.controller.MainController;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.layout.StackPane;
+import javafx.scene.layout.BorderPane;
 import javafx.stage.Stage;
 
 /**
- * Classe principal da aplicação.
+ * Classe principal da aplicação JavaFX.
  *
- * Responsável apenas por:
- * - Inicializar JavaFX
- * - Montar a interface
- * - Delegar responsabilidades
+ * Responsável por:
+ * - Inicializar JPA
+ * - Criar layout raiz
+ * - Instanciar MainController
+ * - Iniciar aplicação
  */
 public class MainApp extends Application {
 
-    private DatabaseInitializer databaseInitializer;
+    private EntityManagerFactory emf;
+    private EntityManager entityManager;
 
     @Override
     public void start(Stage primaryStage) {
 
-        // 1️⃣ Inicializa infraestrutura
-        databaseInitializer = new DatabaseInitializer();
-        databaseInitializer.iniciar();
+        // 🔹 Inicializa JPA
+        emf = Persistence.createEntityManagerFactory("bpaPU");
+        entityManager = emf.createEntityManager();
 
-        EntityManager entityManager =
-                databaseInitializer.getEntityManager();
+        // 🔹 Cria layout raiz
+        BorderPane root = new BorderPane();
 
-        // 2️⃣ Cria controller
+        // 🔹 Instancia controller principal
         MainController controller =
-                new MainController(entityManager);
+                new MainController(entityManager, root);
 
-        // 3️⃣ Interface simples com botão
-        Button btnImportar = new Button("Importar Planilha BPAi");
+        // 🔹 Cria cena usando o MESMO root
+        Scene scene = new Scene(root, 1500, 700);
 
-        btnImportar.setOnAction(e ->
-                controller.importar(primaryStage)
-        );
-
-        StackPane root = new StackPane(btnImportar);
-
-        Scene scene = new Scene(root, 600, 400);
-
-        primaryStage.setTitle("fillBPAi");
+        primaryStage.setTitle("Importador BPAi");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
@@ -54,8 +48,13 @@ public class MainApp extends Application {
     @Override
     public void stop() {
 
-        if (databaseInitializer != null) {
-            databaseInitializer.finalizar();
+        // 🔹 Fecha recursos JPA ao encerrar aplicação
+        if (entityManager != null) {
+            entityManager.close();
+        }
+
+        if (emf != null) {
+            emf.close();
         }
     }
 
