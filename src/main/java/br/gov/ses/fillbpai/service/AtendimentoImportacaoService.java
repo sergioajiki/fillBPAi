@@ -13,12 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Serviço principal responsável por:
+ * Serviço responsável por:
  * - Ler arquivo Excel
  * - Converter linhas em entidade
  * - Processar regras de negócio
- * - Persistir em lote
- * - Retornar resultado da importação
+ * - Persistir no banco
+ * - Retornar resumo detalhado da importação
  */
 public class AtendimentoImportacaoService {
 
@@ -27,25 +27,17 @@ public class AtendimentoImportacaoService {
     private final AtendimentoBPAiRepository repository;
     private final EntityManager entityManager;
 
-    /**
-     * Recebe EntityManager da camada superior
-     */
     public AtendimentoImportacaoService(EntityManager entityManager) {
         this.entityManager = entityManager;
         this.repository = new AtendimentoBPAiRepository(entityManager);
     }
 
     /**
-     * Executa a importação completa do arquivo Excel.
-     *
-     * @param caminhoArquivo caminho absoluto do arquivo
-     * @return resultado detalhado da importação
+     * Executa a importação completa.
      */
     public ImportacaoResultado importar(String caminhoArquivo) {
 
         ImportacaoResultado resultado = new ImportacaoResultado();
-
-        // Lista para armazenar apenas registros válidos desta sessão
         List<AtendimentoBPAi> importados = new ArrayList<>();
 
         EntityTransaction transaction = entityManager.getTransaction();
@@ -55,50 +47,44 @@ public class AtendimentoImportacaoService {
 
             Sheet sheet = workbook.getSheetAt(0);
 
-            transaction.begin(); // 🔹 inicia transação
+            transaction.begin();
 
             for (Row row : sheet) {
 
-                // 🔹 Ignora primeira linha (cabeçalho)
+                // Ignora cabeçalho
                 if (row.getRowNum() == 0) {
                     continue;
                 }
 
                 try {
 
-                    /*
-                     * 1️⃣ Converte linha Excel em entidade
-                     */
+                    // 1️⃣ Converte linha Excel
                     AtendimentoBPAi atendimento =
                             excelService.importarLinha(row);
 
-                    /*
-                     * 2️⃣ Processa regras adicionais (validações, ajustes)
-                     */
+                    // 2️⃣ Processa regras de negócio
                     processor.processar(atendimento);
 
-                    /*
-                     * 3️⃣ Persiste no banco
-                     */
+                    // 3️⃣ Persiste no banco
                     repository.salvar(atendimento);
 
-                    /*
-                     * 4️⃣ Guarda na lista da sessão atual
-                     */
                     importados.add(atendimento);
 
                     resultado.adicionarSucesso();
 
                 } catch (Exception e) {
 
-                    resultado.adicionarErro(
+                    // Captura erro específico da linha
+                    String mensagemErro =
                             "Linha " + (row.getRowNum() + 1)
-                                    + ": " + e.getMessage()
-                    );
+                                    + " - Erro: " + e.getClass().getSimpleName()
+                                    + " -> " + e.getMessage();
+
+                    resultado.adicionarErro(mensagemErro);
                 }
             }
 
-            transaction.commit(); // 🔹 confirma transação
+            transaction.commit();
 
         } catch (IOException e) {
 
@@ -121,10 +107,6 @@ public class AtendimentoImportacaoService {
             );
         }
 
-        /*
-         * Define lista importada no resultado
-         * (somente registros válidos desta execução)
-         */
         resultado.setRegistrosImportados(importados);
 
         return resultado;

@@ -6,10 +6,10 @@ import br.gov.ses.fillbpai.ui.FileChooserService;
 import br.gov.ses.fillbpai.ui.RelatorioController;
 import jakarta.persistence.EntityManager;
 import javafx.geometry.Insets;
-import javafx.scene.control.Alert;
-import javafx.scene.control.Button;
+import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 /**
@@ -19,7 +19,8 @@ import javafx.stage.Stage;
  * - Criar botão de importação
  * - Acionar FileChooser
  * - Executar importação
- * - Atualizar tabela na mesma tela
+ * - Atualizar tabela
+ * - Exibir resumo com log detalhado de erros
  */
 public class MainController {
 
@@ -38,13 +39,10 @@ public class MainController {
     }
 
     /**
-     * Configura layout inicial da tela:
-     * - Botão no topo
-     * - Tabela no centro
+     * Configura layout da tela principal.
      */
     private void configurarLayout() {
 
-        // 🔹 Botão Importar
         Button btnImportar = new Button("Importar Planilha");
 
         btnImportar.setOnAction(event -> {
@@ -56,10 +54,7 @@ public class MainController {
         topBar.setPadding(new Insets(10));
         topBar.setSpacing(10);
 
-        // 🔹 Insere botão no topo
         rootLayout.setTop(topBar);
-
-        // 🔹 Insere tabela no centro
         rootLayout.setCenter(relatorioController.criarComponente());
     }
 
@@ -80,41 +75,55 @@ public class MainController {
         ImportacaoResultado resultado =
                 service.importar(caminho);
 
-        mostrarResumo(resultado);
+        mostrarResumoComLog(resultado);
 
         if (resultado.getTotalSucesso() > 0) {
 
-            // Atualiza tabela
             relatorioController.atualizarDados(
                     resultado.getRegistrosImportados()
             );
-
-        } else {
-            mostrarErroImportacao();
         }
     }
 
-    private void mostrarResumo(ImportacaoResultado resultado) {
+    /**
+     * Mostra resumo detalhado com LOG de erros.
+     */
+    private void mostrarResumoComLog(ImportacaoResultado resultado) {
 
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Resultado da Importação");
         alert.setHeaderText("Importação Finalizada");
 
-        alert.setContentText(
+        // Texto resumo
+        Label resumo = new Label(
                 "Total processados: " + resultado.getTotalProcessados()
                         + "\nSucesso: " + resultado.getTotalSucesso()
                         + "\nErros: " + resultado.getTotalErro()
         );
 
-        alert.showAndWait();
-    }
+        // Área de log
+        TextArea areaLog = new TextArea();
+        areaLog.setEditable(false);
+        areaLog.setWrapText(true);
+        areaLog.setPrefHeight(200);
 
-    private void mostrarErroImportacao() {
+        if (!resultado.getErros().isEmpty()) {
 
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Erro na Importação");
-        alert.setHeaderText("Não foi possível importar os dados.");
-        alert.setContentText("Nenhum registro válido foi importado.");
+            StringBuilder sb = new StringBuilder();
+
+            for (String erro : resultado.getErros()) {
+                sb.append(erro).append("\n");
+            }
+
+            areaLog.setText(sb.toString());
+        } else {
+            areaLog.setText("Nenhum erro encontrado.");
+        }
+
+        VBox layout = new VBox(10, resumo, new Label("Log de Erros:"), areaLog);
+        layout.setPadding(new Insets(10));
+
+        alert.getDialogPane().setContent(layout);
 
         alert.showAndWait();
     }

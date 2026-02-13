@@ -4,8 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
+
 /**
  * Representa o resumo final da importação.
+ *
+ * Essa classe armazena:
+ * - Total de registros processados
+ * - Total com sucesso
+ * - Total com erro
+ * - Lista detalhada de mensagens de erro
+ * - Lista de registros válidos importados
  */
 public class ImportacaoResultado {
 
@@ -13,15 +21,23 @@ public class ImportacaoResultado {
     private int totalSucesso;
     private int totalErro;
 
+    // Lista de mensagens detalhadas de erro
     private List<String> erros = new ArrayList<>();
 
-    private List<AtendimentoBPAi> registrosImportados;
+    // Lista de registros válidos importados nesta execução
+    private List<AtendimentoBPAi> registrosImportados = new ArrayList<>();
 
+    /**
+     * Incrementa contadores de sucesso.
+     */
     public void adicionarSucesso() {
         totalProcessados++;
         totalSucesso++;
     }
 
+    /**
+     * Incrementa contadores de erro e armazena mensagem detalhada.
+     */
     public void adicionarErro(String erro) {
         totalProcessados++;
         totalErro++;
@@ -52,4 +68,3 @@ public class ImportacaoResultado {
         this.registrosImportados = registrosImportados;
     }
 }
-
