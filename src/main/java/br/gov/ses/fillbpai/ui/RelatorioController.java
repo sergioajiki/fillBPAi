@@ -5,124 +5,99 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.geometry.Insets;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 /**
  * Controller responsável pela TABELA DE RESULTADO.
  *
- * ✔ NÃO abre nova janela
- * ✔ NÃO consulta banco
- * ✔ NÃO contém regra de negócio
- * ✔ Apenas exibe dados recebidos
- *
- * Ele funciona como componente reutilizável dentro
- * da tela principal.
+ * ✔ CNES separado do estabelecimento
+ * ✔ Especialidade separada do médico
+ * ✔ Permite filtro por especialidade
+ * ✔ Mantém ordenação por clique
  */
 public class RelatorioController {
 
-    /**
-     * Tabela visual exibida na tela.
-     */
     private TableView<AtendimentoBPAiDTO> table;
+    private ComboBox<String> comboEspecialidade;
 
-    /**
-     * Lista observável vinculada à tabela.
-     * Permite atualização dinâmica dos dados.
-     */
-    private ObservableList<AtendimentoBPAiDTO> listaUI;
+    private ObservableList<AtendimentoBPAiDTO> listaBase;
+    private FilteredList<AtendimentoBPAiDTO> listaFiltrada;
+    private SortedList<AtendimentoBPAiDTO> listaOrdenada;
 
-    /**
-     * Cria o componente visual (layout da tabela).
-     *
-     * Este método deve ser chamado apenas UMA vez
-     * pela tela principal (MainController).
-     *
-     * Depois disso, apenas atualizarDados() será chamado.
-     */
     public BorderPane criarComponente() {
 
         BorderPane root = new BorderPane();
         root.setPadding(new Insets(10));
 
         table = new TableView<>();
-        listaUI = FXCollections.observableArrayList();
 
-        // Cria colunas dinamicamente
+        comboEspecialidade = new ComboBox<>();
+        comboEspecialidade.setPromptText("Selecionar Especialidade");
+        comboEspecialidade.setPrefWidth(300);
+
+        listaBase = FXCollections.observableArrayList();
+        listaFiltrada = new FilteredList<>(listaBase, p -> true);
+        listaOrdenada = new SortedList<>(listaFiltrada);
+
+        listaOrdenada.comparatorProperty().bind(table.comparatorProperty());
+        table.setItems(listaOrdenada);
+
         adicionarColunas(table);
 
-        // Vincula lista à tabela
-        table.setItems(listaUI);
+        comboEspecialidade.setOnAction(e -> aplicarFiltro());
 
+        HBox topBar = new HBox(10, comboEspecialidade);
+        topBar.setPadding(new Insets(10));
+
+        root.setTop(topBar);
         root.setCenter(table);
 
         return root;
     }
 
-    /**
-     * Atualiza os dados exibidos na tabela.
-     *
-     * Deve ser chamado após cada importação.
-     *
-     * @param registrosImportados lista da execução atual
-     */
-    public void atualizarDados(List<AtendimentoBPAi> registrosImportados) {
+    public void atualizarDados(java.util.List<AtendimentoBPAi> registrosImportados) {
 
-        // Limpa dados anteriores
-        listaUI.clear();
+        listaBase.clear();
 
         if (registrosImportados == null || registrosImportados.isEmpty()) {
             return;
         }
 
-        DateTimeFormatter dataFormat =
-                DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
-        DateTimeFormatter horaFormat =
-                DateTimeFormatter.ofPattern("HH:mm");
+        DateTimeFormatter dataFormat = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        DateTimeFormatter horaFormat = DateTimeFormatter.ofPattern("HH:mm");
 
         for (AtendimentoBPAi a : registrosImportados) {
 
-            /*
-             * Reconstrói estabelecimento no formato original da planilha:
-             *
-             * "123456 - HOSPITAL MUNICIPAL"
-             *
-             * No banco:
-             * codEstabelecimento → 123456
-             * estabelecimento → HOSPITAL MUNICIPAL
-             */
-            String estabelecimentoFormatado =
-                    (a.getCodEstabelecimento() != null
-                            ? a.getCodEstabelecimento() + " - "
-                            : "")
-                            + (a.getEstabelecimento() != null
-                            ? a.getEstabelecimento()
-                            : "");
+            String cnes = a.getCodEstabelecimento() != null
+                    ? a.getCodEstabelecimento()
+                    : "";
 
-            /*
-             * Reconstrói especialidade + médico:
-             *
-             * "CARDIOLOGIA - JOÃO DA SILVA"
-             *
-             * No banco:
-             * especialidadeMedico → CARDIOLOGIA
-             * medico → JOÃO DA SILVA
-             */
-            String especialidadeMedicoFormatado =
-                    (a.getEspecialidadeMedico() != null
-                            ? a.getEspecialidadeMedico()
-                            : "")
-                            + (a.getMedico() != null && !a.getMedico().isEmpty()
-                            ? " - " + a.getMedico()
-                            : "");
+            String estabelecimento = a.getEstabelecimento() != null
+                    ? a.getEstabelecimento()
+                    : "";
 
-            listaUI.add(new AtendimentoBPAiDTO(
+            String especialidade = a.getEspecialidadeMedico() != null
+                    ? a.getEspecialidadeMedico()
+                    : "";
+
+            String medico = a.getMedico() != null
+                    ? a.getMedico()
+                    : "";
+
+            listaBase.add(new AtendimentoBPAiDTO(
                     a.getTipoServico(),
                     a.getDataAgendamento() != null
                             ? a.getDataAgendamento().format(dataFormat)
@@ -130,8 +105,10 @@ public class RelatorioController {
                     a.getHoraAtendimento() != null
                             ? a.getHoraAtendimento().format(horaFormat)
                             : "",
-                    estabelecimentoFormatado,
-                    especialidadeMedicoFormatado,
+                    cnes,
+                    estabelecimento,
+                    especialidade,
+                    medico,
                     a.getCpfMedico(),
                     a.getCboMedico(),
                     a.getMunicipio(),
@@ -148,21 +125,46 @@ public class RelatorioController {
                     a.getEnderecoCompleto()
             ));
         }
+
+        atualizarComboEspecialidades();
     }
 
-    /**
-     * Cria dinamicamente as colunas da tabela.
-     *
-     * Usa reflexão para evitar repetição de código.
-     */
+    private void atualizarComboEspecialidades() {
+
+        Set<String> especialidadesUnicas = listaBase.stream()
+                .map(AtendimentoBPAiDTO::getEspecialidade)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        comboEspecialidade.getItems().clear();
+        comboEspecialidade.getItems().add("TODAS");
+        comboEspecialidade.getItems().addAll(especialidadesUnicas);
+        comboEspecialidade.getSelectionModel().selectFirst();
+    }
+
+    private void aplicarFiltro() {
+
+        String selecionada = comboEspecialidade.getValue();
+
+        if (selecionada == null || selecionada.equals("TODAS")) {
+            listaFiltrada.setPredicate(p -> true);
+        } else {
+            listaFiltrada.setPredicate(dto ->
+                    selecionada.equals(dto.getEspecialidade())
+            );
+        }
+    }
+
     private void adicionarColunas(TableView<AtendimentoBPAiDTO> table) {
 
         table.getColumns().addAll(
                 criarColuna("Tipo Serviço", "tipoServico"),
                 criarColuna("Data Agendamento", "dataAgendamento"),
                 criarColuna("Hora Atendimento", "horaAtendimento"),
+                criarColuna("CNES", "cnes"),
                 criarColuna("Estabelecimento", "estabelecimento"),
-                criarColuna("Especialidade Médico", "especialidadeMedico"),
+                criarColuna("Especialidade", "especialidade"),
+                criarColuna("Médico", "medico"),
                 criarColuna("CPF Médico", "cpfMedico"),
                 criarColuna("CBO Médico", "cboMedico"),
                 criarColuna("Município", "municipio"),
@@ -178,12 +180,6 @@ public class RelatorioController {
         );
     }
 
-    /**
-     * Método genérico para criação de coluna.
-     *
-     * @param titulo Nome exibido na coluna
-     * @param propriedade Nome da propriedade no DTO
-     */
     private TableColumn<AtendimentoBPAiDTO, String> criarColuna(
             String titulo,
             String propriedade
@@ -203,14 +199,6 @@ public class RelatorioController {
         return coluna;
     }
 
-    /**
-     * Usa reflection para chamar dinamicamente
-     * o getter correspondente no DTO.
-     *
-     * Exemplo:
-     * propriedade = "paciente"
-     * chama -> getPaciente()
-     */
     private String getValor(AtendimentoBPAiDTO dto, String propriedade) {
 
         try {

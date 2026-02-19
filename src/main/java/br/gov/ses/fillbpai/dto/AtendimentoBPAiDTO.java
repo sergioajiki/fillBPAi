@@ -1,12 +1,22 @@
 package br.gov.ses.fillbpai.dto;
 
+/**
+ * DTO usado apenas para exibição na TableView.
+ * Todos os campos separados para melhor ordenação e filtro.
+ */
 public class AtendimentoBPAiDTO {
 
     private String tipoServico;
     private String dataAgendamento;
     private String horaAtendimento;
+
+    // 🔥 Agora separados
+    private String cnes;
     private String estabelecimento;
-    private String especialidadeMedico;
+
+    private String especialidade;
+    private String medico;
+
     private String cpfMedico;
     private String cboMedico;
     private String municipio;
@@ -24,8 +34,10 @@ public class AtendimentoBPAiDTO {
             String tipoServico,
             String dataAgendamento,
             String horaAtendimento,
+            String cnes,
             String estabelecimento,
-            String especialidadeMedico,
+            String especialidade,
+            String medico,
             String cpfMedico,
             String cboMedico,
             String municipio,
@@ -42,8 +54,10 @@ public class AtendimentoBPAiDTO {
         this.tipoServico = tipoServico;
         this.dataAgendamento = dataAgendamento;
         this.horaAtendimento = horaAtendimento;
+        this.cnes = cnes;
         this.estabelecimento = estabelecimento;
-        this.especialidadeMedico = especialidadeMedico;
+        this.especialidade = especialidade;
+        this.medico = medico;
         this.cpfMedico = cpfMedico;
         this.cboMedico = cboMedico;
         this.municipio = municipio;
@@ -58,13 +72,15 @@ public class AtendimentoBPAiDTO {
         this.enderecoCompleto = enderecoCompleto;
     }
 
-    // getters apenas (somente leitura para UI)
+    // Getters
 
     public String getTipoServico() { return tipoServico; }
     public String getDataAgendamento() { return dataAgendamento; }
     public String getHoraAtendimento() { return horaAtendimento; }
+    public String getCnes() { return cnes; }
     public String getEstabelecimento() { return estabelecimento; }
-    public String getEspecialidadeMedico() { return especialidadeMedico; }
+    public String getEspecialidade() { return especialidade; }
+    public String getMedico() { return medico; }
     public String getCpfMedico() { return cpfMedico; }
     public String getCboMedico() { return cboMedico; }
     public String getMunicipio() { return municipio; }
@@ -78,4 +94,3 @@ public class AtendimentoBPAiDTO {
     public String getTipoZona() { return tipoZona; }
     public String getEnderecoCompleto() { return enderecoCompleto; }
 }
-

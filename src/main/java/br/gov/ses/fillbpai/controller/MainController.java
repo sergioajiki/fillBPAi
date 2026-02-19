@@ -15,12 +15,10 @@ import javafx.stage.Stage;
 /**
  * Controller principal da aplicação.
  *
- * Responsável por:
- * - Criar botão de importação
- * - Acionar FileChooser
- * - Executar importação
- * - Atualizar tabela
- * - Exibir resumo com log detalhado de erros
+ * ✔ Botão importar
+ * ✔ Atualiza tabela
+ * ✔ Exibe log detalhado
+ * ✔ Filtro por especialidade dentro da própria tela
  */
 public class MainController {
 
@@ -38,9 +36,6 @@ public class MainController {
         configurarLayout();
     }
 
-    /**
-     * Configura layout da tela principal.
-     */
     private void configurarLayout() {
 
         Button btnImportar = new Button("Importar Planilha");
@@ -50,17 +45,13 @@ public class MainController {
             importar(stage);
         });
 
-        HBox topBar = new HBox(btnImportar);
+        HBox topBar = new HBox(10, btnImportar);
         topBar.setPadding(new Insets(10));
-        topBar.setSpacing(10);
 
         rootLayout.setTop(topBar);
         rootLayout.setCenter(relatorioController.criarComponente());
     }
 
-    /**
-     * Executa processo de importação.
-     */
     private void importar(Stage stage) {
 
         String caminho = fileChooserService.selecionarPlanilha(stage);
@@ -85,23 +76,18 @@ public class MainController {
         }
     }
 
-    /**
-     * Mostra resumo detalhado com LOG de erros.
-     */
     private void mostrarResumoComLog(ImportacaoResultado resultado) {
 
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Resultado da Importação");
         alert.setHeaderText("Importação Finalizada");
 
-        // Texto resumo
         Label resumo = new Label(
                 "Total processados: " + resultado.getTotalProcessados()
                         + "\nSucesso: " + resultado.getTotalSucesso()
                         + "\nErros: " + resultado.getTotalErro()
         );
 
-        // Área de log
         TextArea areaLog = new TextArea();
         areaLog.setEditable(false);
         areaLog.setWrapText(true);
