@@ -18,7 +18,6 @@ import javafx.stage.Stage;
  * ✔ Botão importar
  * ✔ Atualiza tabela
  * ✔ Exibe log detalhado
- * ✔ Filtro por especialidade dentro da própria tela
  */
 public class MainController {
 
@@ -28,9 +27,13 @@ public class MainController {
     private final BorderPane rootLayout;
 
     public MainController(EntityManager entityManager, BorderPane rootLayout) {
+
         this.entityManager = entityManager;
         this.fileChooserService = new FileChooserService();
-        this.relatorioController = new RelatorioController();
+
+        // ✅ AGORA PASSA O ENTITY MANAGER
+        this.relatorioController = new RelatorioController(entityManager);
+
         this.rootLayout = rootLayout;
 
         configurarLayout();

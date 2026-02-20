@@ -1,9 +1,8 @@
 package br.gov.ses.fillbpai.app;
 
+import br.gov.ses.fillbpai.config.DatabaseInitializer;
 import br.gov.ses.fillbpai.controller.MainController;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityManagerFactory;
-import jakarta.persistence.Persistence;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
@@ -13,31 +12,42 @@ import javafx.stage.Stage;
  * Classe principal da aplicação JavaFX.
  *
  * Responsável por:
- * - Inicializar JPA
- * - Criar layout raiz
- * - Instanciar MainController
- * - Iniciar aplicação
+ * - Inicializar infraestrutura do banco
+ * - Criar layout principal
+ * - Encerrar recursos corretamente
  */
 public class MainApp extends Application {
 
-    private EntityManagerFactory emf;
+    private DatabaseInitializer databaseInitializer;
     private EntityManager entityManager;
 
     @Override
     public void start(Stage primaryStage) {
 
-        // 🔹 Inicializa JPA
-        emf = Persistence.createEntityManagerFactory("bpaPU");
-        entityManager = emf.createEntityManager();
+        try {
 
-        // 🔹 Cria layout raiz
+            // 🔹 Inicializa infraestrutura
+            databaseInitializer = new DatabaseInitializer();
+            databaseInitializer.iniciar();
+
+            // 🔹 Obtém EntityManager ativo
+            entityManager = databaseInitializer.getEntityManager();
+
+        } catch (Exception e) {
+
+            System.err.println("Erro ao iniciar aplicação:");
+            e.printStackTrace();
+            System.exit(1);
+            return;
+        }
+
+        // 🔹 Layout raiz
         BorderPane root = new BorderPane();
 
-        // 🔹 Instancia controller principal
-        MainController controller =
-                new MainController(entityManager, root);
+        // 🔹 Controller principal
+        new MainController(entityManager, root);
 
-        // 🔹 Cria cena usando o MESMO root
+        // 🔹 Cena
         Scene scene = new Scene(root, 1500, 700);
 
         primaryStage.setTitle("Importador BPAi");
@@ -48,14 +58,11 @@ public class MainApp extends Application {
     @Override
     public void stop() {
 
-        // 🔹 Fecha recursos JPA ao encerrar aplicação
-        if (entityManager != null) {
-            entityManager.close();
+        if (databaseInitializer != null) {
+            databaseInitializer.finalizar();
         }
 
-        if (emf != null) {
-            emf.close();
-        }
+        System.out.println("Aplicação finalizada com sucesso.");
     }
 
     public static void main(String[] args) {

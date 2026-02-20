@@ -1,58 +1,100 @@
 package br.gov.ses.fillbpai.config;
 
-import br.gov.ses.fillbpai.util.HibernateUtil;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityManagerFactory;
+import jakarta.persistence.Persistence;
 import org.h2.tools.Server;
 
 /**
  * Responsável por inicializar e encerrar
- * infraestrutura de banco de dados.
+ * a infraestrutura de banco de dados.
+ *
+ * Arquitetura adotada:
+ *
+ * Aplicação (Hibernate)
+ *        ↓
+ *   H2 FILE + AUTO_SERVER
+ *        ↓
+ *   Arquivo físico (.mv.db)
+ *
+ * O AUTO_SERVER permite que o console
+ * conecte simultaneamente ao banco.
  */
 public class DatabaseInitializer {
 
-    private Server h2Server;
+    private Server webServer; // Console H2
+    private EntityManagerFactory emf;
     private EntityManager entityManager;
 
+    /**
+     * Inicializa:
+     * - H2 Console
+     * - JPA/Hibernate
+     */
     public void iniciar() {
 
         try {
-            h2Server = Server.createWebServer(
+
+            // 🔹 Inicia apenas o console web do H2
+            webServer = Server.createWebServer(
                     "-web",
                     "-webAllowOthers",
                     "-webPort", "8082"
             ).start();
 
-            System.out.println("H2 Console iniciado em: " + h2Server.getURL());
+            System.out.println("H2 Console iniciado em: " + webServer.getURL());
 
         } catch (Exception e) {
-            System.err.println("Erro ao iniciar H2 Console: " + e.getMessage());
+            System.err.println("Erro ao iniciar H2 Console:");
+            e.printStackTrace();
         }
 
-        entityManager = HibernateUtil
-                .getSessionFactory()
-                .createEntityManager();
+        try {
 
-        System.out.println("Hibernate iniciado com sucesso!");
+            // 🔹 Inicializa JPA/Hibernate
+            emf = Persistence.createEntityManagerFactory("bpaPU");
+            entityManager = emf.createEntityManager();
+
+            System.out.println("JPA/Hibernate iniciado com sucesso!");
+
+        } catch (Exception e) {
+
+            System.err.println("Erro ao inicializar JPA:");
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     public EntityManager getEntityManager() {
         return entityManager;
     }
 
+    /**
+     * Encerra todos os recursos corretamente.
+     */
     public void finalizar() {
 
-        if (entityManager != null && entityManager.isOpen()) {
-            entityManager.close();
-            System.out.println("EntityManager fechado.");
+        try {
+
+            if (entityManager != null && entityManager.isOpen()) {
+                entityManager.close();
+                System.out.println("EntityManager fechado.");
+            }
+
+            if (emf != null && emf.isOpen()) {
+                emf.close();
+                System.out.println("EntityManagerFactory fechada.");
+            }
+
+            if (webServer != null) {
+                webServer.stop();
+                System.out.println("H2 Console finalizado.");
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
-        if (h2Server != null) {
-            h2Server.stop();
-            System.out.println("H2 Console finalizado.");
-        }
-
-        HibernateUtil.shutdown();
-        System.out.println("Hibernate finalizado.");
+        System.out.println("Infraestrutura encerrada com sucesso.");
     }
 }
-

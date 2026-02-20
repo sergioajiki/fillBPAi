@@ -2,18 +2,26 @@ package br.gov.ses.fillbpai.dto;
 
 /**
  * DTO usado apenas para exibição na TableView.
- * Todos os campos separados para melhor ordenação e filtro.
  */
 public class AtendimentoBPAiDTO {
 
+    // 🔥 ID da entidade (ESSENCIAL para update)
+    private Long id;
+
+    // 🔥 CAMPOS FIXOS BPA
+    private final String cnesNts = "697045";
+    private final String codIne = "0";
+
+    private String folha = "";
+    private String cnsProfissional = "";
+
     private String tipoServico;
+    private String sigtap;
     private String dataAgendamento;
     private String horaAtendimento;
 
-    // 🔥 Agora separados
-    private String cnes;
+    private String codEstabelecimento;
     private String estabelecimento;
-
     private String especialidade;
     private String medico;
 
@@ -31,10 +39,12 @@ public class AtendimentoBPAiDTO {
     private String enderecoCompleto;
 
     public AtendimentoBPAiDTO(
+            Long id,
             String tipoServico,
+            String sigtap,
             String dataAgendamento,
             String horaAtendimento,
-            String cnes,
+            String codEstabelecimento,
             String estabelecimento,
             String especialidade,
             String medico,
@@ -51,10 +61,12 @@ public class AtendimentoBPAiDTO {
             String tipoZona,
             String enderecoCompleto
     ) {
+        this.id = id; // ✅ agora está correto
         this.tipoServico = tipoServico;
+        this.sigtap = sigtap;
         this.dataAgendamento = dataAgendamento;
         this.horaAtendimento = horaAtendimento;
-        this.cnes = cnes;
+        this.codEstabelecimento = codEstabelecimento;
         this.estabelecimento = estabelecimento;
         this.especialidade = especialidade;
         this.medico = medico;
@@ -72,12 +84,22 @@ public class AtendimentoBPAiDTO {
         this.enderecoCompleto = enderecoCompleto;
     }
 
-    // Getters
+    // =============================
+    // GETTERS
+    // =============================
+
+    public Long getId() { return id; }
+
+    public String getCnesNts() { return cnesNts; }
+    public String getCodIne() { return codIne; }
+    public String getFolha() { return folha; }
+    public String getCnsProfissional() { return cnsProfissional; }
 
     public String getTipoServico() { return tipoServico; }
+    public String getSigtap() { return sigtap; }
     public String getDataAgendamento() { return dataAgendamento; }
     public String getHoraAtendimento() { return horaAtendimento; }
-    public String getCnes() { return cnes; }
+    public String getCodEstabelecimento() { return codEstabelecimento; }
     public String getEstabelecimento() { return estabelecimento; }
     public String getEspecialidade() { return especialidade; }
     public String getMedico() { return medico; }
@@ -93,4 +115,13 @@ public class AtendimentoBPAiDTO {
     public String getTelefone() { return telefone; }
     public String getTipoZona() { return tipoZona; }
     public String getEnderecoCompleto() { return enderecoCompleto; }
+
+    // =============================
+    // SETTERS (somente campos editáveis)
+    // =============================
+
+    public void setFolha(String folha) { this.folha = folha; }
+    public void setCnsProfissional(String cnsProfissional) {
+        this.cnsProfissional = cnsProfissional;
+    }
 }

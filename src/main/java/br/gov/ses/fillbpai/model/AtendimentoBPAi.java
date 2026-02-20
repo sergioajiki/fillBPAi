@@ -21,6 +21,18 @@ public class AtendimentoBPAi {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "cnes_nts")
+    private String cnesNts = "697045";
+
+    @Column(name = "cod_ine")
+    private String codIne = "0";
+
+    @Column(name = "folha")
+    private String folha;
+
+    @Column(name = "cns_profissional")
+    private String cnsProfissional;
+
     @Column(name = "tipo_servico", length = 100)
     private String tipoServico;
 
@@ -289,5 +301,37 @@ public class AtendimentoBPAi {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getCnesNts() {
+        return cnesNts;
+    }
+
+    public void setCnesNts(String cnesNts) {
+        this.cnesNts = cnesNts;
+    }
+
+    public String getCodIne() {
+        return codIne;
+    }
+
+    public void setCodIne(String codIne) {
+        this.codIne = codIne;
+    }
+
+    public String getFolha() {
+        return folha;
+    }
+
+    public void setFolha(String folha) {
+        this.folha = folha;
+    }
+
+    public String getCnsProfissional() {
+        return cnsProfissional;
+    }
+
+    public void setCnsProfissional(String cnsProfissional) {
+        this.cnsProfissional = cnsProfissional;
     }
 }

@@ -4,25 +4,26 @@
 
     <persistence-unit name="bpaPU">
 
-        <!-- Provider JPA -->
+        <!-- Provider Hibernate -->
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
-        <!-- Configuração do banco -->
         <properties>
 
             <!-- Driver -->
-            <property name="jakarta.persistence.jdbc.driver" value="org.h2.Driver"/>
+            <property name="jakarta.persistence.jdbc.driver"
+                      value="org.h2.Driver"/>
 
-            <!-- Banco local em arquivo -->
-            <property name="jakarta.persistence.jdbc.url" value="jdbc:h2:./banco"/>
+            <!-- Banco em arquivo com AUTO_SERVER (permite múltiplas conexões) -->
+            <property name="jakarta.persistence.jdbc.url"
+                      value="jdbc:h2:file:./database/fillbpai;AUTO_SERVER=TRUE"/>
 
             <property name="jakarta.persistence.jdbc.user" value="sa"/>
             <property name="jakarta.persistence.jdbc.password" value=""/>
 
-            <!-- Estratégia de criação automática -->
-            <property name="hibernate.hbm2ddl.auto" value="update"/>
+            <!-- Desenvolvimento: recria banco ao iniciar -->
+            <property name="hibernate.hbm2ddl.auto" value="create"/>
 
-            <!-- Mostrar SQL no console -->
+            <!-- Logs SQL -->
             <property name="hibernate.show_sql" value="true"/>
             <property name="hibernate.format_sql" value="true"/>
 
