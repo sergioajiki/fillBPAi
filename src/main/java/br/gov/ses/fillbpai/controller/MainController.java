@@ -12,13 +12,6 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
-/**
- * Controller principal da aplicação.
- *
- * ✔ Botão importar
- * ✔ Atualiza tabela
- * ✔ Exibe log detalhado
- */
 public class MainController {
 
     private final EntityManager entityManager;
@@ -30,13 +23,13 @@ public class MainController {
 
         this.entityManager = entityManager;
         this.fileChooserService = new FileChooserService();
-
-        // ✅ AGORA PASSA O ENTITY MANAGER
         this.relatorioController = new RelatorioController(entityManager);
-
         this.rootLayout = rootLayout;
 
         configurarLayout();
+
+        // Carrega registros já existentes no banco
+        relatorioController.carregarDoBanco();
     }
 
     private void configurarLayout() {
@@ -71,11 +64,9 @@ public class MainController {
 
         mostrarResumoComLog(resultado);
 
+        // 🔥 Recarrega sempre do banco (fonte oficial)
         if (resultado.getTotalSucesso() > 0) {
-
-            relatorioController.atualizarDados(
-                    resultado.getRegistrosImportados()
-            );
+            relatorioController.carregarDoBanco();
         }
     }
 
@@ -105,6 +96,7 @@ public class MainController {
             }
 
             areaLog.setText(sb.toString());
+
         } else {
             areaLog.setText("Nenhum erro encontrado.");
         }
@@ -113,7 +105,6 @@ public class MainController {
         layout.setPadding(new Insets(10));
 
         alert.getDialogPane().setContent(layout);
-
         alert.showAndWait();
     }
 }
