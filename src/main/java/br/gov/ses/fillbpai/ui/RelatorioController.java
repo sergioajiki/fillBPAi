@@ -2,16 +2,23 @@ package br.gov.ses.fillbpai.ui;
 
 import br.gov.ses.fillbpai.dto.AtendimentoBPAiDTO;
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
+import br.gov.ses.fillbpai.service.GeradorBPAiService;
+
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
+
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.*;
 import javafx.collections.transformation.FilteredList;
+
 import javafx.geometry.Insets;
+
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
+
+import javafx.stage.Window;
 
 import java.util.List;
 import java.util.function.Function;
@@ -19,7 +26,15 @@ import java.util.stream.Collectors;
 
 public class RelatorioController {
 
+    // ======================================================
+    // ENTITY MANAGER
+    // ======================================================
+
     private final EntityManager entityManager;
+
+    // ======================================================
+    // LISTAS
+    // ======================================================
 
     private final ObservableList<AtendimentoBPAiDTO> lista =
             FXCollections.observableArrayList();
@@ -27,97 +42,190 @@ public class RelatorioController {
     private final FilteredList<AtendimentoBPAiDTO> listaFiltrada =
             new FilteredList<>(lista, p -> true);
 
+    // ======================================================
+    // COMPONENTES
+    // ======================================================
+
     private TableView<AtendimentoBPAiDTO> tabela;
+
     private Label totalLabel;
 
     private ComboBox<String> filtroEspecialidade = new ComboBox<>();
+
     private ComboBox<String> filtroMedico = new ComboBox<>();
 
     private TextField campoFolha = new TextField();
+
     private TextField campoCnsProfissional = new TextField();
+
     private Button btnAtualizar = new Button("OK");
 
+    // BOTÃO GERAR BPA
+    private Button btnGerarBPA = new Button("Gerar BPA-I");
+
+    // ======================================================
+    // CONSTRUTOR
+    // ======================================================
+
     public RelatorioController(EntityManager entityManager) {
+
         this.entityManager = entityManager;
     }
+
+    // ======================================================
+    // CRIAR COMPONENTE PRINCIPAL
+    // ======================================================
 
     public BorderPane criarComponente() {
 
         tabela = new TableView<>();
+
+        // IMPORTANTE:
+        // sempre usar listaFiltrada, nunca alterar colunas dinamicamente
         tabela.setItems(listaFiltrada);
 
         totalLabel = new Label("Total: 0");
 
-        configurarColunas();
+        configurarColunas(); // cria TODAS as colunas
 
-        VBox box = new VBox(10,
+        VBox box = new VBox(
+                10,
                 criarBarraFiltros(),
                 tabela,
-                totalLabel);
+                totalLabel
+        );
 
         box.setPadding(new Insets(10));
 
         BorderPane pane = new BorderPane();
+
         pane.setCenter(box);
 
         return pane;
     }
 
     // ======================================================
-    // ===================== FILTROS ========================
+    // BARRA DE FILTROS
     // ======================================================
 
     private HBox criarBarraFiltros() {
 
-        filtroEspecialidade.setPromptText("Selecione Especialidade");
-        filtroMedico.setPromptText("Selecione Médico");
+        filtroEspecialidade.setPromptText("Especialidade");
 
-        campoFolha.setPromptText("Nova Folha");
-        campoCnsProfissional.setPromptText("Novo CNS Profissional");
+        filtroMedico.setPromptText("Médico");
+
+        campoFolha.setPromptText("Nova folha");
+
+        campoCnsProfissional.setPromptText("Novo CNS");
 
         filtroMedico.setDisable(true);
+
         campoFolha.setDisable(true);
+
         campoCnsProfissional.setDisable(true);
+
         btnAtualizar.setDisable(true);
 
+        // EVENTO FILTRO ESPECIALIDADE
         filtroEspecialidade.setOnAction(e -> {
+
             atualizarMedicosPorEspecialidade();
+
             aplicarFiltros();
         });
 
+        // EVENTO FILTRO MÉDICO
         filtroMedico.setOnAction(e -> {
+
             aplicarFiltros();
+
             habilitarEdicao();
         });
 
+        // EVENTO ATUALIZAR BD
         btnAtualizar.setOnAction(e -> atualizarFolhaECns());
 
+        // EVENTO GERAR BPA
+        btnGerarBPA.setOnAction(e -> gerarBPA());
+
         Button btnLimpar = new Button("Limpar");
+
         btnLimpar.setOnAction(e -> limparFiltros());
 
-        return new HBox(10,
+        return new HBox(
+                10,
                 new Label("Especialidade:"), filtroEspecialidade,
                 new Label("Médico:"), filtroMedico,
                 new Label("Folha:"), campoFolha,
-                new Label("CNS Prof:"), campoCnsProfissional,
+                new Label("CNS:"), campoCnsProfissional,
                 btnAtualizar,
+                btnGerarBPA,
                 btnLimpar
         );
     }
 
+    // ======================================================
+    // GERAR BPA COM FILECHOOSER
+    // ======================================================
+
+    private void gerarBPA() {
+
+        String especialidade = filtroEspecialidade.getValue();
+
+        String medico = filtroMedico.getValue();
+
+        if (especialidade == null || medico == null) {
+
+            mostrarMensagem("Selecione especialidade e médico.");
+
+            return;
+        }
+
+        try {
+
+            GeradorBPAiService service =
+                    new GeradorBPAiService(entityManager);
+
+            Window window =
+                    tabela.getScene().getWindow();
+
+            service.gerarArquivoComFileChooser(
+                    window,
+                    especialidade,
+                    medico
+            );
+
+            mostrarMensagem("Arquivo gerado com sucesso.");
+
+        }
+        catch (Exception ex) {
+
+            mostrarMensagem("Erro: " + ex.getMessage());
+        }
+    }
+
+    // ======================================================
+    // FILTROS
+    // ======================================================
+
     private void limparFiltros() {
 
         filtroEspecialidade.getSelectionModel().clearSelection();
+
         filtroMedico.getSelectionModel().clearSelection();
 
         filtroMedico.getItems().clear();
+
         filtroMedico.setDisable(true);
 
         campoFolha.clear();
+
         campoCnsProfissional.clear();
 
         campoFolha.setDisable(true);
+
         campoCnsProfissional.setDisable(true);
+
         btnAtualizar.setDisable(true);
 
         aplicarFiltros();
@@ -126,12 +234,19 @@ public class RelatorioController {
     private void atualizarCombos() {
 
         filtroEspecialidade.setItems(
+
                 FXCollections.observableArrayList(
+
                         lista.stream()
+
                                 .map(AtendimentoBPAiDTO::getEspecialidadeMedico)
+
                                 .filter(s -> s != null && !s.isEmpty())
+
                                 .distinct()
+
                                 .sorted()
+
                                 .collect(Collectors.toList())
                 )
         );
@@ -139,26 +254,36 @@ public class RelatorioController {
 
     private void atualizarMedicosPorEspecialidade() {
 
-        String especialidade = filtroEspecialidade.getValue();
+        String especialidade =
+                filtroEspecialidade.getValue();
 
-        filtroMedico.getSelectionModel().clearSelection();
         filtroMedico.getItems().clear();
 
         if (especialidade == null) {
+
             filtroMedico.setDisable(true);
+
             return;
         }
 
         List<String> medicos =
                 lista.stream()
-                        .filter(dto -> especialidade.equals(dto.getEspecialidadeMedico()))
+
+                        .filter(dto ->
+                                especialidade.equals(
+                                        dto.getEspecialidadeMedico()))
+
                         .map(AtendimentoBPAiDTO::getMedico)
-                        .filter(s -> s != null && !s.isEmpty())
+
                         .distinct()
+
                         .sorted()
+
                         .collect(Collectors.toList());
 
-        filtroMedico.setItems(FXCollections.observableArrayList(medicos));
+        filtroMedico.setItems(
+                FXCollections.observableArrayList(medicos));
+
         filtroMedico.setDisable(false);
     }
 
@@ -166,196 +291,188 @@ public class RelatorioController {
 
         listaFiltrada.setPredicate(dto -> {
 
-            boolean filtroEsp = true;
-            boolean filtroMed = true;
+            boolean esp = true;
 
-            if (filtroEspecialidade.getValue() != null) {
-                filtroEsp = filtroEspecialidade.getValue()
+            boolean med = true;
+
+            if (filtroEspecialidade.getValue() != null)
+                esp = filtroEspecialidade.getValue()
                         .equals(dto.getEspecialidadeMedico());
-            }
 
-            if (filtroMedico.getValue() != null) {
-                filtroMed = filtroMedico.getValue()
+            if (filtroMedico.getValue() != null)
+                med = filtroMedico.getValue()
                         .equals(dto.getMedico());
-            }
 
-            return filtroEsp && filtroMed;
+            return esp && med;
         });
 
-        totalLabel.setText("Total: " + listaFiltrada.size());
+        totalLabel.setText(
+                "Total: " + listaFiltrada.size());
     }
 
     private void habilitarEdicao() {
 
-        if (filtroMedico.getValue() != null) {
-            campoFolha.setDisable(false);
-            campoCnsProfissional.setDisable(false);
-            btnAtualizar.setDisable(false);
-        }
+        campoFolha.setDisable(false);
+
+        campoCnsProfissional.setDisable(false);
+
+        btnAtualizar.setDisable(false);
     }
 
     // ======================================================
-    // ================= ATUALIZAÇÃO BD =====================
+    // ATUALIZAÇÃO BANCO
     // ======================================================
 
     private void atualizarFolhaECns() {
 
         String medico = filtroMedico.getValue();
-        String especialidade = filtroEspecialidade.getValue();
 
-        if (medico == null || especialidade == null) {
-            return;
-        }
-
-        String novaFolha = campoFolha.getText();
-        String novoCns = campoCnsProfissional.getText();
+        String especialidade =
+                filtroEspecialidade.getValue();
 
         entityManager.getTransaction().begin();
 
         try {
 
-            List<AtendimentoBPAi> registros =
+            List<AtendimentoBPAi> lista =
                     entityManager.createQuery(
                                     "SELECT a FROM AtendimentoBPAi a " +
                                             "WHERE a.medico = :medico " +
                                             "AND a.especialidadeMedico = :esp",
                                     AtendimentoBPAi.class)
+
                             .setParameter("medico", medico)
+
                             .setParameter("esp", especialidade)
+
                             .getResultList();
 
-            for (AtendimentoBPAi a : registros) {
-                a.setFolha(novaFolha);
-                a.setCnsProfissional(novoCns);
+            for (AtendimentoBPAi a : lista) {
+
+                a.setFolha(campoFolha.getText());
+
+                a.setCnsProfissional(
+                        campoCnsProfissional.getText());
             }
 
             entityManager.getTransaction().commit();
 
-            mostrarMensagem("Atualização realizada com sucesso!");
+            mostrarMensagem("Atualizado.");
 
             carregarDoBanco();
-            limparCamposEdicao();
 
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
 
             entityManager.getTransaction().rollback();
-            mostrarMensagem("Erro ao atualizar: " + ex.getMessage());
+
+            mostrarMensagem(ex.getMessage());
         }
     }
 
-    private void mostrarMensagem(String msg) {
-
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setHeaderText(null);
-        alert.setContentText(msg);
-        alert.showAndWait();
-    }
-
-    private void limparCamposEdicao() {
-
-        campoFolha.clear();
-        campoCnsProfissional.clear();
-
-        campoFolha.setDisable(true);
-        campoCnsProfissional.setDisable(true);
-        btnAtualizar.setDisable(true);
-    }
-
     // ======================================================
-    // ===================== COLUNAS ========================
+    // COLUNAS — SEMPRE TODAS VISÍVEIS
     // ======================================================
 
     private void configurarColunas() {
 
         tabela.getColumns().clear();
 
-        TableColumn<AtendimentoBPAiDTO, String> grupoServico =
-                new TableColumn<>("DADOS DO SERVIÇO");
-
-        grupoServico.getColumns().addAll(
-                criarColuna("Tipo Serviço", AtendimentoBPAiDTO::getTipoServico),
-                criarColuna("SIGTAP", AtendimentoBPAiDTO::getSigtap),
-                criarColuna("Data Agendamento", AtendimentoBPAiDTO::getDataAgendamento),
-                criarColuna("Hora Atendimento", AtendimentoBPAiDTO::getHoraAtendimento)
-        );
-
-        TableColumn<AtendimentoBPAiDTO, String> grupoEstabelecimento =
-                new TableColumn<>("DADOS DO ESTABELECIMENTO");
-
-        grupoEstabelecimento.getColumns().addAll(
-                criarColuna("Código Estab.", AtendimentoBPAiDTO::getCodEstabelecimento),
-                criarColuna("Estabelecimento", AtendimentoBPAiDTO::getEstabelecimento),
-                criarColuna("CNES NTS", AtendimentoBPAiDTO::getCnesNts),
-                criarColuna("Código INE", AtendimentoBPAiDTO::getCodIne),
-                criarColuna("Folha", AtendimentoBPAiDTO::getFolha)
-        );
-
-        TableColumn<AtendimentoBPAiDTO, String> grupoProfissional =
-                new TableColumn<>("DADOS DO PROFISSIONAL");
-
-        grupoProfissional.getColumns().addAll(
-                criarColuna("Médico", AtendimentoBPAiDTO::getMedico),
-                criarColuna("Especialidade", AtendimentoBPAiDTO::getEspecialidadeMedico),
-                criarColuna("CPF Médico", AtendimentoBPAiDTO::getCpfMedico),
-                criarColuna("CBO Médico", AtendimentoBPAiDTO::getCboMedico),
-                criarColuna("CNS Profissional", AtendimentoBPAiDTO::getCnsProfissional)
-        );
-
-        TableColumn<AtendimentoBPAiDTO, String> grupoPaciente =
-                new TableColumn<>("DADOS DO PACIENTE");
-
-        grupoPaciente.getColumns().addAll(
-                criarColuna("Paciente", AtendimentoBPAiDTO::getPaciente),
-                criarColuna("CPF Paciente", AtendimentoBPAiDTO::getCpfPaciente),
-                criarColuna("CNS Paciente", AtendimentoBPAiDTO::getCnsPaciente),
-                criarColuna("Raça", AtendimentoBPAiDTO::getRacaPaciente),
-                criarColuna("Data Nascimento", AtendimentoBPAiDTO::getDataNascimento),
-                criarColuna("Telefone", AtendimentoBPAiDTO::getTelefone),
-                criarColuna("Município", AtendimentoBPAiDTO::getMunicipio),
-                criarColuna("Tipo Zona", AtendimentoBPAiDTO::getTipoZona),
-                criarColuna("Endereço Completo", AtendimentoBPAiDTO::getEnderecoCompleto),
-                criarColuna("CID Consulta", AtendimentoBPAiDTO::getCidConsulta)
-        );
-
         tabela.getColumns().addAll(
-                grupoServico,
-                grupoEstabelecimento,
-                grupoProfissional,
-                grupoPaciente
-        );
 
-        tabela.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+                criarColuna("Tipo Serviço",
+                        AtendimentoBPAiDTO::getTipoServico),
+
+                criarColuna("SIGTAP",
+                        AtendimentoBPAiDTO::getSigtap),
+
+                criarColuna("Data",
+                        AtendimentoBPAiDTO::getDataAgendamento),
+
+                criarColuna("Hora",
+                        AtendimentoBPAiDTO::getHoraAtendimento),
+
+                criarColuna("Estabelecimento",
+                        AtendimentoBPAiDTO::getEstabelecimento),
+
+                criarColuna("INE",
+                        AtendimentoBPAiDTO::getCodIne),
+
+                criarColuna("Folha",
+                        AtendimentoBPAiDTO::getFolha),
+
+                criarColuna("Médico",
+                        AtendimentoBPAiDTO::getMedico),
+
+                criarColuna("Especialidade",
+                        AtendimentoBPAiDTO::getEspecialidadeMedico),
+
+                criarColuna("CPF Médico",
+                        AtendimentoBPAiDTO::getCpfMedico),
+
+                criarColuna("CBO",
+                        AtendimentoBPAiDTO::getCboMedico),
+
+                criarColuna("CNS Prof",
+                        AtendimentoBPAiDTO::getCnsProfissional),
+
+                criarColuna("Paciente",
+                        AtendimentoBPAiDTO::getPaciente),
+
+                criarColuna("CPF Paciente",
+                        AtendimentoBPAiDTO::getCpfPaciente),
+
+                criarColuna("CNS Paciente",
+                        AtendimentoBPAiDTO::getCnsPaciente),
+
+                criarColuna("Nascimento",
+                        AtendimentoBPAiDTO::getDataNascimento),
+
+                criarColuna("Telefone",
+                        AtendimentoBPAiDTO::getTelefone),
+
+                criarColuna("Município",
+                        AtendimentoBPAiDTO::getMunicipio),
+
+                criarColuna("Endereço",
+                        AtendimentoBPAiDTO::getEnderecoCompleto),
+
+                criarColuna("CID",
+                        AtendimentoBPAiDTO::getCidConsulta)
+        );
     }
 
     private TableColumn<AtendimentoBPAiDTO, String> criarColuna(
-            String titulo,
+            String nome,
             Function<AtendimentoBPAiDTO, String> mapper) {
 
         TableColumn<AtendimentoBPAiDTO, String> col =
-                new TableColumn<>(titulo);
+                new TableColumn<>(nome);
 
         col.setCellValueFactory(
-                c -> new SimpleStringProperty(mapper.apply(c.getValue()))
-        );
+                c -> new SimpleStringProperty(
+                        mapper.apply(c.getValue())));
 
-        col.setPrefWidth(140);
+        col.setPrefWidth(150);
 
         return col;
     }
 
     // ======================================================
-    // ===================== DADOS ==========================
+    // DADOS
     // ======================================================
 
-    public void atualizarDados(List<AtendimentoBPAi> registros) {
+    public void atualizarDados(
+            List<AtendimentoBPAi> registros) {
 
         lista.clear();
 
-        for (AtendimentoBPAi a : registros) {
-            lista.add(AtendimentoBPAiDTO.fromEntity(a));
-        }
+        registros.forEach(r ->
+                lista.add(
+                        AtendimentoBPAiDTO.fromEntity(r)));
 
         atualizarCombos();
+
         aplicarFiltros();
     }
 
@@ -364,9 +481,22 @@ public class RelatorioController {
         TypedQuery<AtendimentoBPAi> query =
                 entityManager.createQuery(
                         "SELECT a FROM AtendimentoBPAi a",
-                        AtendimentoBPAi.class
-                );
+                        AtendimentoBPAi.class);
 
         atualizarDados(query.getResultList());
+    }
+
+    // ======================================================
+    // MENSAGEM
+    // ======================================================
+
+    private void mostrarMensagem(String msg) {
+
+        Alert alert =
+                new Alert(Alert.AlertType.INFORMATION);
+
+        alert.setContentText(msg);
+
+        alert.showAndWait();
     }
 }

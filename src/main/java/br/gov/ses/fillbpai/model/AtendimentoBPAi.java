@@ -22,7 +22,7 @@ public class AtendimentoBPAi {
     private Long id;
 
     @Column(name = "cnes_nts")
-    private String cnesNts = "697045";
+    private String cnesNts = "6970451";
 
     @Column(name = "cod_ine")
     private String codIne = "0";

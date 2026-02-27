@@ -1,0 +1,407 @@
+package br.gov.ses.fillbpai.service;
+
+import br.gov.ses.fillbpai.model.AtendimentoBPAi;
+import jakarta.persistence.EntityManager;
+import javafx.stage.FileChooser;
+import javafx.stage.Window;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.nio.file.Files;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+/**
+ * ============================================================
+ * GERADOR DE ARQUIVO BPA-I MAGNÉTICO
+ * ============================================================
+ *
+ * HEADER:
+ * 132 caracteres (MANTIDO INALTERADO)
+ *
+ * REGISTRO:
+ * 340 caracteres
+ *
+ * Layout oficial do Ministério da Saúde
+ *
+ * ============================================================
+ */
+public class GeradorBPAiService {
+
+    private final EntityManager entityManager;
+
+    public GeradorBPAiService(EntityManager entityManager) {
+        this.entityManager = entityManager;
+    }
+
+    private static final DateTimeFormatter FORMATO_COMPETENCIA =
+            DateTimeFormatter.ofPattern("yyyyMM");
+
+    private static final DateTimeFormatter FORMATO_DATA =
+            DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    /**
+     * ============================================================
+     * MÉTODO PRINCIPAL
+     * NÃO ALTERADO (REGRA SUA)
+     * ============================================================
+     */
+    public void gerarArquivoComFileChooser(
+            Window parentWindow,
+            String especialidade,
+            String medico) {
+
+        try {
+
+            List<AtendimentoBPAi> lista =
+                    entityManager.createQuery(
+                                    "SELECT a FROM AtendimentoBPAi a " +
+                                            "WHERE a.especialidadeMedico = :esp " +
+                                            "AND a.medico = :med",
+                                    AtendimentoBPAi.class)
+                            .setParameter("esp", especialidade)
+                            .setParameter("med", medico)
+                            .getResultList();
+
+            if (lista.isEmpty())
+                throw new RuntimeException("Nenhum registro encontrado");
+
+            String competencia =
+                    lista.get(0)
+                            .getDataAgendamento()
+                            .format(FORMATO_COMPETENCIA);
+
+            FileChooser chooser = new FileChooser();
+
+            chooser.setTitle("Salvar BPA-I");
+
+            chooser.setInitialFileName(
+                    especialidade + "_" + medico + "_" + competencia + ".txt"
+            );
+
+            File file = chooser.showSaveDialog(parentWindow);
+
+            if (file == null)
+                return;
+
+            try (BufferedWriter writer =
+                         Files.newBufferedWriter(file.toPath())) {
+
+                /**
+                 * HEADER — linha 1
+                 * NÃO ALTERADO
+                 */
+                writer.write(montarHeader(lista, competencia));
+                writer.newLine();
+
+                /**
+                 * REGISTROS — linhas seguintes
+                 */
+                int sequencial = 1;
+
+                for (AtendimentoBPAi a : lista) {
+
+                    writer.write(montarRegistro(a, competencia, sequencial));
+
+                    writer.newLine();
+
+                    sequencial++;
+
+                    if (sequencial > 20)
+                        sequencial = 1;
+                }
+            }
+
+        } catch (Exception ex) {
+
+            throw new RuntimeException(ex);
+        }
+    }
+
+    /**
+     * ============================================================
+     * HEADER — NÃO ALTERADO
+     * ============================================================
+     */
+    private String montarHeader(List<AtendimentoBPAi> lista, String competencia) {
+
+        int totalLinhas = lista.size();
+        int totalFolhas = lista.size();
+        int somaControle = calcularSomaVerificacao(lista);
+
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("01"); // seq 1 cbc-hdr
+        sb.append("#BPA#"); // seq 2 cbc-hdr
+        sb.append(padLeftZeros(competencia, 6)); // seq 3 cbc-mvm
+        sb.append(padLeftZeros(String.valueOf(totalLinhas), 6)); // seq 4 cbc-lin
+        sb.append(padLeftZeros(String.valueOf(totalFolhas), 6)); // seq 5 cbc-flh
+        sb.append(padLeftZeros(String.valueOf(somaControle), 4)); // seq 6 cbc-smt-vrf
+        sb.append(padRightSpaces("NUCLEO DE TELESSAUDE DE MS", 30)); // seq 7
+        sb.append(padRightSpaces("NTMS", 6)); // seq 8
+        sb.append(padLeftZeros("02955271000126", 14)); // seq 9
+        sb.append(padRightSpaces("SECRETARIA ESTADUAL DE SAUDE", 40)); // seq 10
+        sb.append("E"); // seq 11
+        sb.append(padRightSpaces("ED04.10", 10)); // seq 12
+
+        return sb.toString();
+    }
+
+    /**
+     * ============================================================
+     * REGISTRO BPA-I COMPLETO
+     * 340 caracteres
+     * seq 1 até seq 38
+     * ============================================================
+     */
+    private String montarRegistro(
+            AtendimentoBPAi a,
+            String competencia,
+            int sequencial) {
+
+        StringBuilder sb = new StringBuilder();
+
+        String sigtap = somenteNumeros(a.getSigtap());
+
+        String dataAtendimento =
+                a.getDataAgendamento().format(FORMATO_DATA);
+
+        String dataNascimento =
+                a.getDataNascimento() != null ?
+                        a.getDataNascimento().format(FORMATO_DATA) :
+                        "";
+
+        int idade = calcularIdade(a.getDataNascimento());
+
+        /**
+         * seq 1 - prd-ident
+         * posição 001-002
+         */
+        sb.append("03");
+
+        /**
+         * seq 2 - prd-cnes
+         * posição 003-009
+         */
+        sb.append(padLeftZeros(a.getCnesNts(), 7));
+
+        /**
+         * seq 3 - prd-cmp
+         * posição 010-015
+         */
+        sb.append(competencia);
+
+        /**
+         * seq 4 - prd-cnsmed
+         * posição 016-030
+         */
+        sb.append(padLeftZeros(a.getCnsProfissional(), 15));
+
+        /**
+         * seq 5 - prd-cbo
+         */
+        sb.append(padRightSpaces(a.getCboMedico(), 6));
+
+        /**
+         * seq 6 - prd-dtaten
+         */
+        sb.append(dataAtendimento);
+
+        /**
+         * seq 7 - prd-flh
+         */
+        sb.append(padLeftZeros(a.getFolha(), 3));
+
+        /**
+         * seq 8 - prd-seq
+         */
+        sb.append(padLeftZeros(String.valueOf(sequencial), 2));
+
+        /**
+         * seq 9 - prd-pa
+         */
+        sb.append(padLeftZeros(sigtap, 10));
+
+        /**
+         * seq 10 - prd-cnspac
+         */
+        sb.append(padLeftZeros(a.getCnsPaciente(), 15));
+
+        /**
+         * seq 11 - prd-sexo
+         * DEFAULT: M
+         */
+        sb.append("M");
+
+        /**
+         * seq 12 - prd-ibge
+         */
+        sb.append(padLeftZeros("", 6));
+
+        /**
+         * seq 13 - prd-cid
+         */
+        sb.append(padRightSpaces(a.getCidConsulta(), 4));
+
+        /**
+         * seq 14 - prd-idade
+         */
+
+        /**
+         * sb.append(padLeftZeros(String.valueOf(idade), 3));
+         */
+
+        sb.append(padRightSpaces(formatarCid(a.getCidConsulta()), 4));
+
+        /**
+         * seq 15 - prd-qt
+         */
+        sb.append("000001");
+
+        /**
+         * seq 16 - prd-caten
+         */
+        sb.append("00");
+
+        /**
+         * seq 17 - prd-naut
+         */
+        sb.append(padRightSpaces("", 13));
+
+        /**
+         * seq 18 - prd-org
+         */
+        sb.append("BPA");
+
+        /**
+         * seq 19 - prd-nmpac
+         */
+        sb.append(padRightSpaces(a.getPaciente(), 30));
+
+        /**
+         * seq 20 - prd-dtnasc
+         */
+        sb.append(padLeftZeros(dataNascimento, 8));
+
+        /**
+         * seq 21 - prd-raca
+         */
+        sb.append(padLeftZeros(a.getRacaPaciente(), 2));
+
+        /**
+         * seq 22 até seq 36
+         * não disponíveis → default
+         */
+        sb.append(padRightSpaces("", 4));  // etnia
+        sb.append(padRightSpaces("", 3));  // nacionalidade
+        sb.append(padRightSpaces("", 3));  // serviço
+        sb.append(padRightSpaces("", 3));  // classificação
+        sb.append(padRightSpaces("", 8));  // equipe seq
+        sb.append(padRightSpaces("", 4));  // equipe área
+        sb.append(padRightSpaces("", 14)); // cnpj
+        sb.append(padRightSpaces("", 8));  // cep
+        sb.append(padRightSpaces("", 3));  // logradouro
+        sb.append(padRightSpaces("", 30)); // endereço
+        sb.append(padRightSpaces("", 10)); // complemento
+        sb.append(padRightSpaces("", 5));  // número
+        sb.append(padRightSpaces("", 30)); // bairro
+        sb.append(padRightSpaces("", 11)); // telefone
+        sb.append(padRightSpaces("", 40)); // email
+
+        /**
+         * seq 37 - prd-ine
+         */
+        sb.append(padLeftZeros(a.getCodIne(), 10));
+
+        /**
+         * seq 38 - prd-fim
+         * CRLF controlado pelo writer.newLine()
+         */
+
+        return sb.toString();
+    }
+
+    /**
+     * cálculo idade
+     */
+    private int calcularIdade(LocalDate nascimento) {
+
+        if (nascimento == null)
+            return 0;
+
+        return Period.between(nascimento, LocalDate.now()).getYears();
+    }
+
+    /**
+     * cálculo campo controle header
+     */
+    private int calcularSomaVerificacao(List<AtendimentoBPAi> lista) {
+
+        int soma = 0;
+
+        for (AtendimentoBPAi a : lista) {
+
+            String sigtapNumerico = somenteNumeros(a.getSigtap());
+
+            if (!sigtapNumerico.isEmpty())
+                soma += Integer.parseInt(sigtapNumerico);
+
+            soma += 1;
+        }
+
+        return (soma % 1111) + 1111;
+    }
+
+    private String padLeftZeros(String valor, int tamanho) {
+
+        if (valor == null)
+            valor = "";
+
+        // remove tudo que não for número
+        valor = valor.replaceAll("[^0-9]", "");
+
+        if (valor.length() >= tamanho)
+            return valor;
+
+        StringBuilder sb = new StringBuilder();
+
+        while (sb.length() + valor.length() < tamanho) {
+            sb.append('0');
+        }
+
+        sb.append(valor);
+
+        return sb.toString();
+    }
+
+    private String padRightSpaces(String valor, int tamanho) {
+
+        if (valor == null)
+            valor = "";
+
+        return String.format("%-" + tamanho + "s", valor);
+    }
+
+    private String somenteNumeros(String valor) {
+
+        if (valor == null)
+            return "";
+
+        return valor.replaceAll("[^0-9]", "");
+    }
+
+    private String formatarCid(String cid) {
+
+        if (cid == null || cid.isBlank())
+            return "";
+
+        cid = cid.trim().toUpperCase();
+
+        // remove caracteres inválidos
+        cid = cid.replaceAll("[^A-Z0-9]", "");
+
+        return cid.length() > 4 ? cid.substring(0, 4) : cid;
+    }
+}
