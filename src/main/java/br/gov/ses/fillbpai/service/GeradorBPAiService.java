@@ -11,7 +11,9 @@ import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * ============================================================
@@ -313,24 +315,59 @@ public class GeradorBPAiService {
 
         /**
          * seq 24 - prd-srv
-         * default → "160"
          */
-        sb.append(padRightSpaces("160", 3));  // serviço
+         sb.append(padRightSpaces("160", 3)); // serviço
 
         /**
          * seq 25 - prd-clf
-         * default → "009"
+         * Código do serviço conforme SIGTAP do procedimento.
+         * default → "000"
          */
-        sb.append(padRightSpaces("009", 3));  // classificação
+        sb.append(formatarServico(a.getSigtap()));    // classificação
 
+        /**
+         * seq 26 - prd-equipe_Seq
+         */
         sb.append(padRightSpaces("", 8));  // equipe seq
+
+        /**
+         * seq 27 - prd-equipe_Area
+         */
         sb.append(padRightSpaces("", 4));  // equipe área
+
+        /**
+         * seq 28 - prd-cnpj
+         */
         sb.append(padRightSpaces("", 14)); // cnpj
+
+        /**
+         * seq 29 - prd-cep_pcnte
+         */
         sb.append(padRightSpaces("", 8));  // cep
+
+        /**
+         * seq 30 - prd-lograd_pcnte
+         */
         sb.append(padRightSpaces("", 3));  // logradouro
+
+        /**
+         * seq 31 - prd-end_pcnte
+         */
         sb.append(padRightSpaces("", 30)); // endereço
+
+        /**
+         * seq 32 - prd-compl_pcnte
+         */
         sb.append(padRightSpaces("", 10)); // complemento
+
+        /**
+         * seq 33 - prd-num_pcnte
+         */
         sb.append(padRightSpaces("", 5));  // número
+
+        /**
+         * seq 34 - prd-bairro_pcnte
+         */
         sb.append(padRightSpaces("", 30)); // bairro
 
         /**
@@ -340,6 +377,9 @@ public class GeradorBPAiService {
          */
         sb.append(formatarTelefone(a.getTelefone())); // telefone
 
+        /**
+         * seq 36 - prd-email_pcnte
+         */
         sb.append(padRightSpaces("", 40)); // email
 
         /**
@@ -496,5 +536,31 @@ public class GeradorBPAiService {
         }
 
         return padRightSpaces(telefone, 11);
+    }
+
+    /**
+     * Regra de negócio:
+     * SIGTAP 03.01.01.030-7 -> 000
+     * SIGTAP 08.04.01.006-4 -> 009
+     * Quando não houver correspondência, retornar branco (default BPA-I).
+     */
+    private static final Map<String, String> MAP_SERVICO = new HashMap<>();
+
+    static {
+        MAP_SERVICO.put("0301010307", "000");
+        MAP_SERVICO.put("0804010064", "009");
+       // MAP_SERVICO.put("NOVO_CODIGO", "162");
+    }
+
+    private String formatarServico(String sigtap) {
+
+        if (sigtap == null)
+            return padRightSpaces("", 3);
+
+        String sigtapNumerico = sigtap.replaceAll("[^0-9]", "");
+
+        String servico = MAP_SERVICO.get(sigtapNumerico);
+
+        return servico != null ? servico : padRightSpaces("", 3);
     }
 }
