@@ -17,15 +17,15 @@ import java.util.List;
  * ============================================================
  * GERADOR DE ARQUIVO BPA-I MAGNÉTICO
  * ============================================================
- *
+ * <p>
  * HEADER:
  * 132 caracteres (MANTIDO INALTERADO)
- *
+ * <p>
  * REGISTRO:
  * 340 caracteres
- *
+ * <p>
  * Layout oficial do Ministério da Saúde
- *
+ * <p>
  * ============================================================
  */
 public class GeradorBPAiService {
@@ -242,28 +242,32 @@ public class GeradorBPAiService {
 
         /**
          * seq 13 - prd-cid
+         * sb.append(padRightSpaces(a.getCidConsulta(), 4));
          */
-        sb.append(padRightSpaces(a.getCidConsulta(), 4));
-
+        sb.append(padRightSpaces(formatarCid(a.getCidConsulta()), 4));
         /**
          * seq 14 - prd-idade
          */
-
-        /**
-         * sb.append(padLeftZeros(String.valueOf(idade), 3));
-         */
-
-        sb.append(padRightSpaces(formatarCid(a.getCidConsulta()), 4));
+        sb.append(padLeftZeros(String.valueOf(idade), 3));
 
         /**
          * seq 15 - prd-qt
+         *
          */
         sb.append("000001");
 
         /**
          * seq 16 - prd-caten
+         *  Caracter de atendimento
+         *  Formato: NUM (2 posições)
+         *  Regra: deve conter apenas números, com zeros à esquerda quando necessário.
+         *
+         *  ATENÇÃO:
+         *  Durante a fase de desenvolvimento e testes, este campo será preenchido fixamente com "01".
+         *  Este valor deverá ser ajustado futuramente conforme a regra de negócio definitiva
+         *  e/ou conforme orientação do layout oficial do BPA-I / DATASUS.
          */
-        sb.append("00");
+        sb.append("01");
 
         /**
          * seq 17 - prd-naut
@@ -277,8 +281,11 @@ public class GeradorBPAiService {
 
         /**
          * seq 19 - prd-nmpac
+         * Nome completo do paciente
+         * Regra: máximo de 30 caracteres, preenchido com espaços à direita.
+         *  sb.append(padRightSpaces(a.getPaciente(), 30));
          */
-        sb.append(padRightSpaces(a.getPaciente(), 30));
+        sb.append(padRightSpaces(formatarAlfa(a.getPaciente(), 30), 30));
 
         /**
          * seq 20 - prd-dtnasc
@@ -287,17 +294,35 @@ public class GeradorBPAiService {
 
         /**
          * seq 21 - prd-raca
+         * Raça/Cor do paciente conforme tabela oficial do BPA-I.
+         * Quando não informado, preencher com "99".
          */
-        sb.append(padLeftZeros(a.getRacaPaciente(), 2));
+        sb.append(formatarRaca(a.getRacaPaciente()));
 
         /**
          * seq 22 até seq 36
+         * seq 22 - prd-etnia
          * não disponíveis → default
          */
         sb.append(padRightSpaces("", 4));  // etnia
-        sb.append(padRightSpaces("", 3));  // nacionalidade
-        sb.append(padRightSpaces("", 3));  // serviço
-        sb.append(padRightSpaces("", 3));  // classificação
+        /**
+         * seq 23 - prd-nac
+         * default → "010"
+         */
+        sb.append(padRightSpaces("010", 3));  // nacionalidade
+
+        /**
+         * seq 24 - prd-srv
+         * default → "160"
+         */
+        sb.append(padRightSpaces("160", 3));  // serviço
+
+        /**
+         * seq 25 - prd-clf
+         * default → "009"
+         */
+        sb.append(padRightSpaces("009", 3));  // classificação
+
         sb.append(padRightSpaces("", 8));  // equipe seq
         sb.append(padRightSpaces("", 4));  // equipe área
         sb.append(padRightSpaces("", 14)); // cnpj
@@ -307,7 +332,14 @@ public class GeradorBPAiService {
         sb.append(padRightSpaces("", 10)); // complemento
         sb.append(padRightSpaces("", 5));  // número
         sb.append(padRightSpaces("", 30)); // bairro
-        sb.append(padRightSpaces("", 11)); // telefone
+
+        /**
+         * seq 35 - prd-ddtel_pcnte
+         * Telefone do paciente
+         * Deve conter apenas números, preenchido com espaços à direita até 11 caracteres.
+         */
+        sb.append(formatarTelefone(a.getTelefone())); // telefone
+
         sb.append(padRightSpaces("", 40)); // email
 
         /**
@@ -403,5 +435,66 @@ public class GeradorBPAiService {
         cid = cid.replaceAll("[^A-Z0-9]", "");
 
         return cid.length() > 4 ? cid.substring(0, 4) : cid;
+    }
+
+    private String formatarAlfa(String valor, int tamanho) {
+
+        if (valor == null)
+            valor = "";
+
+        // remove quebras de linha e caracteres de controle
+        valor = valor.replaceAll("[\\r\\n\\t]", " ").trim();
+
+        // corta se exceder o tamanho máximo
+        if (valor.length() > tamanho) {
+            valor = valor.substring(0, tamanho);
+        }
+
+        return valor;
+    }
+
+    private String formatarRaca(String raca) {
+
+        if (raca == null)
+            return "99";
+
+        raca = raca.trim().toUpperCase();
+
+        if (raca.contains("BRANC")) return "01";
+        if (raca.contains("PRET")) return "02";
+        if (raca.contains("PARD")) return "03";
+        if (raca.contains("AMAREL")) return "04";
+        if (raca.contains("IND")) return "05";
+
+        return "99";
+    }
+
+    /**
+     * Formata o telefone do paciente conforme layout BPA-I.
+     *
+     * Regra:
+     * - Apenas números
+     * - Máximo de 11 dígitos
+     * - Preencher com espaços à direita se menor que 11
+     * - Default: espaços em branco
+     *
+     * Exemplo:
+     * "(67) 99624-2913" -> "67996242913"
+     */
+    private String formatarTelefone(String telefone) {
+
+        if (telefone == null || telefone.isBlank()) {
+            return padRightSpaces("", 11);
+        }
+
+        // remove tudo que não for número
+        telefone = telefone.replaceAll("[^0-9]", "");
+
+        // limita a 11 dígitos
+        if (telefone.length() > 11) {
+            telefone = telefone.substring(0, 11);
+        }
+
+        return padRightSpaces(telefone, 11);
     }
 }
