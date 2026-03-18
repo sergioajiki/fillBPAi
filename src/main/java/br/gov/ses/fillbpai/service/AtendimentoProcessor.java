@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
+import br.gov.ses.fillbpai.util.CnsUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -17,6 +18,7 @@ import java.time.LocalTime;
  * Esta classe NÃO acessa banco.
  * Apenas prepara o objeto para persistência.
  */
+
 public class AtendimentoProcessor {
 
     /**
@@ -38,22 +40,32 @@ public class AtendimentoProcessor {
         atendimento.setSigtap(definirSigtap(atendimento.getTipoServico()));
 
         // ===============================
+        // 4️⃣ Normalizações
+        // ===============================
+
+        normalizarCpf(atendimento);
+
+        // ===============================
         // 2️⃣ Validações
         // ===============================
 
         validarCamposObrigatorios(atendimento);
+        validarCns(atendimento);
+
 
         // ===============================
         // 3️⃣ Conversões
         // ===============================
 
         converterDatas(atendimento);
+    }
 
-        // ===============================
-        // 4️⃣ Normalizações
-        // ===============================
+    private void validarCns(AtendimentoBPAi atendimento) {
 
-        normalizarCpf(atendimento);
+        String cnsProcessado =
+                CnsUtils.processar(atendimento.getCnsPaciente());
+
+        atendimento.setCnsPaciente(cnsProcessado);
     }
 
     private String definirSigtap(String tipoServico) {
