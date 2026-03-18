@@ -14,6 +14,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.charset.StandardCharsets;
 
 /**
  * ============================================================
@@ -89,7 +90,9 @@ public class GeradorBPAiService {
                 return;
 
             try (BufferedWriter writer =
-                         Files.newBufferedWriter(file.toPath())) {
+                         Files.newBufferedWriter(
+                                 file.toPath(),
+                                 StandardCharsets.ISO_8859_1)) {
 
                 /**
                  * HEADER — linha 1
