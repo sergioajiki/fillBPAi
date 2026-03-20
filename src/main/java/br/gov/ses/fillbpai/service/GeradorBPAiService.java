@@ -201,8 +201,9 @@ public class GeradorBPAiService {
         /**
          * seq 4 - prd-cnsmed
          * posição 016-030
+         * NUM, default Brancos
          */
-        sb.append(padLeftZeros(a.getCnsProfissional(), 15));
+        sb.append(padNumOpcional(a.getCnsProfissional(), 15));
 
         /**
          * seq 5 - prd-cbo
@@ -231,19 +232,23 @@ public class GeradorBPAiService {
 
         /**
          * seq 10 - prd-cnspac
+         * NUM, default Brancos
          */
-        sb.append(padLeftZeros(a.getCnsPaciente(), 15));
+        sb.append(padNumOpcional(a.getCnsPaciente(), 15));
 
         /**
          * seq 11 - prd-sexo
-         * DEFAULT: M
+         * ALFA, M ou F
+         * TODO: campo sexoPaciente ainda não disponível na planilha — hardcoded "M"
          */
-        sb.append("M");
+        sb.append(a.getSexoPaciente() != null ? a.getSexoPaciente() : "M");
 
         /**
          * seq 12 - prd-ibge
+         * NUM, default Brancos
+         * TODO: campo código IBGE não disponível na planilha — preenchido com brancos
          */
-        sb.append(padLeftZeros("", 6));
+        sb.append(padRightSpaces("", 6));
 
         /**
          * seq 13 - prd-cid
@@ -294,8 +299,9 @@ public class GeradorBPAiService {
 
         /**
          * seq 20 - prd-dtnasc
+         * NUM, default Brancos
          */
-        sb.append(padLeftZeros(dataNascimento, 8));
+        sb.append(padNumOpcional(dataNascimento, 8));
 
         /**
          * seq 21 - prd-raca
@@ -345,33 +351,35 @@ public class GeradorBPAiService {
 
         /**
          * seq 29 - prd-cep_pcnte
+         * NUM, default Brancos
          */
-        sb.append(padRightSpaces("", 8));  // cep
+        sb.append(padNumOpcional(a.getCep(), 8));  // cep
 
         /**
          * seq 30 - prd-lograd_pcnte
+         * NUM, default Brancos
          */
-        sb.append(padRightSpaces("", 3));  // logradouro
+        sb.append(padNumOpcional(a.getCodLogradouro(), 3));  // logradouro
 
         /**
          * seq 31 - prd-end_pcnte
          */
-        sb.append(padRightSpaces("", 30)); // endereço
+        sb.append(padRightSpaces(formatarAlfa(a.getEndereco(), 30), 30)); // endereço
 
         /**
          * seq 32 - prd-compl_pcnte
          */
-        sb.append(padRightSpaces("", 10)); // complemento
+        sb.append(padRightSpaces(formatarAlfa(a.getComplemento(), 10), 10)); // complemento
 
         /**
          * seq 33 - prd-num_pcnte
          */
-        sb.append(padRightSpaces("", 5));  // número
+        sb.append(padRightSpaces(formatarAlfa(a.getNumero(), 5), 5));  // número
 
         /**
          * seq 34 - prd-bairro_pcnte
          */
-        sb.append(padRightSpaces("", 30)); // bairro
+        sb.append(padRightSpaces(formatarAlfa(a.getBairro(), 30), 30)); // bairro
 
         /**
          * seq 35 - prd-ddtel_pcnte
@@ -387,8 +395,9 @@ public class GeradorBPAiService {
 
         /**
          * seq 37 - prd-ine
+         * NUM, default Brancos
          */
-        sb.append(padLeftZeros(a.getCodIne(), 10));
+        sb.append(padNumOpcional(a.getCodIne(), 10));
 
         /**
          * seq 38 - prd-fim
@@ -427,6 +436,24 @@ public class GeradorBPAiService {
         }
 
         return (soma % 1111) + 1111;
+    }
+
+    /**
+     * Campos NUM opcionais do BPA-I:
+     * - Quando preenchido → apenas números, zeros à esquerda
+     * - Quando vazio → espaços em branco (default "Brancos" do layout)
+     */
+    private String padNumOpcional(String valor, int tamanho) {
+
+        if (valor == null)
+            valor = "";
+
+        valor = valor.replaceAll("[^0-9]", "");
+
+        if (valor.isEmpty())
+            return padRightSpaces("", tamanho);
+
+        return padLeftZeros(valor, tamanho);
     }
 
     private String padLeftZeros(String valor, int tamanho) {

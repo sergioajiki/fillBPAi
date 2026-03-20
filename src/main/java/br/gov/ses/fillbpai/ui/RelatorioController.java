@@ -16,7 +16,9 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.Region;
 
 import javafx.stage.Window;
 
@@ -84,14 +86,36 @@ public class RelatorioController {
         // sempre usar listaFiltrada, nunca alterar colunas dinamicamente
         tabela.setItems(listaFiltrada);
 
+        // Desativa o resize automático que comprime colunas para caber na janela.
+        // Com UNCONSTRAINED, cada coluna mantém seu prefWidth (150px),
+        // e o conteúdo total da tabela pode ultrapassar a largura visível.
+        tabela.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+
         totalLabel = new Label("Total: 0");
 
         configurarColunas(); // cria TODAS as colunas
 
+        // Calcula a largura mínima necessária para exibir todas as colunas.
+        // 27 colunas × 150px = 4050px + margem para scrollbar vertical.
+        double larguraTotal = tabela.getColumns().size() * 150 + 20;
+        tabela.setMinWidth(larguraTotal);
+        tabela.setPrefWidth(larguraTotal);
+
+        // ScrollPane gerencia a rolagem horizontal de forma explícita.
+        // Sem ele, o BorderPane/VBox pai expande a tabela para a largura da janela
+        // (1500px) e as colunas à direita ficam inacessíveis.
+        ScrollPane scrollPane = new ScrollPane(tabela);
+        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        scrollPane.setFitToHeight(true);
+
+        // ScrollPane cresce para ocupar todo o espaço vertical disponível
+        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+
         VBox box = new VBox(
                 10,
                 criarBarraFiltros(),
-                tabela,
+                scrollPane,
                 totalLabel
         );
 
@@ -425,6 +449,12 @@ public class RelatorioController {
                 criarColuna("CNS Paciente",
                         AtendimentoBPAiDTO::getCnsPaciente),
 
+                criarColuna("Sexo",
+                        AtendimentoBPAiDTO::getSexoPaciente),
+
+                criarColuna("Raça",
+                        AtendimentoBPAiDTO::getRacaPaciente),
+
                 criarColuna("Nascimento",
                         AtendimentoBPAiDTO::getDataNascimento),
 
@@ -434,8 +464,23 @@ public class RelatorioController {
                 criarColuna("Município",
                         AtendimentoBPAiDTO::getMunicipio),
 
+                criarColuna("CEP",
+                        AtendimentoBPAiDTO::getCep),
+
+                criarColuna("Cód. Logradouro",
+                        AtendimentoBPAiDTO::getCodLogradouro),
+
                 criarColuna("Endereço",
-                        AtendimentoBPAiDTO::getEnderecoCompleto),
+                        AtendimentoBPAiDTO::getEndereco),
+
+                criarColuna("Complemento",
+                        AtendimentoBPAiDTO::getComplemento),
+
+                criarColuna("Número",
+                        AtendimentoBPAiDTO::getNumero),
+
+                criarColuna("Bairro",
+                        AtendimentoBPAiDTO::getBairro),
 
                 criarColuna("CID",
                         AtendimentoBPAiDTO::getCidConsulta)

@@ -50,7 +50,13 @@ public class ExcelImportService {
         atendimento.setCidConsulta(getString(row.getCell(13)));
         atendimento.setTelefone(getString(row.getCell(14)));
         atendimento.setTipoZona(getString(row.getCell(15)));
-        atendimento.setEnderecoCompleto(getString(row.getCell(16)));
+
+        atendimento.setCep(getString(row.getCell(16)));
+        atendimento.setCodLogradouro(getString(row.getCell(17)));
+        atendimento.setEndereco(getString(row.getCell(18)));
+        atendimento.setComplemento(getString(row.getCell(19)));
+        atendimento.setNumero(getString(row.getCell(20)));
+        atendimento.setBairro(getString(row.getCell(21)));
 
         return atendimento;
     }

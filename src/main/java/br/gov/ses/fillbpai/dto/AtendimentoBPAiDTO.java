@@ -62,6 +62,8 @@ public class AtendimentoBPAiDTO {
 
     public String getCpfPaciente() { return entity.getCpfPaciente(); }
 
+    public String getSexoPaciente() { return entity.getSexoPaciente(); }
+
     public String getCnsPaciente() { return entity.getCnsPaciente(); }
 
     public String getRacaPaciente() { return entity.getRacaPaciente(); }
@@ -77,7 +79,17 @@ public class AtendimentoBPAiDTO {
 
     public String getTipoZona() { return entity.getTipoZona(); }
 
-    public String getEnderecoCompleto() { return entity.getEnderecoCompleto(); }
+    public String getCep() { return entity.getCep(); }
+
+    public String getCodLogradouro() { return entity.getCodLogradouro(); }
+
+    public String getEndereco() { return entity.getEndereco(); }
+
+    public String getComplemento() { return entity.getComplemento(); }
+
+    public String getNumero() { return entity.getNumero(); }
+
+    public String getBairro() { return entity.getBairro(); }
 
     public String getCidConsulta() { return entity.getCidConsulta(); }
 }

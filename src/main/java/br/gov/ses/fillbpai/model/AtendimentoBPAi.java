@@ -25,7 +25,7 @@ public class AtendimentoBPAi {
     private String cnesNts = "6970451";
 
     @Column(name = "cod_ine")
-    private String codIne = "0";
+    private String codIne;
 
     @Column(name = "folha")
     private String folha;
@@ -75,6 +75,9 @@ public class AtendimentoBPAi {
     @Column(name = "cns_paciente", length = 20)
     private String cnsPaciente;
 
+    @Column(name = "sexo_paciente", length = 1)
+    private String sexoPaciente;
+
     @Column(name = "raca_paciente", length = 50)
     private String racaPaciente;
 
@@ -90,8 +93,23 @@ public class AtendimentoBPAi {
     @Column(name = "tipo_zona", length = 50)
     private String tipoZona;
 
-    @Column(name = "endereco_completo", length = 1000)
-    private String enderecoCompleto;
+    @Column(name = "cep", length = 8)
+    private String cep;
+
+    @Column(name = "cod_logradouro", length = 3)
+    private String codLogradouro;
+
+    @Column(name = "endereco", length = 30)
+    private String endereco;
+
+    @Column(name = "complemento", length = 10)
+    private String complemento;
+
+    @Column(name = "numero", length = 5)
+    private String numero;
+
+    @Column(name = "bairro", length = 30)
+    private String bairro;
 
     /*
      * Campos auxiliares para importação do Excel.
@@ -219,6 +237,14 @@ public class AtendimentoBPAi {
         this.paciente = paciente;
     }
 
+    public String getSexoPaciente() {
+        return sexoPaciente;
+    }
+
+    public void setSexoPaciente(String sexoPaciente) {
+        this.sexoPaciente = sexoPaciente;
+    }
+
     public String getCnsPaciente() {
         return cnsPaciente;
     }
@@ -267,12 +293,52 @@ public class AtendimentoBPAi {
         this.tipoZona = tipoZona;
     }
 
-    public String getEnderecoCompleto() {
-        return enderecoCompleto;
+    public String getCep() {
+        return cep;
     }
 
-    public void setEnderecoCompleto(String enderecoCompleto) {
-        this.enderecoCompleto = enderecoCompleto;
+    public void setCep(String cep) {
+        this.cep = cep;
+    }
+
+    public String getCodLogradouro() {
+        return codLogradouro;
+    }
+
+    public void setCodLogradouro(String codLogradouro) {
+        this.codLogradouro = codLogradouro;
+    }
+
+    public String getEndereco() {
+        return endereco;
+    }
+
+    public void setEndereco(String endereco) {
+        this.endereco = endereco;
+    }
+
+    public String getComplemento() {
+        return complemento;
+    }
+
+    public void setComplemento(String complemento) {
+        this.complemento = complemento;
+    }
+
+    public String getNumero() {
+        return numero;
+    }
+
+    public void setNumero(String numero) {
+        this.numero = numero;
+    }
+
+    public String getBairro() {
+        return bairro;
+    }
+
+    public void setBairro(String bairro) {
+        this.bairro = bairro;
     }
 
     public String getDataAgendamentoString() {
