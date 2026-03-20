@@ -2,15 +2,59 @@ package br.gov.ses.fillbpai.util;
 
 public class StringUtils {
     /**
-     * Separa código e nome do estabelecimento.
+     * ============================================================
+     * LIMITAR TAMANHO DE STRING
+     * ============================================================
      *
-     * Exemplo de entrada:
-     * "123456 - HOSPITAL MUNICIPAL"
+     * Regra:
+     * - Se null → retorna null
+     * - Se menor que o tamanho → retorna normal
+     * - Se maior → corta no limite
      *
-     * Retorna:
-     * [0] -> código
-     * [1] -> nome
+     * Uso:
+     * - Banco de dados (VARCHAR limitado)
+     * - Layouts fixos (BPA, arquivos, etc)
+     *
+     * Exemplo:
+     * limitarTamanho("Rua ABC", 30) -> "Rua ABC"
+     * limitarTamanho("Texto muito grande...", 10) -> "Texto muit"
      */
+    public static String limitarTamanho(String valor, int tamanhoMaximo) {
+
+        if (valor == null) {
+            return null;
+        }
+
+        valor = valor.trim();
+
+        if (valor.length() <= tamanhoMaximo) {
+            return valor;
+        }
+
+        return valor.substring(0, tamanhoMaximo);
+    }
+
+    /**
+     * ============================================================
+     * LIMITAR TAMANHO + DEFAULT VAZIO
+     * ============================================================
+     *
+     * Variante segura para evitar null em campos de banco.
+     */
+    public static String limitarTamanhoOuVazio(String valor, int tamanhoMaximo) {
+
+        if (valor == null) {
+            return "";
+        }
+
+        valor = valor.trim();
+
+        if (valor.length() <= tamanhoMaximo) {
+            return valor;
+        }
+
+        return valor.substring(0, tamanhoMaximo);
+    }
     public static String[] separarCodigoENome(String valor) {
 
         if (valor == null || !valor.contains("-")) {

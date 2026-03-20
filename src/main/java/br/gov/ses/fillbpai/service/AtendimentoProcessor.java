@@ -5,6 +5,7 @@ import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
+import br.gov.ses.fillbpai.util.CepUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -44,6 +45,8 @@ public class AtendimentoProcessor {
         // ===============================
 
         normalizarCpf(atendimento);
+        normalizarCep(atendimento);
+        limitarCamposBanco(atendimento);
 
         // ===============================
         // 2️⃣ Validações
@@ -214,6 +217,39 @@ public class AtendimentoProcessor {
             );
         }
     }
+
+    /**
+     * ✅ NOVO: Normaliza CEP
+     * Remove hífen, espaços e caracteres inválidos
+     *
+     * Ex:
+     * 79.003-020 -> 79003020
+     */
+    private void normalizarCep(AtendimentoBPAi atendimento) {
+
+        if (!isNullOrEmpty(atendimento.getCep())) {
+
+            atendimento.setCep(
+                    CepUtils.normalizar(atendimento.getCep())
+            );
+        }
+    }
+
+    private void limitarCamposBanco(AtendimentoBPAi atendimento) {
+
+        atendimento.setEndereco(
+                StringUtils.limitarTamanho(atendimento.getEndereco(), 30));
+
+        atendimento.setBairro(
+                StringUtils.limitarTamanho(atendimento.getBairro(), 30));
+
+        atendimento.setComplemento(
+                StringUtils.limitarTamanho(atendimento.getComplemento(), 10));
+
+        atendimento.setNumero(
+                StringUtils.limitarTamanho(atendimento.getNumero(), 5));
+    }
+
 
     // ===============================
     // UTIL
