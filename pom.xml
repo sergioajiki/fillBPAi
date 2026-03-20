@@ -41,8 +41,8 @@
     </properties>
 
     <!-- =========================
-         Dependências
-         ========================= -->
+        Dependências
+        ========================= -->
     <dependencies>
 
         <!-- ===== JavaFX ===== -->
@@ -50,7 +50,7 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>${javafx.version}</version>
+            <version>21.0.10</version>
         </dependency>
 
         <!-- Suporte a FXML -->
