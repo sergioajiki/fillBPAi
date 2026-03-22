@@ -2,6 +2,7 @@ package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.model.*;
+import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
 import br.gov.ses.fillbpai.repository.*;
 import jakarta.persistence.EntityManager;
@@ -181,6 +182,22 @@ public class AtendimentoImportacaoService {
 		atendimento.setEspecialidadeMedico(dto.getEspecialidadeMedico());
 		atendimento.setCboMedico(dto.getCboMedico());
 		atendimento.setCidConsulta(dto.getCidConsulta());
+
+		// ==============================
+		// CNS do profissional (lookup por CPF via CSV)
+		// ==============================
+
+		CnsProfissionalUtils.CnsResultado cnsResultado =
+				CnsProfissionalUtils.buscar(dto.getCpfMedico());
+
+		if (cnsResultado.getCns() != null) {
+			atendimento.setCnsProfissional(cnsResultado.getCns());
+		}
+
+		if (cnsResultado.getAviso() != null) {
+			resultado.adicionarAviso(
+					"Linha " + linhaExcel + " - Aviso: " + cnsResultado.getAviso());
+		}
 
 		return atendimento;
 	}
