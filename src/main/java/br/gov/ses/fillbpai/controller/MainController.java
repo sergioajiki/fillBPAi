@@ -70,38 +70,64 @@ public class MainController {
         }
     }
 
+    /**
+     * Exibe um diálogo com o resumo da importação.
+     *
+     * O log é dividido em duas seções:
+     * - ERROS: linhas que NÃO foram importadas (ex: campos obrigatórios ausentes)
+     * - AVISOS: linhas importadas com sucesso, mas com dados atípicos (ex: CNS legado)
+     *
+     * Isso permite ao usuário identificar rapidamente problemas
+     * e tomar ações corretivas quando necessário.
+     */
     private void mostrarResumoComLog(ImportacaoResultado resultado) {
 
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle("Resultado da Importação");
         alert.setHeaderText("Importação Finalizada");
 
+        // Resumo numérico: processados, sucesso, erros, avisos
         Label resumo = new Label(
                 "Total processados: " + resultado.getTotalProcessados()
                         + "\nSucesso: " + resultado.getTotalSucesso()
                         + "\nErros: " + resultado.getTotalErro()
+                        + "\nAvisos: " + resultado.getTotalAvisos()
         );
 
         TextArea areaLog = new TextArea();
         areaLog.setEditable(false);
         areaLog.setWrapText(true);
-        areaLog.setPrefHeight(200);
+        areaLog.setPrefHeight(300);
 
+        StringBuilder sb = new StringBuilder();
+
+        // Seção de erros — linhas que não foram importadas
         if (!resultado.getErros().isEmpty()) {
-
-            StringBuilder sb = new StringBuilder();
-
+            sb.append("=== ERROS (linhas não importadas) ===\n");
             for (String erro : resultado.getErros()) {
                 sb.append(erro).append("\n");
             }
-
-            areaLog.setText(sb.toString());
-
-        } else {
-            areaLog.setText("Nenhum erro encontrado.");
         }
 
-        VBox layout = new VBox(10, resumo, new Label("Log de Erros:"), areaLog);
+        // Seção de avisos — linhas importadas com ressalvas
+        if (!resultado.getAvisos().isEmpty()) {
+            if (sb.length() > 0) {
+                sb.append("\n");
+            }
+            sb.append("=== AVISOS (linhas importadas com ressalvas) ===\n");
+            for (String aviso : resultado.getAvisos()) {
+                sb.append(aviso).append("\n");
+            }
+        }
+
+        // Se não houver erros nem avisos
+        if (sb.length() == 0) {
+            sb.append("Importação concluída sem erros ou avisos.");
+        }
+
+        areaLog.setText(sb.toString());
+
+        VBox layout = new VBox(10, resumo, new Label("Log de Importação:"), areaLog);
         layout.setPadding(new Insets(10));
 
         alert.getDialogPane().setContent(layout);

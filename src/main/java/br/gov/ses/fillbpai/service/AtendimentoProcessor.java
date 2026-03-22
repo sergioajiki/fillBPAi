@@ -9,39 +9,60 @@ import br.gov.ses.fillbpai.util.CepUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Classe responsável por:
- * - Validar dados importados do Excel
- * - Converter Strings em tipos corretos
- * - Normalizar informações (CPF etc.)
- * <p>
- * Esta classe NÃO acessa banco.
- * Apenas prepara o DTO para extração de entidades.
+ * Classe responsável por processar e validar os dados importados do Excel.
+ *
+ * Pipeline de processamento (executado na ordem):
+ * 1. Separações — extrai código/nome de campos combinados
+ * 2. Definição SIGTAP — mapeia tipo de serviço para código SIGTAP
+ * 3. Normalizações — limpa CPF, CEP, limita tamanho de campos
+ * 4. Validações — verifica campos obrigatórios e formato do CNS
+ * 5. Conversões — transforma strings de data/hora em LocalDate/LocalTime
+ *
+ * Esta classe NÃO acessa banco de dados.
+ * Apenas prepara o DTO para extração de entidades na camada de serviço.
+ *
+ * @return Lista de avisos (warnings) gerados durante o processamento.
+ *         Avisos NÃO impedem a importação — apenas informam situações atípicas.
+ *         Erros bloqueantes são lançados como IllegalArgumentException.
  */
-
 public class AtendimentoProcessor {
 
 	/**
 	 * Processa e valida um DTO de importação.
+	 *
+	 * @param dto dados brutos extraídos de uma linha da planilha Excel
+	 * @return lista de avisos (warnings) — vazia se nenhum aviso gerado
+	 * @throws IllegalArgumentException se algum campo obrigatório estiver ausente ou inválido
 	 */
-	public void processar(LinhaImportacaoDTO dto) {
+	public List<String> processar(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
 
 		// ===============================
-		// 1️⃣ Separações
+		// 1. Separações
+		// Campos combinados "CÓDIGO - NOME" são divididos
+		// em campos individuais para normalização
 		// ===============================
 
 		separarEstabelecimento(dto);
 		separarEspecialidadeEMedico(dto);
 
 		// ===============================
-		// 2️⃣ Definir SIGTAP
+		// 2. Definir SIGTAP
+		// Mapeia o tipo de serviço (TELECONSULTA, TELEINTERCONSULTA)
+		// para o código SIGTAP correspondente
 		// ===============================
 
 		dto.setSigtap(definirSigtap(dto.getTipoServico()));
 
 		// ===============================
-		// 4️⃣ Normalizações
+		// 3. Normalizações
+		// Remove formatação de CPF/CEP e limita tamanho
+		// de campos de endereço conforme layout BPA-I
 		// ===============================
 
 		normalizarCpf(dto);
@@ -49,28 +70,54 @@ public class AtendimentoProcessor {
 		limitarCamposBanco(dto);
 
 		// ===============================
-		// 2️⃣ Validações
+		// 4. Validações
+		// Verifica campos obrigatórios (paciente, CPF, data)
+		// e valida formato do CNS (aceita formato legado com aviso)
 		// ===============================
 
 		validarCamposObrigatorios(dto);
-		validarCns(dto);
-
+		avisos.addAll(validarCns(dto));
 
 		// ===============================
-		// 3️⃣ Conversões
+		// 5. Conversões
+		// Transforma strings de data/hora vindas do Excel
+		// em tipos Java (LocalDate/LocalTime)
 		// ===============================
 
 		converterDatas(dto);
+
+		return avisos;
 	}
 
-	private void validarCns(LinhaImportacaoDTO dto) {
+	/**
+	 * Valida e normaliza o CNS do paciente.
+	 *
+	 * CNS com 15 dígitos → padrão atual, aceito sem aviso.
+	 * CNS com mais de 15 dígitos → formato legado (antigo), aceito com aviso.
+	 * CNS ausente ou com menos de 15 dígitos → erro bloqueante.
+	 *
+	 * @return lista de avisos gerados pela validação do CNS
+	 */
+	private List<String> validarCns(LinhaImportacaoDTO dto) {
 
-		String cnsProcessado =
+		CnsUtils.CnsResultado resultado =
 				CnsUtils.processar(dto.getCnsPaciente());
 
-		dto.setCnsPaciente(cnsProcessado);
+		// Atualiza o DTO com o CNS normalizado (somente dígitos)
+		dto.setCnsPaciente(resultado.getCns());
+
+		return resultado.getAvisos();
 	}
 
+	/**
+	 * Mapeia o tipo de serviço para o código SIGTAP correspondente.
+	 *
+	 * Mapeamento:
+	 * - TELECONSULTA       → 03.01.01.030-7
+	 * - TELEINTERCONSULTA   → 08.04.01.006-4
+	 *
+	 * @throws IllegalArgumentException se o tipo de serviço não for reconhecido
+	 */
 	private String definirSigtap(String tipoServico) {
 
 		if (tipoServico == null) {
@@ -93,7 +140,10 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Separa código e nome do estabelecimento.
+	 * Separa o campo combinado "CÓDIGO - NOME" do estabelecimento
+	 * em dois campos distintos: codEstabelecimento e estabelecimento (nome).
+	 *
+	 * Exemplo: "12345 - HOSPITAL CENTRAL" → código="12345", nome="HOSPITAL CENTRAL"
 	 */
 	private void separarEstabelecimento(LinhaImportacaoDTO dto) {
 
@@ -111,7 +161,10 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Separa especialidade e nome do médico.
+	 * Separa o campo combinado "ESPECIALIDADE - NOME DO MÉDICO"
+	 * em dois campos distintos: especialidadeMedico e medico (nome).
+	 *
+	 * Exemplo: "CARDIOLOGIA - DR. SILVA" → especialidade="CARDIOLOGIA", médico="DR. SILVA"
 	 */
 	private void separarEspecialidadeEMedico(LinhaImportacaoDTO dto) {
 
@@ -132,6 +185,16 @@ public class AtendimentoProcessor {
 	// VALIDAÇÕES
 	// ===============================
 
+	/**
+	 * Valida campos obrigatórios para a importação.
+	 *
+	 * Campos obrigatórios:
+	 * - Nome do paciente
+	 * - CPF do paciente
+	 * - Data de agendamento
+	 *
+	 * @throws IllegalArgumentException se algum campo obrigatório estiver ausente
+	 */
 	private void validarCamposObrigatorios(LinhaImportacaoDTO dto) {
 
 		if (isNullOrEmpty(dto.getPaciente())) {
@@ -151,6 +214,17 @@ public class AtendimentoProcessor {
 	// CONVERSÕES
 	// ===============================
 
+	/**
+	 * Converte strings de data/hora do Excel em tipos Java.
+	 *
+	 * Campos convertidos:
+	 * - dataAgendamentoString → dataAgendamento (LocalDate)
+	 * - horaAtendimentoString → horaAtendimento (LocalTime)
+	 * - dataNascimentoString  → dataNascimento (LocalDate)
+	 *
+	 * Formatos suportados por DateUtils: dd/MM/yyyy, yyyy-MM-dd, dd-MM-yyyy
+	 * Formatos suportados por TimeUtils: HH:mm, H:mm, HH:mm:ss, HHmm
+	 */
 	private void converterDatas(LinhaImportacaoDTO dto) {
 
 		if (!isNullOrEmpty(dto.getDataAgendamentoString())) {
@@ -197,6 +271,10 @@ public class AtendimentoProcessor {
 	// NORMALIZAÇÃO
 	// ===============================
 
+	/**
+	 * Remove formatação dos CPFs (paciente e médico).
+	 * Remove pontos e traços: 123.456.789-00 → 12345678900
+	 */
 	private void normalizarCpf(LinhaImportacaoDTO dto) {
 
 		if (!isNullOrEmpty(dto.getCpfPaciente())) {
@@ -219,11 +297,10 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Normaliza CEP.
+	 * Normaliza CEP removendo formatação.
 	 * Remove hífen, espaços e caracteres inválidos.
 	 *
-	 * Ex:
-	 * 79.003-020 -> 79003020
+	 * Exemplo: 79.003-020 → 79003020
 	 */
 	private void normalizarCep(LinhaImportacaoDTO dto) {
 
@@ -235,6 +312,16 @@ public class AtendimentoProcessor {
 		}
 	}
 
+	/**
+	 * Limita o tamanho dos campos de endereço conforme restrições do banco
+	 * e do layout BPA-I.
+	 *
+	 * Limites:
+	 * - endereco:    30 caracteres (seq 31 do BPA-I)
+	 * - bairro:      30 caracteres (seq 34 do BPA-I)
+	 * - complemento: 10 caracteres (seq 32 do BPA-I)
+	 * - numero:       5 caracteres (seq 33 do BPA-I)
+	 */
 	private void limitarCamposBanco(LinhaImportacaoDTO dto) {
 
 		dto.setEndereco(
@@ -249,7 +336,6 @@ public class AtendimentoProcessor {
 		dto.setNumero(
 				StringUtils.limitarTamanho(dto.getNumero(), 5));
 	}
-
 
 	// ===============================
 	// UTIL

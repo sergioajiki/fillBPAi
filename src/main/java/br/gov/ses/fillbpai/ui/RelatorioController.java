@@ -56,8 +56,7 @@ public class RelatorioController {
 
 	private ComboBox<String> filtroMedico = new ComboBox<>();
 
-	private TextField campoFolha = new TextField();
-
+	// Campo para edição do CNS do profissional (habilitado após seleção de médico)
 	private TextField campoCnsProfissional = new TextField();
 
 	private Button btnAtualizar = new Button("OK");
@@ -96,7 +95,7 @@ public class RelatorioController {
 		configurarColunas(); // cria TODAS as colunas
 
 		// Calcula a largura mínima necessária para exibir todas as colunas.
-		// 27 colunas × 150px = 4050px + margem para scrollbar vertical.
+		// 26 colunas × 150px = 3900px + margem para scrollbar vertical.
 		double larguraTotal = tabela.getColumns().size() * 150 + 20;
 		tabela.setMinWidth(larguraTotal);
 		tabela.setPrefWidth(larguraTotal);
@@ -134,20 +133,16 @@ public class RelatorioController {
 
 	private HBox criarBarraFiltros() {
 
+		// Filtros de seleção — definem o contexto de edição
 		filtroEspecialidade.setPromptText("Especialidade");
-
 		filtroMedico.setPromptText("Médico");
 
-		campoFolha.setPromptText("Nova folha");
-
+		// Campo de edição do CNS do profissional
 		campoCnsProfissional.setPromptText("Novo CNS");
 
+		// Campos desabilitados até que um médico seja selecionado
 		filtroMedico.setDisable(true);
-
-		campoFolha.setDisable(true);
-
 		campoCnsProfissional.setDisable(true);
-
 		btnAtualizar.setDisable(true);
 
 		// EVENTO FILTRO ESPECIALIDADE
@@ -166,8 +161,8 @@ public class RelatorioController {
 			habilitarEdicao();
 		});
 
-		// EVENTO ATUALIZAR BD
-		btnAtualizar.setOnAction(e -> atualizarFolhaECns());
+		// EVENTO ATUALIZAR BD — persiste apenas o CNS do profissional
+		btnAtualizar.setOnAction(e -> atualizarCns());
 
 		// EVENTO GERAR BPA
 		btnGerarBPA.setOnAction(e -> gerarBPA());
@@ -180,7 +175,6 @@ public class RelatorioController {
 				10,
 				new Label("Especialidade:"), filtroEspecialidade,
 				new Label("Médico:"), filtroMedico,
-				new Label("Folha:"), campoFolha,
 				new Label("CNS:"), campoCnsProfissional,
 				btnAtualizar,
 				btnGerarBPA,
@@ -242,11 +236,7 @@ public class RelatorioController {
 
 		filtroMedico.setDisable(true);
 
-		campoFolha.clear();
-
 		campoCnsProfissional.clear();
-
-		campoFolha.setDisable(true);
 
 		campoCnsProfissional.setDisable(true);
 
@@ -336,8 +326,6 @@ public class RelatorioController {
 
 	private void habilitarEdicao() {
 
-		campoFolha.setDisable(false);
-
 		campoCnsProfissional.setDisable(false);
 
 		btnAtualizar.setDisable(false);
@@ -347,7 +335,13 @@ public class RelatorioController {
 	// ATUALIZAÇÃO BANCO
 	// ======================================================
 
-	private void atualizarFolhaECns() {
+	/**
+	 * Atualiza o CNS do profissional para todos os atendimentos
+	 * do médico e especialidade selecionados.
+	 *
+	 * A folha não é mais editável pela UI — é controlada pelo gerador.
+	 */
+	private void atualizarCns() {
 
 		String medico = filtroMedico.getValue();
 
@@ -374,8 +368,7 @@ public class RelatorioController {
 
 			for (AtendimentoBPAi a : lista) {
 
-				a.setFolha(campoFolha.getText());
-
+				// Atualiza apenas o CNS do profissional
 				a.setCnsProfissional(
 						campoCnsProfissional.getText());
 			}
@@ -422,9 +415,6 @@ public class RelatorioController {
 
 				criarColuna("INE",
 						AtendimentoBPAiDTO::getCodIne),
-
-				criarColuna("Folha",
-						AtendimentoBPAiDTO::getFolha),
 
 				criarColuna("Médico",
 						AtendimentoBPAiDTO::getMedico),

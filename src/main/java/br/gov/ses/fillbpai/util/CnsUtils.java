@@ -1,56 +1,103 @@
 package br.gov.ses.fillbpai.util;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * ============================================================
  * UTILITÁRIO DE VALIDAÇÃO DE CNS
  * ============================================================
  *
- * Centraliza validações relacionadas ao CNS.
+ * Centraliza validações relacionadas ao CNS (Cartão Nacional de Saúde).
+ *
+ * Regras:
+ * - CNS padrão atual: exatamente 15 dígitos numéricos
+ * - CNS legado (antigo): pode ter mais de 15 dígitos — aceito com aviso
+ * - CNS ausente: erro (campo obrigatório)
+ *
  * Novas regras podem ser adicionadas aqui futuramente
  * sem alterar código de importação ou processamento.
  */
 public class CnsUtils {
 
-    /**
-     * Remove caracteres não numéricos.
-     */
-    public static String normalizar(String cns) {
+	/**
+	 * Remove caracteres não numéricos do CNS.
+	 *
+	 * @param cns valor bruto do CNS (pode conter pontos, traços, espaços)
+	 * @return CNS contendo apenas dígitos, ou null se entrada for null
+	 */
+	public static String normalizar(String cns) {
 
-        if (cns == null) {
-            return null;
-        }
+		if (cns == null) {
+			return null;
+		}
 
-        return cns.replaceAll("[^0-9]", "");
-    }
+		return cns.replaceAll("[^0-9]", "");
+	}
 
-    /**
-     * Valida CNS (15 dígitos).
-     */
-    public static void validarCns(String cns) {
+	/**
+	 * Processa o CNS: normaliza e valida.
+	 * Retorna o resultado contendo o CNS limpo e eventuais avisos.
+	 *
+	 * Regras de validação:
+	 * - CNS null/vazio → erro (IllegalArgumentException)
+	 * - CNS com 15 dígitos → válido, sem avisos
+	 * - CNS com mais de 15 dígitos → válido (formato legado), emite aviso
+	 * - CNS com menos de 15 dígitos → erro (formato inválido)
+	 *
+	 * @param cns valor bruto do CNS
+	 * @return resultado com CNS normalizado e lista de avisos
+	 * @throws IllegalArgumentException se CNS for nulo, vazio ou com menos de 15 dígitos
+	 */
+	public static CnsResultado processar(String cns) {
 
-        if (cns == null || cns.trim().isEmpty()) {
-            throw new IllegalArgumentException("CNS do paciente não informado.");
-        }
+		List<String> avisos = new ArrayList<>();
 
-        String cnsLimpo = normalizar(cns);
+		String cnsLimpo = normalizar(cns);
 
-        if (cnsLimpo.length() != 15) {
-            throw new IllegalArgumentException(
-                    "CNS inválido. Deve conter 15 dígitos: " + cns
-            );
-        }
-    }
+		// CNS ausente — erro bloqueante
+		if (cnsLimpo == null || cnsLimpo.trim().isEmpty()) {
+			throw new IllegalArgumentException("CNS do paciente não informado.");
+		}
 
-    /**
-     * Método completo:
-     * normaliza + valida + retorna CNS pronto.
-     */
-    public static String processar(String cns) {
+		// CNS com menos de 15 dígitos — formato inválido
+		if (cnsLimpo.length() < 15) {
+			throw new IllegalArgumentException(
+					"CNS inválido. Deve conter pelo menos 15 dígitos: " + cns
+			);
+		}
 
-        String cnsLimpo = normalizar(cns);
+		// CNS com mais de 15 dígitos — formato legado (antigo), aceito com aviso
+		if (cnsLimpo.length() > 15) {
+			avisos.add("CNS com formato legado (" + cnsLimpo.length()
+					+ " dígitos, esperado 15): " + cnsLimpo);
+		}
 
-        validarCns(cnsLimpo);
+		return new CnsResultado(cnsLimpo, avisos);
+	}
 
-        return cnsLimpo;
-    }
+	/**
+	 * Resultado do processamento de CNS.
+	 * Contém o valor normalizado e uma lista de avisos (warnings) gerados.
+	 */
+	public static class CnsResultado {
+
+		private final String cns;
+		private final List<String> avisos;
+
+		public CnsResultado(String cns, List<String> avisos) {
+			this.cns = cns;
+			this.avisos = avisos;
+		}
+
+		/** CNS normalizado (somente dígitos). */
+		public String getCns() {
+			return cns;
+		}
+
+		/** Lista de avisos gerados durante a validação. Vazia se tudo OK. */
+		public List<String> getAvisos() {
+			return avisos;
+		}
+	}
 }

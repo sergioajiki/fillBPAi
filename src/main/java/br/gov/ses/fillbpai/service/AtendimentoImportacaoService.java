@@ -66,14 +66,21 @@ public class AtendimentoImportacaoService {
 
 				try {
 
-					// 1️⃣ Converte linha Excel para DTO
+					// 1. Converte linha Excel para DTO de importação
 					LinhaImportacaoDTO dto =
 							excelService.importarLinha(row);
 
-					// 2️⃣ Processa regras de negócio
-					processor.processar(dto);
+					// 2. Processa regras de negócio (validação, normalização, conversão)
+					// Retorna lista de avisos — situações atípicas que não impedem a importação
+					List<String> avisos = processor.processar(dto);
 
-					// 3️⃣ Cria/encontra entidades e persiste
+					// 3. Coleta avisos com referência à linha da planilha
+					for (String aviso : avisos) {
+						resultado.adicionarAviso(
+								"Linha " + (row.getRowNum() + 1) + " - Aviso: " + aviso);
+					}
+
+					// 4. Cria/encontra entidades normalizadas e monta o atendimento
 					AtendimentoBPAi atendimento =
 							criarAtendimento(dto);
 

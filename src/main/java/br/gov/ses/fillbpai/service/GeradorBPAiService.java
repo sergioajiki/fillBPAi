@@ -242,10 +242,19 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 10 - prd-cnspac
-		 * NUM, default Brancos
+		 * Campo de identificação do paciente (15 caracteres, numérico).
+		 *
+		 * REGRA DE NEGÓCIO:
+		 * Utiliza o CPF do paciente (11 dígitos) completado com zeros
+		 * à esquerda até 15 caracteres, em substituição ao CNS.
+		 *
+		 * Motivo: o CNS pode estar em formato legado (>15 dígitos)
+		 * ou ausente. O CPF é mais confiável como identificador.
+		 *
+		 * Exemplo: CPF "12345678901" → "000012345678901"
 		 */
-		sb.append(padNumOpcional(
-				paciente != null ? paciente.getCns() : null, 15));
+		String cpfPaciente = paciente != null ? paciente.getCpf() : null;
+		sb.append(padNumOpcional(cpfPaciente, 15));
 
 		/**
 		 * seq 11 - prd-sexo

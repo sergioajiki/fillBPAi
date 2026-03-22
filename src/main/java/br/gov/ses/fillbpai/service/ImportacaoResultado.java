@@ -6,65 +6,108 @@ import java.util.List;
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 
 /**
- * Representa o resumo final da importação.
+ * Representa o resumo final da importação de uma planilha Excel.
  *
- * Essa classe armazena:
- * - Total de registros processados
- * - Total com sucesso
- * - Total com erro
- * - Lista detalhada de mensagens de erro
+ * Armazena:
+ * - Contadores: total processados, sucesso, erros, avisos
+ * - Lista detalhada de mensagens de erro (linhas que NÃO foram importadas)
+ * - Lista detalhada de avisos (linhas importadas com ressalvas)
  * - Lista de registros válidos importados
+ *
+ * Diferença entre erro e aviso:
+ * - ERRO: linha rejeitada, NÃO persistida no banco (ex: CPF ausente, data inválida)
+ * - AVISO: linha importada com sucesso, mas com dados atípicos (ex: CNS formato legado)
  */
 public class ImportacaoResultado {
 
-    private int totalProcessados;
-    private int totalSucesso;
-    private int totalErro;
+	private int totalProcessados;
+	private int totalSucesso;
+	private int totalErro;
+	private int totalAvisos;
 
-    // Lista de mensagens detalhadas de erro
-    private List<String> erros = new ArrayList<>();
+	/** Mensagens de erro — linhas que NÃO foram importadas. */
+	private List<String> erros = new ArrayList<>();
 
-    // Lista de registros válidos importados nesta execução
-    private List<AtendimentoBPAi> registrosImportados = new ArrayList<>();
+	/** Mensagens de aviso — linhas importadas mas com dados atípicos. */
+	private List<String> avisos = new ArrayList<>();
 
-    /**
-     * Incrementa contadores de sucesso.
-     */
-    public void adicionarSucesso() {
-        totalProcessados++;
-        totalSucesso++;
-    }
+	/** Registros válidos importados nesta execução. */
+	private List<AtendimentoBPAi> registrosImportados = new ArrayList<>();
 
-    /**
-     * Incrementa contadores de erro e armazena mensagem detalhada.
-     */
-    public void adicionarErro(String erro) {
-        totalProcessados++;
-        totalErro++;
-        erros.add(erro);
-    }
+	/**
+	 * Incrementa contadores de sucesso.
+	 * Chamado quando uma linha é importada sem erros.
+	 */
+	public void adicionarSucesso() {
+		totalProcessados++;
+		totalSucesso++;
+	}
 
-    public int getTotalProcessados() {
-        return totalProcessados;
-    }
+	/**
+	 * Incrementa contadores de erro e armazena mensagem detalhada.
+	 * Chamado quando uma linha é rejeitada por erro de validação.
+	 *
+	 * @param erro mensagem descrevendo o erro e a linha afetada
+	 */
+	public void adicionarErro(String erro) {
+		totalProcessados++;
+		totalErro++;
+		erros.add(erro);
+	}
 
-    public int getTotalSucesso() {
-        return totalSucesso;
-    }
+	/**
+	 * Adiciona um aviso à lista.
+	 * Avisos são informativos — a linha foi importada com sucesso,
+	 * mas contém dados que merecem atenção do usuário.
+	 *
+	 * @param aviso mensagem descrevendo a situação atípica
+	 */
+	public void adicionarAviso(String aviso) {
+		totalAvisos++;
+		avisos.add(aviso);
+	}
 
-    public int getTotalErro() {
-        return totalErro;
-    }
+	/**
+	 * Adiciona múltiplos avisos de uma vez.
+	 * Útil para coletar avisos do AtendimentoProcessor.
+	 *
+	 * @param avisos lista de mensagens de aviso
+	 */
+	public void adicionarAvisos(List<String> avisos) {
+		for (String aviso : avisos) {
+			adicionarAviso(aviso);
+		}
+	}
 
-    public List<String> getErros() {
-        return erros;
-    }
+	public int getTotalProcessados() {
+		return totalProcessados;
+	}
 
-    public List<AtendimentoBPAi> getRegistrosImportados() {
-        return registrosImportados;
-    }
+	public int getTotalSucesso() {
+		return totalSucesso;
+	}
 
-    public void setRegistrosImportados(List<AtendimentoBPAi> registrosImportados) {
-        this.registrosImportados = registrosImportados;
-    }
+	public int getTotalErro() {
+		return totalErro;
+	}
+
+	public int getTotalAvisos() {
+		return totalAvisos;
+	}
+
+	public List<String> getErros() {
+		return erros;
+	}
+
+	public List<String> getAvisos() {
+		return avisos;
+	}
+
+	public List<AtendimentoBPAi> getRegistrosImportados() {
+		return registrosImportados;
+	}
+
+	public void setRegistrosImportados(List<AtendimentoBPAi> registrosImportados) {
+		this.registrosImportados = registrosImportados;
+	}
 }
