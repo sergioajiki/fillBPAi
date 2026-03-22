@@ -7,6 +7,13 @@
         <!-- Provider Hibernate -->
         <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
 
+        <!-- Entidades mapeadas -->
+        <class>br.gov.ses.fillbpai.model.Paciente</class>
+        <class>br.gov.ses.fillbpai.model.Endereco</class>
+        <class>br.gov.ses.fillbpai.model.Medico</class>
+        <class>br.gov.ses.fillbpai.model.Estabelecimento</class>
+        <class>br.gov.ses.fillbpai.model.AtendimentoBPAi</class>
+
         <properties>
 
             <!-- Driver -->
@@ -20,8 +27,8 @@
             <property name="jakarta.persistence.jdbc.user" value="sa"/>
             <property name="jakarta.persistence.jdbc.password" value=""/>
 
-            <!-- Desenvolvimento: recria banco ao iniciar -->
-            <property name="hibernate.hbm2ddl.auto" value="create"/>
+            <!-- Persistência: atualiza schema sem destruir dados existentes -->
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
 
             <!-- Logs SQL -->
             <property name="hibernate.show_sql" value="true"/>

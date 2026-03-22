@@ -28,520 +28,525 @@ import java.util.stream.Collectors;
 
 public class RelatorioController {
 
-    // ======================================================
-    // ENTITY MANAGER
-    // ======================================================
+	// ======================================================
+	// ENTITY MANAGER
+	// ======================================================
 
-    private final EntityManager entityManager;
+	private final EntityManager entityManager;
 
-    // ======================================================
-    // LISTAS
-    // ======================================================
+	// ======================================================
+	// LISTAS
+	// ======================================================
 
-    private final ObservableList<AtendimentoBPAiDTO> lista =
-            FXCollections.observableArrayList();
+	private final ObservableList<AtendimentoBPAiDTO> lista =
+			FXCollections.observableArrayList();
 
-    private final FilteredList<AtendimentoBPAiDTO> listaFiltrada =
-            new FilteredList<>(lista, p -> true);
+	private final FilteredList<AtendimentoBPAiDTO> listaFiltrada =
+			new FilteredList<>(lista, p -> true);
 
-    // ======================================================
-    // COMPONENTES
-    // ======================================================
+	// ======================================================
+	// COMPONENTES
+	// ======================================================
 
-    private TableView<AtendimentoBPAiDTO> tabela;
+	private TableView<AtendimentoBPAiDTO> tabela;
 
-    private Label totalLabel;
+	private Label totalLabel;
 
-    private ComboBox<String> filtroEspecialidade = new ComboBox<>();
+	private ComboBox<String> filtroEspecialidade = new ComboBox<>();
 
-    private ComboBox<String> filtroMedico = new ComboBox<>();
+	private ComboBox<String> filtroMedico = new ComboBox<>();
 
-    private TextField campoFolha = new TextField();
+	private TextField campoFolha = new TextField();
 
-    private TextField campoCnsProfissional = new TextField();
+	private TextField campoCnsProfissional = new TextField();
 
-    private Button btnAtualizar = new Button("OK");
+	private Button btnAtualizar = new Button("OK");
 
-    // BOTÃO GERAR BPA
-    private Button btnGerarBPA = new Button("Gerar BPA-I");
+	// BOTÃO GERAR BPA
+	private Button btnGerarBPA = new Button("Gerar BPA-I");
 
-    // ======================================================
-    // CONSTRUTOR
-    // ======================================================
+	// ======================================================
+	// CONSTRUTOR
+	// ======================================================
 
-    public RelatorioController(EntityManager entityManager) {
+	public RelatorioController(EntityManager entityManager) {
 
-        this.entityManager = entityManager;
-    }
+		this.entityManager = entityManager;
+	}
 
-    // ======================================================
-    // CRIAR COMPONENTE PRINCIPAL
-    // ======================================================
+	// ======================================================
+	// CRIAR COMPONENTE PRINCIPAL
+	// ======================================================
 
-    public BorderPane criarComponente() {
+	public BorderPane criarComponente() {
 
-        tabela = new TableView<>();
+		tabela = new TableView<>();
 
-        // IMPORTANTE:
-        // sempre usar listaFiltrada, nunca alterar colunas dinamicamente
-        tabela.setItems(listaFiltrada);
+		// IMPORTANTE:
+		// sempre usar listaFiltrada, nunca alterar colunas dinamicamente
+		tabela.setItems(listaFiltrada);
 
-        // Desativa o resize automático que comprime colunas para caber na janela.
-        // Com UNCONSTRAINED, cada coluna mantém seu prefWidth (150px),
-        // e o conteúdo total da tabela pode ultrapassar a largura visível.
-        tabela.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+		// Desativa o resize automático que comprime colunas para caber na janela.
+		// Com UNCONSTRAINED, cada coluna mantém seu prefWidth (150px),
+		// e o conteúdo total da tabela pode ultrapassar a largura visível.
+		tabela.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
-        totalLabel = new Label("Total: 0");
+		totalLabel = new Label("Total: 0");
 
-        configurarColunas(); // cria TODAS as colunas
+		configurarColunas(); // cria TODAS as colunas
 
-        // Calcula a largura mínima necessária para exibir todas as colunas.
-        // 27 colunas × 150px = 4050px + margem para scrollbar vertical.
-        double larguraTotal = tabela.getColumns().size() * 150 + 20;
-        tabela.setMinWidth(larguraTotal);
-        tabela.setPrefWidth(larguraTotal);
+		// Calcula a largura mínima necessária para exibir todas as colunas.
+		// 27 colunas × 150px = 4050px + margem para scrollbar vertical.
+		double larguraTotal = tabela.getColumns().size() * 150 + 20;
+		tabela.setMinWidth(larguraTotal);
+		tabela.setPrefWidth(larguraTotal);
 
-        // ScrollPane gerencia a rolagem horizontal de forma explícita.
-        // Sem ele, o BorderPane/VBox pai expande a tabela para a largura da janela
-        // (1500px) e as colunas à direita ficam inacessíveis.
-        ScrollPane scrollPane = new ScrollPane(tabela);
-        scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        scrollPane.setFitToHeight(true);
+		// ScrollPane gerencia a rolagem horizontal de forma explícita.
+		// Sem ele, o BorderPane/VBox pai expande a tabela para a largura da janela
+		// (1500px) e as colunas à direita ficam inacessíveis.
+		ScrollPane scrollPane = new ScrollPane(tabela);
+		scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+		scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+		scrollPane.setFitToHeight(true);
 
-        // ScrollPane cresce para ocupar todo o espaço vertical disponível
-        VBox.setVgrow(scrollPane, Priority.ALWAYS);
+		// ScrollPane cresce para ocupar todo o espaço vertical disponível
+		VBox.setVgrow(scrollPane, Priority.ALWAYS);
 
-        VBox box = new VBox(
-                10,
-                criarBarraFiltros(),
-                scrollPane,
-                totalLabel
-        );
+		VBox box = new VBox(
+				10,
+				criarBarraFiltros(),
+				scrollPane,
+				totalLabel
+		);
 
-        box.setPadding(new Insets(10));
+		box.setPadding(new Insets(10));
 
-        BorderPane pane = new BorderPane();
+		BorderPane pane = new BorderPane();
 
-        pane.setCenter(box);
+		pane.setCenter(box);
 
-        return pane;
-    }
+		return pane;
+	}
 
-    // ======================================================
-    // BARRA DE FILTROS
-    // ======================================================
+	// ======================================================
+	// BARRA DE FILTROS
+	// ======================================================
 
-    private HBox criarBarraFiltros() {
+	private HBox criarBarraFiltros() {
 
-        filtroEspecialidade.setPromptText("Especialidade");
+		filtroEspecialidade.setPromptText("Especialidade");
 
-        filtroMedico.setPromptText("Médico");
+		filtroMedico.setPromptText("Médico");
 
-        campoFolha.setPromptText("Nova folha");
+		campoFolha.setPromptText("Nova folha");
 
-        campoCnsProfissional.setPromptText("Novo CNS");
+		campoCnsProfissional.setPromptText("Novo CNS");
 
-        filtroMedico.setDisable(true);
+		filtroMedico.setDisable(true);
 
-        campoFolha.setDisable(true);
+		campoFolha.setDisable(true);
 
-        campoCnsProfissional.setDisable(true);
+		campoCnsProfissional.setDisable(true);
 
-        btnAtualizar.setDisable(true);
+		btnAtualizar.setDisable(true);
 
-        // EVENTO FILTRO ESPECIALIDADE
-        filtroEspecialidade.setOnAction(e -> {
+		// EVENTO FILTRO ESPECIALIDADE
+		filtroEspecialidade.setOnAction(e -> {
 
-            atualizarMedicosPorEspecialidade();
+			atualizarMedicosPorEspecialidade();
 
-            aplicarFiltros();
-        });
+			aplicarFiltros();
+		});
 
-        // EVENTO FILTRO MÉDICO
-        filtroMedico.setOnAction(e -> {
+		// EVENTO FILTRO MÉDICO
+		filtroMedico.setOnAction(e -> {
 
-            aplicarFiltros();
+			aplicarFiltros();
 
-            habilitarEdicao();
-        });
+			habilitarEdicao();
+		});
 
-        // EVENTO ATUALIZAR BD
-        btnAtualizar.setOnAction(e -> atualizarFolhaECns());
+		// EVENTO ATUALIZAR BD
+		btnAtualizar.setOnAction(e -> atualizarFolhaECns());
 
-        // EVENTO GERAR BPA
-        btnGerarBPA.setOnAction(e -> gerarBPA());
+		// EVENTO GERAR BPA
+		btnGerarBPA.setOnAction(e -> gerarBPA());
 
-        Button btnLimpar = new Button("Limpar");
+		Button btnLimpar = new Button("Limpar");
 
-        btnLimpar.setOnAction(e -> limparFiltros());
+		btnLimpar.setOnAction(e -> limparFiltros());
 
-        return new HBox(
-                10,
-                new Label("Especialidade:"), filtroEspecialidade,
-                new Label("Médico:"), filtroMedico,
-                new Label("Folha:"), campoFolha,
-                new Label("CNS:"), campoCnsProfissional,
-                btnAtualizar,
-                btnGerarBPA,
-                btnLimpar
-        );
-    }
+		return new HBox(
+				10,
+				new Label("Especialidade:"), filtroEspecialidade,
+				new Label("Médico:"), filtroMedico,
+				new Label("Folha:"), campoFolha,
+				new Label("CNS:"), campoCnsProfissional,
+				btnAtualizar,
+				btnGerarBPA,
+				btnLimpar
+		);
+	}
 
-    // ======================================================
-    // GERAR BPA COM FILECHOOSER
-    // ======================================================
+	// ======================================================
+	// GERAR BPA COM FILECHOOSER
+	// ======================================================
 
-    private void gerarBPA() {
+	private void gerarBPA() {
 
-        String especialidade = filtroEspecialidade.getValue();
+		String especialidade = filtroEspecialidade.getValue();
 
-        String medico = filtroMedico.getValue();
+		String medico = filtroMedico.getValue();
 
-        if (especialidade == null || medico == null) {
+		if (especialidade == null || medico == null) {
 
-            mostrarMensagem("Selecione especialidade e médico.");
+			mostrarMensagem("Selecione especialidade e médico.");
 
-            return;
-        }
+			return;
+		}
 
-        try {
+		try {
 
-            GeradorBPAiService service =
-                    new GeradorBPAiService(entityManager);
+			GeradorBPAiService service =
+					new GeradorBPAiService(entityManager);
 
-            Window window =
-                    tabela.getScene().getWindow();
+			Window window =
+					tabela.getScene().getWindow();
 
-            service.gerarArquivoComFileChooser(
-                    window,
-                    especialidade,
-                    medico
-            );
+			service.gerarArquivoComFileChooser(
+					window,
+					especialidade,
+					medico
+			);
 
-            mostrarMensagem("Arquivo gerado com sucesso.");
+			mostrarMensagem("Arquivo gerado com sucesso.");
 
-        }
-        catch (Exception ex) {
+		}
+		catch (Exception ex) {
 
-            mostrarMensagem("Erro: " + ex.getMessage());
-        }
-    }
+			mostrarMensagem("Erro: " + ex.getMessage());
+		}
+	}
 
-    // ======================================================
-    // FILTROS
-    // ======================================================
+	// ======================================================
+	// FILTROS
+	// ======================================================
 
-    private void limparFiltros() {
+	private void limparFiltros() {
 
-        filtroEspecialidade.getSelectionModel().clearSelection();
+		filtroEspecialidade.getSelectionModel().clearSelection();
 
-        filtroMedico.getSelectionModel().clearSelection();
+		filtroMedico.getSelectionModel().clearSelection();
 
-        filtroMedico.getItems().clear();
+		filtroMedico.getItems().clear();
 
-        filtroMedico.setDisable(true);
+		filtroMedico.setDisable(true);
 
-        campoFolha.clear();
+		campoFolha.clear();
 
-        campoCnsProfissional.clear();
+		campoCnsProfissional.clear();
 
-        campoFolha.setDisable(true);
+		campoFolha.setDisable(true);
 
-        campoCnsProfissional.setDisable(true);
+		campoCnsProfissional.setDisable(true);
 
-        btnAtualizar.setDisable(true);
+		btnAtualizar.setDisable(true);
 
-        aplicarFiltros();
-    }
+		aplicarFiltros();
+	}
 
-    private void atualizarCombos() {
+	private void atualizarCombos() {
 
-        filtroEspecialidade.setItems(
+		filtroEspecialidade.setItems(
 
-                FXCollections.observableArrayList(
+				FXCollections.observableArrayList(
 
-                        lista.stream()
+						lista.stream()
 
-                                .map(AtendimentoBPAiDTO::getEspecialidadeMedico)
+								.map(AtendimentoBPAiDTO::getEspecialidadeMedico)
 
-                                .filter(s -> s != null && !s.isEmpty())
+								.filter(s -> s != null && !s.isEmpty())
 
-                                .distinct()
+								.distinct()
 
-                                .sorted()
+								.sorted()
 
-                                .collect(Collectors.toList())
-                )
-        );
-    }
+								.collect(Collectors.toList())
+				)
+		);
+	}
 
-    private void atualizarMedicosPorEspecialidade() {
+	private void atualizarMedicosPorEspecialidade() {
 
-        String especialidade =
-                filtroEspecialidade.getValue();
+		String especialidade =
+				filtroEspecialidade.getValue();
 
-        filtroMedico.getItems().clear();
+		filtroMedico.getItems().clear();
 
-        if (especialidade == null) {
+		if (especialidade == null) {
 
-            filtroMedico.setDisable(true);
+			filtroMedico.setDisable(true);
 
-            return;
-        }
+			return;
+		}
 
-        List<String> medicos =
-                lista.stream()
+		List<String> medicos =
+				lista.stream()
 
-                        .filter(dto ->
-                                especialidade.equals(
-                                        dto.getEspecialidadeMedico()))
+						.filter(dto ->
+								especialidade.equals(
+										dto.getEspecialidadeMedico()))
 
-                        .map(AtendimentoBPAiDTO::getMedico)
+						.map(AtendimentoBPAiDTO::getMedico)
 
-                        .distinct()
+						.distinct()
 
-                        .sorted()
+						.sorted()
 
-                        .collect(Collectors.toList());
+						.collect(Collectors.toList());
 
-        filtroMedico.setItems(
-                FXCollections.observableArrayList(medicos));
+		filtroMedico.setItems(
+				FXCollections.observableArrayList(medicos));
 
-        filtroMedico.setDisable(false);
-    }
+		filtroMedico.setDisable(false);
+	}
 
-    private void aplicarFiltros() {
+	private void aplicarFiltros() {
 
-        listaFiltrada.setPredicate(dto -> {
+		listaFiltrada.setPredicate(dto -> {
 
-            boolean esp = true;
+			boolean esp = true;
 
-            boolean med = true;
+			boolean med = true;
 
-            if (filtroEspecialidade.getValue() != null)
-                esp = filtroEspecialidade.getValue()
-                        .equals(dto.getEspecialidadeMedico());
+			if (filtroEspecialidade.getValue() != null)
+				esp = filtroEspecialidade.getValue()
+						.equals(dto.getEspecialidadeMedico());
 
-            if (filtroMedico.getValue() != null)
-                med = filtroMedico.getValue()
-                        .equals(dto.getMedico());
+			if (filtroMedico.getValue() != null)
+				med = filtroMedico.getValue()
+						.equals(dto.getMedico());
 
-            return esp && med;
-        });
+			return esp && med;
+		});
 
-        totalLabel.setText(
-                "Total: " + listaFiltrada.size());
-    }
+		totalLabel.setText(
+				"Total: " + listaFiltrada.size());
+	}
 
-    private void habilitarEdicao() {
+	private void habilitarEdicao() {
 
-        campoFolha.setDisable(false);
+		campoFolha.setDisable(false);
 
-        campoCnsProfissional.setDisable(false);
+		campoCnsProfissional.setDisable(false);
 
-        btnAtualizar.setDisable(false);
-    }
+		btnAtualizar.setDisable(false);
+	}
 
-    // ======================================================
-    // ATUALIZAÇÃO BANCO
-    // ======================================================
+	// ======================================================
+	// ATUALIZAÇÃO BANCO
+	// ======================================================
 
-    private void atualizarFolhaECns() {
+	private void atualizarFolhaECns() {
 
-        String medico = filtroMedico.getValue();
+		String medico = filtroMedico.getValue();
 
-        String especialidade =
-                filtroEspecialidade.getValue();
+		String especialidade =
+				filtroEspecialidade.getValue();
 
-        entityManager.getTransaction().begin();
+		entityManager.getTransaction().begin();
 
-        try {
+		try {
 
-            List<AtendimentoBPAi> lista =
-                    entityManager.createQuery(
-                                    "SELECT a FROM AtendimentoBPAi a " +
-                                            "WHERE a.medico = :medico " +
-                                            "AND a.especialidadeMedico = :esp",
-                                    AtendimentoBPAi.class)
+			List<AtendimentoBPAi> lista =
+					entityManager.createQuery(
+									"SELECT a FROM AtendimentoBPAi a " +
+											"JOIN a.medico m " +
+											"WHERE m.nome = :medico " +
+											"AND a.especialidadeMedico = :esp",
+									AtendimentoBPAi.class)
 
-                            .setParameter("medico", medico)
+							.setParameter("medico", medico)
 
-                            .setParameter("esp", especialidade)
+							.setParameter("esp", especialidade)
 
-                            .getResultList();
+							.getResultList();
 
-            for (AtendimentoBPAi a : lista) {
+			for (AtendimentoBPAi a : lista) {
 
-                a.setFolha(campoFolha.getText());
+				a.setFolha(campoFolha.getText());
 
-                a.setCnsProfissional(
-                        campoCnsProfissional.getText());
-            }
+				a.setCnsProfissional(
+						campoCnsProfissional.getText());
+			}
 
-            entityManager.getTransaction().commit();
+			entityManager.getTransaction().commit();
 
-            mostrarMensagem("Atualizado.");
+			mostrarMensagem("Atualizado.");
 
-            carregarDoBanco();
+			carregarDoBanco();
 
-        }
-        catch (Exception ex) {
+		}
+		catch (Exception ex) {
 
-            entityManager.getTransaction().rollback();
+			entityManager.getTransaction().rollback();
 
-            mostrarMensagem(ex.getMessage());
-        }
-    }
+			mostrarMensagem(ex.getMessage());
+		}
+	}
 
-    // ======================================================
-    // COLUNAS — SEMPRE TODAS VISÍVEIS
-    // ======================================================
+	// ======================================================
+	// COLUNAS — SEMPRE TODAS VISÍVEIS
+	// ======================================================
 
-    private void configurarColunas() {
+	private void configurarColunas() {
 
-        tabela.getColumns().clear();
+		tabela.getColumns().clear();
 
-        tabela.getColumns().addAll(
+		tabela.getColumns().addAll(
 
-                criarColuna("Tipo Serviço",
-                        AtendimentoBPAiDTO::getTipoServico),
+				criarColuna("Tipo Serviço",
+						AtendimentoBPAiDTO::getTipoServico),
 
-                criarColuna("SIGTAP",
-                        AtendimentoBPAiDTO::getSigtap),
+				criarColuna("SIGTAP",
+						AtendimentoBPAiDTO::getSigtap),
 
-                criarColuna("Data",
-                        AtendimentoBPAiDTO::getDataAgendamento),
+				criarColuna("Data",
+						AtendimentoBPAiDTO::getDataAgendamento),
 
-                criarColuna("Hora",
-                        AtendimentoBPAiDTO::getHoraAtendimento),
+				criarColuna("Hora",
+						AtendimentoBPAiDTO::getHoraAtendimento),
 
-                criarColuna("Estabelecimento",
-                        AtendimentoBPAiDTO::getEstabelecimento),
+				criarColuna("Estabelecimento",
+						AtendimentoBPAiDTO::getEstabelecimento),
 
-                criarColuna("INE",
-                        AtendimentoBPAiDTO::getCodIne),
+				criarColuna("INE",
+						AtendimentoBPAiDTO::getCodIne),
 
-                criarColuna("Folha",
-                        AtendimentoBPAiDTO::getFolha),
+				criarColuna("Folha",
+						AtendimentoBPAiDTO::getFolha),
 
-                criarColuna("Médico",
-                        AtendimentoBPAiDTO::getMedico),
+				criarColuna("Médico",
+						AtendimentoBPAiDTO::getMedico),
 
-                criarColuna("Especialidade",
-                        AtendimentoBPAiDTO::getEspecialidadeMedico),
+				criarColuna("Especialidade",
+						AtendimentoBPAiDTO::getEspecialidadeMedico),
 
-                criarColuna("CPF Médico",
-                        AtendimentoBPAiDTO::getCpfMedico),
+				criarColuna("CPF Médico",
+						AtendimentoBPAiDTO::getCpfMedico),
 
-                criarColuna("CBO",
-                        AtendimentoBPAiDTO::getCboMedico),
+				criarColuna("CBO",
+						AtendimentoBPAiDTO::getCboMedico),
 
-                criarColuna("CNS Prof",
-                        AtendimentoBPAiDTO::getCnsProfissional),
+				criarColuna("CNS Prof",
+						AtendimentoBPAiDTO::getCnsProfissional),
 
-                criarColuna("Paciente",
-                        AtendimentoBPAiDTO::getPaciente),
+				criarColuna("Paciente",
+						AtendimentoBPAiDTO::getPaciente),
 
-                criarColuna("CPF Paciente",
-                        AtendimentoBPAiDTO::getCpfPaciente),
+				criarColuna("CPF Paciente",
+						AtendimentoBPAiDTO::getCpfPaciente),
 
-                criarColuna("CNS Paciente",
-                        AtendimentoBPAiDTO::getCnsPaciente),
+				criarColuna("CNS Paciente",
+						AtendimentoBPAiDTO::getCnsPaciente),
 
-                criarColuna("Sexo",
-                        AtendimentoBPAiDTO::getSexoPaciente),
+				criarColuna("Sexo",
+						AtendimentoBPAiDTO::getSexoPaciente),
 
-                criarColuna("Raça",
-                        AtendimentoBPAiDTO::getRacaPaciente),
+				criarColuna("Raça",
+						AtendimentoBPAiDTO::getRacaPaciente),
 
-                criarColuna("Nascimento",
-                        AtendimentoBPAiDTO::getDataNascimento),
+				criarColuna("Nascimento",
+						AtendimentoBPAiDTO::getDataNascimento),
 
-                criarColuna("Telefone",
-                        AtendimentoBPAiDTO::getTelefone),
+				criarColuna("Telefone",
+						AtendimentoBPAiDTO::getTelefone),
 
-                criarColuna("Município",
-                        AtendimentoBPAiDTO::getMunicipio),
+				criarColuna("Município",
+						AtendimentoBPAiDTO::getMunicipio),
 
-                criarColuna("CEP",
-                        AtendimentoBPAiDTO::getCep),
+				criarColuna("CEP",
+						AtendimentoBPAiDTO::getCep),
 
-                criarColuna("Cód. Logradouro",
-                        AtendimentoBPAiDTO::getCodLogradouro),
+				criarColuna("Cód. Logradouro",
+						AtendimentoBPAiDTO::getCodLogradouro),
 
-                criarColuna("Endereço",
-                        AtendimentoBPAiDTO::getEndereco),
+				criarColuna("Endereço",
+						AtendimentoBPAiDTO::getEndereco),
 
-                criarColuna("Complemento",
-                        AtendimentoBPAiDTO::getComplemento),
+				criarColuna("Complemento",
+						AtendimentoBPAiDTO::getComplemento),
 
-                criarColuna("Número",
-                        AtendimentoBPAiDTO::getNumero),
+				criarColuna("Número",
+						AtendimentoBPAiDTO::getNumero),
 
-                criarColuna("Bairro",
-                        AtendimentoBPAiDTO::getBairro),
+				criarColuna("Bairro",
+						AtendimentoBPAiDTO::getBairro),
 
-                criarColuna("CID",
-                        AtendimentoBPAiDTO::getCidConsulta)
-        );
-    }
+				criarColuna("CID",
+						AtendimentoBPAiDTO::getCidConsulta)
+		);
+	}
 
-    private TableColumn<AtendimentoBPAiDTO, String> criarColuna(
-            String nome,
-            Function<AtendimentoBPAiDTO, String> mapper) {
+	private TableColumn<AtendimentoBPAiDTO, String> criarColuna(
+			String nome,
+			Function<AtendimentoBPAiDTO, String> mapper) {
 
-        TableColumn<AtendimentoBPAiDTO, String> col =
-                new TableColumn<>(nome);
+		TableColumn<AtendimentoBPAiDTO, String> col =
+				new TableColumn<>(nome);
 
-        col.setCellValueFactory(
-                c -> new SimpleStringProperty(
-                        mapper.apply(c.getValue())));
+		col.setCellValueFactory(
+				c -> new SimpleStringProperty(
+						mapper.apply(c.getValue())));
 
-        col.setPrefWidth(150);
+		col.setPrefWidth(150);
 
-        return col;
-    }
+		return col;
+	}
 
-    // ======================================================
-    // DADOS
-    // ======================================================
+	// ======================================================
+	// DADOS
+	// ======================================================
 
-    public void atualizarDados(
-            List<AtendimentoBPAi> registros) {
+	public void atualizarDados(
+			List<AtendimentoBPAi> registros) {
 
-        lista.clear();
+		lista.clear();
 
-        registros.forEach(r ->
-                lista.add(
-                        AtendimentoBPAiDTO.fromEntity(r)));
+		registros.forEach(r ->
+				lista.add(
+						AtendimentoBPAiDTO.fromEntity(r)));
 
-        atualizarCombos();
+		atualizarCombos();
 
-        aplicarFiltros();
-    }
+		aplicarFiltros();
+	}
 
-    public void carregarDoBanco() {
+	public void carregarDoBanco() {
 
-        TypedQuery<AtendimentoBPAi> query =
-                entityManager.createQuery(
-                        "SELECT a FROM AtendimentoBPAi a",
-                        AtendimentoBPAi.class);
+		TypedQuery<AtendimentoBPAi> query =
+				entityManager.createQuery(
+						"SELECT a FROM AtendimentoBPAi a " +
+								"JOIN FETCH a.paciente p " +
+								"LEFT JOIN FETCH p.endereco " +
+								"LEFT JOIN FETCH a.medico " +
+								"LEFT JOIN FETCH a.estabelecimento",
+						AtendimentoBPAi.class);
 
-        atualizarDados(query.getResultList());
-    }
+		atualizarDados(query.getResultList());
+	}
 
-    // ======================================================
-    // MENSAGEM
-    // ======================================================
+	// ======================================================
+	// MENSAGEM
+	// ======================================================
 
-    private void mostrarMensagem(String msg) {
+	private void mostrarMensagem(String msg) {
 
-        Alert alert =
-                new Alert(Alert.AlertType.INFORMATION);
+		Alert alert =
+				new Alert(Alert.AlertType.INFORMATION);
 
-        alert.setContentText(msg);
+		alert.setContentText(msg);
 
-        alert.showAndWait();
-    }
+		alert.showAndWait();
+	}
 }

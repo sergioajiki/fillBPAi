@@ -1,95 +1,167 @@
 package br.gov.ses.fillbpai.dto;
 
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
+import br.gov.ses.fillbpai.model.Endereco;
+import br.gov.ses.fillbpai.model.Paciente;
 
 import java.time.format.DateTimeFormatter;
 
+/**
+ * DTO para exibição dos dados de atendimento na UI.
+ * Navega pelos relacionamentos (Paciente, Medico, Estabelecimento, Endereco)
+ * para montar os campos de apresentação.
+ */
 public class AtendimentoBPAiDTO {
 
-    private final AtendimentoBPAi entity;
+	private final AtendimentoBPAi entity;
 
-    private static final DateTimeFormatter DATA =
-            DateTimeFormatter.ofPattern("dd/MM/yyyy");
+	private static final DateTimeFormatter DATA =
+			DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
-    private static final DateTimeFormatter HORA =
-            DateTimeFormatter.ofPattern("HH:mm");
+	private static final DateTimeFormatter HORA =
+			DateTimeFormatter.ofPattern("HH:mm");
 
-    public AtendimentoBPAiDTO(AtendimentoBPAi entity) {
-        this.entity = entity;
-    }
+	public AtendimentoBPAiDTO(AtendimentoBPAi entity) {
+		this.entity = entity;
+	}
 
-    public static AtendimentoBPAiDTO fromEntity(AtendimentoBPAi a) {
-        return new AtendimentoBPAiDTO(a);
-    }
+	public static AtendimentoBPAiDTO fromEntity(AtendimentoBPAi a) {
+		return new AtendimentoBPAiDTO(a);
+	}
 
-    public Long getId() { return entity.getId(); }
+	public Long getId() { return entity.getId(); }
 
-    public String getTipoServico() { return entity.getTipoServico(); }
+	public String getTipoServico() { return entity.getTipoServico(); }
 
-    public String getSigtap() { return entity.getSigtap(); }
+	public String getSigtap() { return entity.getSigtap(); }
 
-    public String getDataAgendamento() {
-        return entity.getDataAgendamento() != null ?
-                entity.getDataAgendamento().format(DATA) : "";
-    }
+	public String getDataAgendamento() {
+		return entity.getDataAgendamento() != null ?
+				entity.getDataAgendamento().format(DATA) : "";
+	}
 
-    public String getHoraAtendimento() {
-        return entity.getHoraAtendimento() != null ?
-                entity.getHoraAtendimento().format(HORA) : "";
-    }
+	public String getHoraAtendimento() {
+		return entity.getHoraAtendimento() != null ?
+				entity.getHoraAtendimento().format(HORA) : "";
+	}
 
-    public String getCodEstabelecimento() { return entity.getCodEstabelecimento(); }
+	public String getCodEstabelecimento() {
+		return entity.getEstabelecimento() != null ?
+				entity.getEstabelecimento().getCodigo() : "";
+	}
 
-    public String getEstabelecimento() { return entity.getEstabelecimento(); }
+	public String getEstabelecimento() {
+		return entity.getEstabelecimento() != null ?
+				entity.getEstabelecimento().getNome() : "";
+	}
 
-    public String getCnesNts() { return entity.getCnesNts(); }
+	public String getCnesNts() { return entity.getCnesNts(); }
 
-    public String getCodIne() { return entity.getCodIne(); }
+	public String getCodIne() { return entity.getCodIne(); }
 
-    public String getFolha() { return entity.getFolha(); }
+	public String getFolha() { return entity.getFolha(); }
 
-    public String getMedico() { return entity.getMedico(); }
+	public String getMedico() {
+		return entity.getMedico() != null ?
+				entity.getMedico().getNome() : "";
+	}
 
-    public String getEspecialidadeMedico() { return entity.getEspecialidadeMedico(); }
+	public String getEspecialidadeMedico() { return entity.getEspecialidadeMedico(); }
 
-    public String getCpfMedico() { return entity.getCpfMedico(); }
+	public String getCpfMedico() {
+		return entity.getMedico() != null ?
+				entity.getMedico().getCpf() : "";
+	}
 
-    public String getCboMedico() { return entity.getCboMedico(); }
+	public String getCboMedico() { return entity.getCboMedico(); }
 
-    public String getCnsProfissional() { return entity.getCnsProfissional(); }
+	public String getCnsProfissional() { return entity.getCnsProfissional(); }
 
-    public String getPaciente() { return entity.getPaciente(); }
+	public String getPaciente() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getNome() : "";
+	}
 
-    public String getCpfPaciente() { return entity.getCpfPaciente(); }
+	public String getCpfPaciente() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getCpf() : "";
+	}
 
-    public String getSexoPaciente() { return entity.getSexoPaciente(); }
+	public String getSexoPaciente() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getSexo() : "";
+	}
 
-    public String getCnsPaciente() { return entity.getCnsPaciente(); }
+	public String getCnsPaciente() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getCns() : "";
+	}
 
-    public String getRacaPaciente() { return entity.getRacaPaciente(); }
+	public String getRacaPaciente() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getRaca() : "";
+	}
 
-    public String getDataNascimento() {
-        return entity.getDataNascimento() != null ?
-                entity.getDataNascimento().format(DATA) : "";
-    }
+	public String getDataNascimento() {
+		Paciente p = entity.getPaciente();
+		if (p != null && p.getDataNascimento() != null) {
+			return p.getDataNascimento().format(DATA);
+		}
+		return "";
+	}
 
-    public String getTelefone() { return entity.getTelefone(); }
+	public String getTelefone() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getTelefone() : "";
+	}
 
-    public String getMunicipio() { return entity.getMunicipio(); }
+	public String getMunicipio() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getMunicipio() : "";
+	}
 
-    public String getTipoZona() { return entity.getTipoZona(); }
+	public String getTipoZona() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getTipoZona() : "";
+	}
 
-    public String getCep() { return entity.getCep(); }
+	public String getCep() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getCep() : "";
+	}
 
-    public String getCodLogradouro() { return entity.getCodLogradouro(); }
+	public String getCodLogradouro() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getCodLogradouro() : "";
+	}
 
-    public String getEndereco() { return entity.getEndereco(); }
+	public String getEndereco() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getEndereco() : "";
+	}
 
-    public String getComplemento() { return entity.getComplemento(); }
+	public String getComplemento() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getComplemento() : "";
+	}
 
-    public String getNumero() { return entity.getNumero(); }
+	public String getNumero() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getNumero() : "";
+	}
 
-    public String getBairro() { return entity.getBairro(); }
+	public String getBairro() {
+		Endereco e = getEnderecoEntity();
+		return e != null ? e.getBairro() : "";
+	}
 
-    public String getCidConsulta() { return entity.getCidConsulta(); }
+	public String getCidConsulta() { return entity.getCidConsulta(); }
+
+	/**
+	 * Helper para acessar o endereço do paciente.
+	 */
+	private Endereco getEnderecoEntity() {
+		Paciente p = entity.getPaciente();
+		return p != null ? p.getEndereco() : null;
+	}
 }

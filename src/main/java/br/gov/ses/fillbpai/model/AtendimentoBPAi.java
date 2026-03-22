@@ -6,398 +6,200 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 /**
- * Entidade que representa uma linha da planilha BPAi.
+ * Entidade que representa um atendimento BPA-I.
  * <p>
- * Estratégia adotada:
- * - Datas reais são armazenadas como LocalDate / LocalTime
- * - Valores vindos do Excel são lidos como String
- * - Campos auxiliares @Transient são usados para conversão antes da persistência
+ * Relacionamentos:
+ * - Paciente (N:1) — dados do paciente e endereço
+ * - Medico (N:1) — dados do médico
+ * - Estabelecimento (N:1) — dados do estabelecimento
+ * <p>
+ * Campos próprios do atendimento:
+ * - Tipo de serviço, SIGTAP, data, hora, CID, folha, INE
+ * - Especialidade e CBO (podem variar por atendimento para o mesmo médico)
+ * - CNS profissional (preenchido manualmente na UI)
  */
 @Entity
 @Table(name = "atendimento_bpai")
 public class AtendimentoBPAi {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Column(name = "cnes_nts")
-    private String cnesNts = "6970451";
+	// ==============================
+	// Relacionamentos
+	// ==============================
 
-    @Column(name = "cod_ine")
-    private String codIne;
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "paciente_id")
+	private Paciente paciente;
 
-    @Column(name = "folha")
-    private String folha;
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "medico_id")
+	private Medico medico;
 
-    @Column(name = "cns_profissional")
-    private String cnsProfissional;
+	@ManyToOne(fetch = FetchType.EAGER)
+	@JoinColumn(name = "estabelecimento_id")
+	private Estabelecimento estabelecimento;
 
-    @Column(name = "tipo_servico", length = 100)
-    private String tipoServico;
+	// ==============================
+	// Campos próprios do atendimento
+	// ==============================
 
-    @Column(name = "sigtap", length = 20)
-    private String sigtap;
+	@Column(name = "cnes_nts")
+	private String cnesNts = "6970451";
 
-    @Column(name = "data_agendamento")
-    private LocalDate dataAgendamento;
+	@Column(name = "cod_ine")
+	private String codIne;
 
-    @Column(name = "hora_atendimento")
-    private LocalTime horaAtendimento;
+	@Column(name = "folha")
+	private String folha;
 
-    @Column(name = "cod_estabelecimento", length = 10)
-    private String codEstabelecimento;
+	@Column(name = "cns_profissional")
+	private String cnsProfissional;
 
-    @Column(name = "estabelecimento", length = 200)
-    private String estabelecimento;
+	@Column(name = "tipo_servico", length = 100)
+	private String tipoServico;
 
-    @Column(name = "especialidade_medico", length = 150)
-    private String especialidadeMedico;
+	@Column(name = "sigtap", length = 20)
+	private String sigtap;
 
-    @Column(name = "medico", length = 200)
-    private String medico;
+	@Column(name = "data_agendamento")
+	private LocalDate dataAgendamento;
 
-    @Column(name = "cpf_medico", length = 14)
-    private String cpfMedico;
+	@Column(name = "hora_atendimento")
+	private LocalTime horaAtendimento;
 
-    @Column(name = "cbo_medico", length = 20)
-    private String cboMedico;
+	@Column(name = "especialidade_medico", length = 150)
+	private String especialidadeMedico;
 
-    @Column(length = 150)
-    private String municipio;
+	@Column(name = "cbo_medico", length = 20)
+	private String cboMedico;
 
-    @Column(name = "cpf_paciente", length = 14)
-    private String cpfPaciente;
+	@Column(name = "cid_consulta", length = 20)
+	private String cidConsulta;
 
-    @Column(length = 200)
-    private String paciente;
+	// ======================
+	// Getters e Setters
+	// ======================
 
-    @Column(name = "cns_paciente", length = 20)
-    private String cnsPaciente;
+	public Long getId() {
+		return id;
+	}
 
-    @Column(name = "sexo_paciente", length = 1)
-    private String sexoPaciente;
+	public void setId(Long id) {
+		this.id = id;
+	}
 
-    @Column(name = "raca_paciente", length = 50)
-    private String racaPaciente;
+	public Paciente getPaciente() {
+		return paciente;
+	}
 
-    @Column(name = "data_nascimento")
-    private LocalDate dataNascimento;
+	public void setPaciente(Paciente paciente) {
+		this.paciente = paciente;
+	}
 
-    @Column(name = "cid_consulta", length = 20)
-    private String cidConsulta;
+	public Medico getMedico() {
+		return medico;
+	}
 
-    @Column(length = 20)
-    private String telefone;
+	public void setMedico(Medico medico) {
+		this.medico = medico;
+	}
 
-    @Column(name = "tipo_zona", length = 50)
-    private String tipoZona;
+	public Estabelecimento getEstabelecimento() {
+		return estabelecimento;
+	}
 
-    @Column(name = "cep", length = 8)
-    private String cep;
+	public void setEstabelecimento(Estabelecimento estabelecimento) {
+		this.estabelecimento = estabelecimento;
+	}
 
-    @Column(name = "cod_logradouro", length = 3)
-    private String codLogradouro;
+	public String getCnesNts() {
+		return cnesNts;
+	}
 
-    @Column(name = "endereco", length = 30)
-    private String endereco;
+	public void setCnesNts(String cnesNts) {
+		this.cnesNts = cnesNts;
+	}
 
-    @Column(name = "complemento", length = 10)
-    private String complemento;
+	public String getCodIne() {
+		return codIne;
+	}
 
-    @Column(name = "numero", length = 5)
-    private String numero;
+	public void setCodIne(String codIne) {
+		this.codIne = codIne;
+	}
 
-    @Column(name = "bairro", length = 30)
-    private String bairro;
+	public String getFolha() {
+		return folha;
+	}
 
-    /*
-     * Campos auxiliares para importação do Excel.
-     * NÃO são persistidos no banco.
-     */
+	public void setFolha(String folha) {
+		this.folha = folha;
+	}
 
-    @Transient
-    private String dataAgendamentoString;
+	public String getCnsProfissional() {
+		return cnsProfissional;
+	}
 
-    @Transient
-    private String horaAtendimentoString;
+	public void setCnsProfissional(String cnsProfissional) {
+		this.cnsProfissional = cnsProfissional;
+	}
 
-    @Transient
-    private String dataNascimentoString;
+	public String getTipoServico() {
+		return tipoServico;
+	}
 
-    // ======================
-    // Getters e Setters
-    // ======================
+	public void setTipoServico(String tipoServico) {
+		this.tipoServico = tipoServico;
+	}
 
-    public Long getId() {
-        return id;
-    }
+	public String getSigtap() {
+		return sigtap;
+	}
 
-    public String getTipoServico() {
-        return tipoServico;
-    }
+	public void setSigtap(String sigtap) {
+		this.sigtap = sigtap;
+	}
 
-    public void setTipoServico(String tipoServico) {
-        this.tipoServico = tipoServico;
-    }
+	public LocalDate getDataAgendamento() {
+		return dataAgendamento;
+	}
 
-    public String getSigtap() {
-        return sigtap;
-    }
+	public void setDataAgendamento(LocalDate dataAgendamento) {
+		this.dataAgendamento = dataAgendamento;
+	}
 
-    public void setSigtap(String sigtap) {
-        this.sigtap = sigtap;
-    }
+	public LocalTime getHoraAtendimento() {
+		return horaAtendimento;
+	}
 
-    public LocalDate getDataAgendamento() {
-        return dataAgendamento;
-    }
+	public void setHoraAtendimento(LocalTime horaAtendimento) {
+		this.horaAtendimento = horaAtendimento;
+	}
 
-    public void setDataAgendamento(LocalDate dataAgendamento) {
-        this.dataAgendamento = dataAgendamento;
-    }
+	public String getEspecialidadeMedico() {
+		return especialidadeMedico;
+	}
 
-    public LocalTime getHoraAtendimento() {
-        return horaAtendimento;
-    }
+	public void setEspecialidadeMedico(String especialidadeMedico) {
+		this.especialidadeMedico = especialidadeMedico;
+	}
 
-    public void setHoraAtendimento(LocalTime horaAtendimento) {
-        this.horaAtendimento = horaAtendimento;
-    }
+	public String getCboMedico() {
+		return cboMedico;
+	}
 
-    public String getCodEstabelecimento() {
-        return codEstabelecimento;
-    }
+	public void setCboMedico(String cboMedico) {
+		this.cboMedico = cboMedico;
+	}
 
-    public void setCodEstabelecimento(String codEstabelecimento) {
-        this.codEstabelecimento = codEstabelecimento;
-    }
+	public String getCidConsulta() {
+		return cidConsulta;
+	}
 
-    public String getEstabelecimento() {
-        return estabelecimento;
-    }
-
-    public void setEstabelecimento(String estabelecimento) {
-        this.estabelecimento = estabelecimento;
-    }
-
-    public String getEspecialidadeMedico() {
-        return especialidadeMedico;
-    }
-
-    public void setEspecialidadeMedico(String especialidadeMedico) {
-        this.especialidadeMedico = especialidadeMedico;
-    }
-
-    public String getMedico() {
-        return medico;
-    }
-
-    public void setMedico(String medico) {
-        this.medico = medico;
-    }
-
-    public String getCpfMedico() {
-        return cpfMedico;
-    }
-
-    public void setCpfMedico(String cpfMedico) {
-        this.cpfMedico = cpfMedico;
-    }
-
-    public String getCboMedico() {
-        return cboMedico;
-    }
-
-    public void setCboMedico(String cboMedico) {
-        this.cboMedico = cboMedico;
-    }
-
-    public String getMunicipio() {
-        return municipio;
-    }
-
-    public void setMunicipio(String municipio) {
-        this.municipio = municipio;
-    }
-
-    public String getCpfPaciente() {
-        return cpfPaciente;
-    }
-
-    public void setCpfPaciente(String cpfPaciente) {
-        this.cpfPaciente = cpfPaciente;
-    }
-
-    public String getPaciente() {
-        return paciente;
-    }
-
-    public void setPaciente(String paciente) {
-        this.paciente = paciente;
-    }
-
-    public String getSexoPaciente() {
-        return sexoPaciente;
-    }
-
-    public void setSexoPaciente(String sexoPaciente) {
-        this.sexoPaciente = sexoPaciente;
-    }
-
-    public String getCnsPaciente() {
-        return cnsPaciente;
-    }
-
-    public void setCnsPaciente(String cnsPaciente) {
-        this.cnsPaciente = cnsPaciente;
-    }
-
-    public String getRacaPaciente() {
-        return racaPaciente;
-    }
-
-    public void setRacaPaciente(String racaPaciente) {
-        this.racaPaciente = racaPaciente;
-    }
-
-    public LocalDate getDataNascimento() {
-        return dataNascimento;
-    }
-
-    public void setDataNascimento(LocalDate dataNascimento) {
-        this.dataNascimento = dataNascimento;
-    }
-
-    public String getCidConsulta() {
-        return cidConsulta;
-    }
-
-    public void setCidConsulta(String cidConsulta) {
-        this.cidConsulta = cidConsulta;
-    }
-
-    public String getTelefone() {
-        return telefone;
-    }
-
-    public void setTelefone(String telefone) {
-        this.telefone = telefone;
-    }
-
-    public String getTipoZona() {
-        return tipoZona;
-    }
-
-    public void setTipoZona(String tipoZona) {
-        this.tipoZona = tipoZona;
-    }
-
-    public String getCep() {
-        return cep;
-    }
-
-    public void setCep(String cep) {
-        this.cep = cep;
-    }
-
-    public String getCodLogradouro() {
-        return codLogradouro;
-    }
-
-    public void setCodLogradouro(String codLogradouro) {
-        this.codLogradouro = codLogradouro;
-    }
-
-    public String getEndereco() {
-        return endereco;
-    }
-
-    public void setEndereco(String endereco) {
-        this.endereco = endereco;
-    }
-
-    public String getComplemento() {
-        return complemento;
-    }
-
-    public void setComplemento(String complemento) {
-        this.complemento = complemento;
-    }
-
-    public String getNumero() {
-        return numero;
-    }
-
-    public void setNumero(String numero) {
-        this.numero = numero;
-    }
-
-    public String getBairro() {
-        return bairro;
-    }
-
-    public void setBairro(String bairro) {
-        this.bairro = bairro;
-    }
-
-    public String getDataAgendamentoString() {
-        return dataAgendamentoString;
-    }
-
-    public void setDataAgendamentoString(String dataAgendamentoString) {
-        this.dataAgendamentoString = dataAgendamentoString;
-    }
-
-    public String getHoraAtendimentoString() {
-        return horaAtendimentoString;
-    }
-
-    public void setHoraAtendimentoString(String horaAtendimentoString) {
-        this.horaAtendimentoString = horaAtendimentoString;
-    }
-
-    public String getDataNascimentoString() {
-        return dataNascimentoString;
-    }
-
-    public void setDataNascimentoString(String dataNascimentoString) {
-        this.dataNascimentoString = dataNascimentoString;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getCnesNts() {
-        return cnesNts;
-    }
-
-    public void setCnesNts(String cnesNts) {
-        this.cnesNts = cnesNts;
-    }
-
-    public String getCodIne() {
-        return codIne;
-    }
-
-    public void setCodIne(String codIne) {
-        this.codIne = codIne;
-    }
-
-    public String getFolha() {
-        return folha;
-    }
-
-    public void setFolha(String folha) {
-        this.folha = folha;
-    }
-
-    public String getCnsProfissional() {
-        return cnsProfissional;
-    }
-
-    public void setCnsProfissional(String cnsProfissional) {
-        this.cnsProfissional = cnsProfissional;
-    }
+	public void setCidConsulta(String cidConsulta) {
+		this.cidConsulta = cidConsulta;
+	}
 }

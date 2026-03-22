@@ -1,7 +1,8 @@
 package br.gov.ses.fillbpai.service;
 
-import br.gov.ses.fillbpai.model.AtendimentoBPAi;
-import br.gov.ses.fillbpai.repository.AtendimentoBPAiRepository;
+import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
+import br.gov.ses.fillbpai.model.*;
+import br.gov.ses.fillbpai.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
 import org.apache.poi.ss.usermodel.*;
@@ -15,100 +16,269 @@ import java.util.List;
 /**
  * Serviço responsável por:
  * - Ler arquivo Excel
- * - Converter linhas em entidade
+ * - Converter linhas em DTO
  * - Processar regras de negócio
- * - Persistir no banco
+ * - Criar/encontrar entidades normalizadas (Paciente, Medico, Estabelecimento, Endereco)
+ * - Persistir atendimento com relacionamentos
  * - Retornar resumo detalhado da importação
  */
 public class AtendimentoImportacaoService {
 
-    private final ExcelImportService excelService = new ExcelImportService();
-    private final AtendimentoProcessor processor = new AtendimentoProcessor();
-    private final AtendimentoBPAiRepository repository;
-    private final EntityManager entityManager;
+	private final ExcelImportService excelService = new ExcelImportService();
+	private final AtendimentoProcessor processor = new AtendimentoProcessor();
+	private final AtendimentoBPAiRepository atendimentoRepository;
+	private final PacienteRepository pacienteRepository;
+	private final MedicoRepository medicoRepository;
+	private final EstabelecimentoRepository estabelecimentoRepository;
+	private final EntityManager entityManager;
 
-    public AtendimentoImportacaoService(EntityManager entityManager) {
-        this.entityManager = entityManager;
-        this.repository = new AtendimentoBPAiRepository(entityManager);
-    }
+	public AtendimentoImportacaoService(EntityManager entityManager) {
+		this.entityManager = entityManager;
+		this.atendimentoRepository = new AtendimentoBPAiRepository(entityManager);
+		this.pacienteRepository = new PacienteRepository(entityManager);
+		this.medicoRepository = new MedicoRepository(entityManager);
+		this.estabelecimentoRepository = new EstabelecimentoRepository(entityManager);
+	}
 
-    /**
-     * Executa a importação completa.
-     */
-    public ImportacaoResultado importar(String caminhoArquivo) {
+	/**
+	 * Executa a importação completa.
+	 */
+	public ImportacaoResultado importar(String caminhoArquivo) {
 
-        ImportacaoResultado resultado = new ImportacaoResultado();
-        List<AtendimentoBPAi> importados = new ArrayList<>();
+		ImportacaoResultado resultado = new ImportacaoResultado();
+		List<AtendimentoBPAi> importados = new ArrayList<>();
 
-        EntityTransaction transaction = entityManager.getTransaction();
+		EntityTransaction transaction = entityManager.getTransaction();
 
-        try (FileInputStream fis = new FileInputStream(caminhoArquivo);
-             Workbook workbook = new XSSFWorkbook(fis)) {
+		try (FileInputStream fis = new FileInputStream(caminhoArquivo);
+			 Workbook workbook = new XSSFWorkbook(fis)) {
 
-            Sheet sheet = workbook.getSheetAt(0);
+			Sheet sheet = workbook.getSheetAt(0);
 
-            transaction.begin();
+			transaction.begin();
 
-            for (Row row : sheet) {
+			for (Row row : sheet) {
 
-                // Ignora cabeçalho
-                if (row.getRowNum() == 0) {
-                    continue;
-                }
+				// Ignora cabeçalho
+				if (row.getRowNum() == 0) {
+					continue;
+				}
 
-                try {
+				try {
 
-                    // 1️⃣ Converte linha Excel
-                    AtendimentoBPAi atendimento =
-                            excelService.importarLinha(row);
+					// 1️⃣ Converte linha Excel para DTO
+					LinhaImportacaoDTO dto =
+							excelService.importarLinha(row);
 
-                    // 2️⃣ Processa regras de negócio
-                    processor.processar(atendimento);
+					// 2️⃣ Processa regras de negócio
+					processor.processar(dto);
 
-                    // 3️⃣ Persiste no banco
-                    repository.salvar(atendimento);
+					// 3️⃣ Cria/encontra entidades e persiste
+					AtendimentoBPAi atendimento =
+							criarAtendimento(dto);
 
-                    importados.add(atendimento);
+					atendimentoRepository.salvar(atendimento);
 
-                    resultado.adicionarSucesso();
+					importados.add(atendimento);
 
-                } catch (Exception e) {
+					resultado.adicionarSucesso();
 
-                    // Captura erro específico da linha
-                    String mensagemErro =
-                            "Linha " + (row.getRowNum() + 1)
-                                    + " - Erro: " + e.getClass().getSimpleName()
-                                    + " -> " + e.getMessage();
+				} catch (Exception e) {
 
-                    resultado.adicionarErro(mensagemErro);
-                }
-            }
+					// Captura erro específico da linha
+					String mensagemErro =
+							"Linha " + (row.getRowNum() + 1)
+									+ " - Erro: " + e.getClass().getSimpleName()
+									+ " -> " + e.getMessage();
 
-            transaction.commit();
+					resultado.adicionarErro(mensagemErro);
+				}
+			}
 
-        } catch (IOException e) {
+			transaction.commit();
 
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
+		} catch (IOException e) {
 
-            throw new RuntimeException(
-                    "Erro ao ler arquivo: " + e.getMessage()
-            );
+			if (transaction.isActive()) {
+				transaction.rollback();
+			}
 
-        } catch (Exception e) {
+			throw new RuntimeException(
+					"Erro ao ler arquivo: " + e.getMessage()
+			);
 
-            if (transaction.isActive()) {
-                transaction.rollback();
-            }
+		} catch (Exception e) {
 
-            throw new RuntimeException(
-                    "Erro na importação: " + e.getMessage()
-            );
-        }
+			if (transaction.isActive()) {
+				transaction.rollback();
+			}
 
-        resultado.setRegistrosImportados(importados);
+			throw new RuntimeException(
+					"Erro na importação: " + e.getMessage()
+			);
+		}
 
-        return resultado;
-    }
+		resultado.setRegistrosImportados(importados);
+
+		return resultado;
+	}
+
+	/**
+	 * Cria um AtendimentoBPAi a partir do DTO processado,
+	 * realizando findOrCreate para Paciente, Medico e Estabelecimento.
+	 */
+	private AtendimentoBPAi criarAtendimento(LinhaImportacaoDTO dto) {
+
+		// ==============================
+		// Paciente (findOrCreate por CPF)
+		// ==============================
+
+		Paciente paciente = buscarOuCriarPaciente(dto);
+
+		// ==============================
+		// Endereço (atualiza sempre com dados mais recentes)
+		// ==============================
+
+		atualizarEndereco(paciente, dto);
+
+		// ==============================
+		// Médico (findOrCreate por CPF)
+		// ==============================
+
+		Medico medico = buscarOuCriarMedico(dto);
+
+		// ==============================
+		// Estabelecimento (findOrCreate por código)
+		// ==============================
+
+		Estabelecimento estabelecimento = buscarOuCriarEstabelecimento(dto);
+
+		// ==============================
+		// Monta o atendimento
+		// ==============================
+
+		AtendimentoBPAi atendimento = new AtendimentoBPAi();
+
+		atendimento.setPaciente(paciente);
+		atendimento.setMedico(medico);
+		atendimento.setEstabelecimento(estabelecimento);
+
+		atendimento.setTipoServico(dto.getTipoServico());
+		atendimento.setSigtap(dto.getSigtap());
+		atendimento.setDataAgendamento(dto.getDataAgendamento());
+		atendimento.setHoraAtendimento(dto.getHoraAtendimento());
+		atendimento.setEspecialidadeMedico(dto.getEspecialidadeMedico());
+		atendimento.setCboMedico(dto.getCboMedico());
+		atendimento.setCidConsulta(dto.getCidConsulta());
+
+		return atendimento;
+	}
+
+	/**
+	 * Busca paciente pelo CPF. Se não existir, cria novo.
+	 * Se existir, atualiza os dados com a importação mais recente.
+	 */
+	private Paciente buscarOuCriarPaciente(LinhaImportacaoDTO dto) {
+
+		return pacienteRepository.buscarPorCpf(dto.getCpfPaciente())
+				.map(paciente -> {
+					// Atualiza dados com a importação mais recente
+					paciente.setNome(dto.getPaciente());
+					paciente.setCns(dto.getCnsPaciente());
+					paciente.setSexo(dto.getSexoPaciente());
+					paciente.setRaca(dto.getRacaPaciente());
+					paciente.setDataNascimento(dto.getDataNascimento());
+					paciente.setTelefone(dto.getTelefone());
+					return paciente;
+				})
+				.orElseGet(() -> {
+					Paciente novo = new Paciente();
+					novo.setCpf(dto.getCpfPaciente());
+					novo.setNome(dto.getPaciente());
+					novo.setCns(dto.getCnsPaciente());
+					novo.setSexo(dto.getSexoPaciente());
+					novo.setRaca(dto.getRacaPaciente());
+					novo.setDataNascimento(dto.getDataNascimento());
+					novo.setTelefone(dto.getTelefone());
+					pacienteRepository.salvar(novo);
+					return novo;
+				});
+	}
+
+	/**
+	 * Atualiza o endereço do paciente com os dados mais recentes.
+	 * Se não existir, cria um novo vinculado ao paciente.
+	 */
+	private void atualizarEndereco(Paciente paciente, LinhaImportacaoDTO dto) {
+
+		Endereco endereco = paciente.getEndereco();
+
+		if (endereco == null) {
+			endereco = new Endereco();
+			endereco.setPaciente(paciente);
+			paciente.setEndereco(endereco);
+		}
+
+		endereco.setMunicipio(dto.getMunicipio());
+		endereco.setTipoZona(dto.getTipoZona());
+		endereco.setCep(dto.getCep());
+		endereco.setCodLogradouro(dto.getCodLogradouro());
+		endereco.setEndereco(dto.getEndereco());
+		endereco.setComplemento(dto.getComplemento());
+		endereco.setNumero(dto.getNumero());
+		endereco.setBairro(dto.getBairro());
+	}
+
+	/**
+	 * Busca médico pelo CPF. Se não existir, cria novo.
+	 * Se existir, atualiza o nome.
+	 */
+	private Medico buscarOuCriarMedico(LinhaImportacaoDTO dto) {
+
+		if (dto.getCpfMedico() == null || dto.getCpfMedico().isBlank()) {
+			// Médico sem CPF — cria registro mínimo com nome
+			Medico novo = new Medico();
+			novo.setCpf("SEM_CPF_" + System.nanoTime());
+			novo.setNome(dto.getMedico());
+			medicoRepository.salvar(novo);
+			return novo;
+		}
+
+		return medicoRepository.buscarPorCpf(dto.getCpfMedico())
+				.map(medico -> {
+					medico.setNome(dto.getMedico());
+					return medico;
+				})
+				.orElseGet(() -> {
+					Medico novo = new Medico();
+					novo.setCpf(dto.getCpfMedico());
+					novo.setNome(dto.getMedico());
+					medicoRepository.salvar(novo);
+					return novo;
+				});
+	}
+
+	/**
+	 * Busca estabelecimento pelo código. Se não existir, cria novo.
+	 * Se existir, atualiza o nome.
+	 */
+	private Estabelecimento buscarOuCriarEstabelecimento(LinhaImportacaoDTO dto) {
+
+		if (dto.getCodEstabelecimento() == null || dto.getCodEstabelecimento().isBlank()) {
+			return null;
+		}
+
+		return estabelecimentoRepository.buscarPorCodigo(dto.getCodEstabelecimento())
+				.map(estab -> {
+					estab.setNome(dto.getEstabelecimento());
+					return estab;
+				})
+				.orElseGet(() -> {
+					Estabelecimento novo = new Estabelecimento();
+					novo.setCodigo(dto.getCodEstabelecimento());
+					novo.setNome(dto.getEstabelecimento());
+					estabelecimentoRepository.salvar(novo);
+					return novo;
+				});
+	}
 }
