@@ -61,8 +61,12 @@ public class RelatorioController {
 
 	private Button btnAtualizar = new Button("OK");
 
-	// BOTÃO GERAR BPA
+	// BOTÃO GERAR BPA — gera arquivo filtrado por especialidade/médico
 	private Button btnGerarBPA = new Button("Gerar BPA-I");
+
+	// BOTÃO GERAR BPA COMPLETO — gera arquivo com todos os médicos,
+	// atribuindo folhas sequenciais por especialidade (ordem alfabética)
+	private Button btnGerarBPACompleto = new Button("Gerar BPA-I Completo");
 
 	// ======================================================
 	// CONSTRUTOR
@@ -95,7 +99,7 @@ public class RelatorioController {
 		configurarColunas(); // cria TODAS as colunas
 
 		// Calcula a largura mínima necessária para exibir todas as colunas.
-		// 26 colunas × 150px = 3900px + margem para scrollbar vertical.
+		// 27 colunas × 150px = 4050px + margem para scrollbar vertical.
 		double larguraTotal = tabela.getColumns().size() * 150 + 20;
 		tabela.setMinWidth(larguraTotal);
 		tabela.setPrefWidth(larguraTotal);
@@ -164,8 +168,11 @@ public class RelatorioController {
 		// EVENTO ATUALIZAR BD — persiste apenas o CNS do profissional
 		btnAtualizar.setOnAction(e -> atualizarCns());
 
-		// EVENTO GERAR BPA
+		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
 		btnGerarBPA.setOnAction(e -> gerarBPA());
+
+		// EVENTO GERAR BPA COMPLETO — todos os médicos, folha auto-atribuída
+		btnGerarBPACompleto.setOnAction(e -> gerarBPACompleto());
 
 		Button btnLimpar = new Button("Limpar");
 
@@ -178,6 +185,7 @@ public class RelatorioController {
 				new Label("CNS:"), campoCnsProfissional,
 				btnAtualizar,
 				btnGerarBPA,
+				btnGerarBPACompleto,
 				btnLimpar
 		);
 	}
@@ -217,6 +225,46 @@ public class RelatorioController {
 
 		}
 		catch (Exception ex) {
+
+			mostrarMensagem("Erro: " + ex.getMessage());
+		}
+	}
+
+	// ======================================================
+	// GERAR BPA COMPLETO — TODOS OS MÉDICOS
+	// ======================================================
+
+	/**
+	 * Gera o arquivo BPA-I completo com todos os médicos.
+	 *
+	 * Regra de folha:
+	 * 1. Especialidades em ordem alfabética
+	 * 2. Médicos dentro de cada especialidade em ordem alfabética
+	 * 3. Folha sequencial: médico 1 = folha 1, médico 2 = folha 2, etc.
+	 * 4. A sequência de folha é por competência (mês) — ao mudar o mês,
+	 *    a numeração é recalculada automaticamente.
+	 *
+	 * Após a geração, a tabela é recarregada para exibir
+	 * as folhas atribuídas a cada atendimento.
+	 */
+	private void gerarBPACompleto() {
+
+		try {
+
+			GeradorBPAiService service =
+					new GeradorBPAiService(entityManager);
+
+			Window window =
+					tabela.getScene().getWindow();
+
+			service.gerarArquivoCompletoComFileChooser(window);
+
+			// Recarrega tabela para exibir as folhas atribuídas
+			carregarDoBanco();
+
+			mostrarMensagem("Arquivo BPA-I completo gerado com sucesso.");
+
+		} catch (Exception ex) {
 
 			mostrarMensagem("Erro: " + ex.getMessage());
 		}
@@ -416,6 +464,9 @@ public class RelatorioController {
 				criarColuna("INE",
 						AtendimentoBPAiDTO::getCodIne),
 
+				criarColuna("Folha",
+						AtendimentoBPAiDTO::getFolha),
+
 				criarColuna("Médico",
 						AtendimentoBPAiDTO::getMedico),
 
@@ -472,6 +523,9 @@ public class RelatorioController {
 
 				criarColuna("Bairro",
 						AtendimentoBPAiDTO::getBairro),
+
+				criarColuna("Cód. IBGE",
+						AtendimentoBPAiDTO::getCodigoIbge),
 
 				criarColuna("CID",
 						AtendimentoBPAiDTO::getCidConsulta)

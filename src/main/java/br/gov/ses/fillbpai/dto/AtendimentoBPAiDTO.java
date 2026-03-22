@@ -155,6 +155,11 @@ public class AtendimentoBPAiDTO {
 		return e != null ? e.getBairro() : "";
 	}
 
+	public String getCodigoIbge() {
+		Endereco e = getEnderecoEntity();
+		return e != null && e.getCodigoIbge() != null ? e.getCodigoIbge() : "";
+	}
+
 	public String getCidConsulta() { return entity.getCidConsulta(); }
 
 	/**

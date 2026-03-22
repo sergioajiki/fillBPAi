@@ -43,6 +43,18 @@ public class Endereco {
 	@Column(name = "bairro", length = 30)
 	private String bairro;
 
+	/**
+	 * Código IBGE do município (7 dígitos).
+	 * Resolvido automaticamente durante a importação via:
+	 * 1. API ViaCEP (pelo CEP) — primário
+	 * 2. CSV embutido (pelo nome do município) — fallback
+	 *
+	 * O BPA-I usa apenas 6 dígitos (sem verificador).
+	 * A truncagem é feita no GeradorBPAiService.
+	 */
+	@Column(name = "codigo_ibge", length = 7)
+	private String codigoIbge;
+
 	// ======================
 	// Getters e Setters
 	// ======================
@@ -125,5 +137,13 @@ public class Endereco {
 
 	public void setBairro(String bairro) {
 		this.bairro = bairro;
+	}
+
+	public String getCodigoIbge() {
+		return codigoIbge;
+	}
+
+	public void setCodigoIbge(String codigoIbge) {
+		this.codigoIbge = codigoIbge;
 	}
 }

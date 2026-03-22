@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"C:\\\\Users\\\\sergi\\\\.m2\\\\wrapper\\\\dists\\\\apache-maven-3.9.11\\\\d6d3cbd4012d4c1d840e93277aca316c\\\\bin\\\\mvn.cmd\" compile:*)"
+    ]
+  }
+}

@@ -2,6 +2,7 @@ package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.model.*;
+import br.gov.ses.fillbpai.util.IbgeUtils;
 import br.gov.ses.fillbpai.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
@@ -82,7 +83,7 @@ public class AtendimentoImportacaoService {
 
 					// 4. Cria/encontra entidades normalizadas e monta o atendimento
 					AtendimentoBPAi atendimento =
-							criarAtendimento(dto);
+							criarAtendimento(dto, resultado, row.getRowNum() + 1);
 
 					atendimentoRepository.salvar(atendimento);
 
@@ -134,7 +135,7 @@ public class AtendimentoImportacaoService {
 	 * Cria um AtendimentoBPAi a partir do DTO processado,
 	 * realizando findOrCreate para Paciente, Medico e Estabelecimento.
 	 */
-	private AtendimentoBPAi criarAtendimento(LinhaImportacaoDTO dto) {
+	private AtendimentoBPAi criarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel) {
 
 		// ==============================
 		// Paciente (findOrCreate por CPF)
@@ -146,7 +147,10 @@ public class AtendimentoImportacaoService {
 		// Endereço (atualiza sempre com dados mais recentes)
 		// ==============================
 
-		atualizarEndereco(paciente, dto);
+		String avisoIbge = atualizarEndereco(paciente, dto);
+		if (avisoIbge != null) {
+			resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: " + avisoIbge);
+		}
 
 		// ==============================
 		// Médico (findOrCreate por CPF)
@@ -216,7 +220,7 @@ public class AtendimentoImportacaoService {
 	 * Atualiza o endereço do paciente com os dados mais recentes.
 	 * Se não existir, cria um novo vinculado ao paciente.
 	 */
-	private void atualizarEndereco(Paciente paciente, LinhaImportacaoDTO dto) {
+	private String atualizarEndereco(Paciente paciente, LinhaImportacaoDTO dto) {
 
 		Endereco endereco = paciente.getEndereco();
 
@@ -234,6 +238,14 @@ public class AtendimentoImportacaoService {
 		endereco.setComplemento(dto.getComplemento());
 		endereco.setNumero(dto.getNumero());
 		endereco.setBairro(dto.getBairro());
+
+		// Resolve código IBGE do município via CEP (primário) ou nome (fallback)
+		IbgeUtils.IbgeResultado ibgeResultado =
+				IbgeUtils.resolver(dto.getCep(), dto.getMunicipio());
+
+		endereco.setCodigoIbge(ibgeResultado.getCodigoIbge());
+
+		return ibgeResultado.getAviso();
 	}
 
 	/**

@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,6 +128,197 @@ public class GeradorBPAiService {
 
 			throw new RuntimeException(ex);
 		}
+	}
+
+	/**
+	 * ============================================================
+	 * GERAÇÃO COMPLETA — TODOS OS MÉDICOS
+	 * ============================================================
+	 *
+	 * Gera um único arquivo BPA-I contendo todos os atendimentos
+	 * de todos os médicos e especialidades.
+	 *
+	 * Regra de atribuição de folha:
+	 * 1. Especialidades são ordenadas alfabeticamente
+	 * 2. Dentro de cada especialidade, médicos são ordenados alfabeticamente
+	 * 3. Cada combinação (especialidade + médico) recebe uma folha sequencial:
+	 *    folha 1 para o primeiro médico, folha 2 para o segundo, etc.
+	 * 4. A sequência de folha é válida apenas para a competência do mês.
+	 *    Na próxima competência, a numeração recomeça.
+	 *
+	 * O sequencial (prd-seq) reinicia a cada troca de folha,
+	 * e também reinicia ao atingir 20 (regra do layout BPA-I).
+	 */
+	public void gerarArquivoCompletoComFileChooser(Window parentWindow) {
+
+		try {
+
+			// 1. Carrega TODOS os atendimentos com relacionamentos
+			List<AtendimentoBPAi> lista =
+					entityManager.createQuery(
+									"SELECT a FROM AtendimentoBPAi a " +
+											"JOIN FETCH a.paciente p " +
+											"LEFT JOIN FETCH p.endereco " +
+											"JOIN FETCH a.medico " +
+											"LEFT JOIN FETCH a.estabelecimento",
+									AtendimentoBPAi.class)
+							.getResultList();
+
+			if (lista.isEmpty())
+				throw new RuntimeException("Nenhum registro encontrado");
+
+			// 2. Ordena por especialidade (alfabética) → médico (alfabético)
+			lista.sort(Comparator
+					.comparing((AtendimentoBPAi a) ->
+							a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico() : "")
+					.thenComparing(a ->
+							a.getMedico() != null && a.getMedico().getNome() != null
+									? a.getMedico().getNome() : "")
+			);
+
+			// 3. Atribui folhas sequenciais por combinação (especialidade + médico)
+			//    e persiste os valores no banco
+			int totalFolhas = atribuirFolhas(lista);
+
+			// 4. Determina competência a partir do primeiro registro
+			String competencia =
+					lista.get(0)
+							.getDataAgendamento()
+							.format(FORMATO_COMPETENCIA);
+
+			// 5. FileChooser para o usuário escolher onde salvar
+			FileChooser chooser = new FileChooser();
+			chooser.setTitle("Salvar BPA-I Completo");
+			chooser.setInitialFileName("BPA-I_COMPLETO_" + competencia + ".txt");
+
+			File file = chooser.showSaveDialog(parentWindow);
+
+			if (file == null)
+				return;
+
+			// 6. Escreve o arquivo no formato BPA-I (ISO-8859-1)
+			try (BufferedWriter writer =
+						 Files.newBufferedWriter(
+								 file.toPath(),
+								 StandardCharsets.ISO_8859_1)) {
+
+				// HEADER com totalFolhas correto (quantidade de médicos distintos)
+				writer.write(montarHeaderCompleto(lista, competencia, totalFolhas));
+				writer.newLine();
+
+				// REGISTROS — sequencial reinicia a cada troca de folha
+				int sequencial = 1;
+				String folhaAtual = null;
+
+				for (AtendimentoBPAi a : lista) {
+
+					// Detecta troca de folha → reinicia sequencial
+					if (!a.getFolha().equals(folhaAtual)) {
+						folhaAtual = a.getFolha();
+						sequencial = 1;
+					}
+
+					writer.write(montarRegistro(a, competencia, sequencial));
+					writer.newLine();
+
+					sequencial++;
+
+					if (sequencial > 20)
+						sequencial = 1;
+				}
+			}
+
+		} catch (Exception ex) {
+
+			throw new RuntimeException(ex);
+		}
+	}
+
+	/**
+	 * Atribui folhas sequenciais aos atendimentos com base na ordenação
+	 * por especialidade e médico.
+	 *
+	 * Cada combinação única (especialidade + nome do médico) recebe
+	 * um número de folha incremental. Todos os atendimentos dessa
+	 * combinação recebem o mesmo número de folha.
+	 *
+	 * Os valores são persistidos no banco para que sejam visíveis na tabela.
+	 *
+	 * @param lista atendimentos já ordenados por especialidade → médico
+	 * @return total de folhas distintas atribuídas
+	 */
+	private int atribuirFolhas(List<AtendimentoBPAi> lista) {
+
+		int folhaAtual = 0;
+		String especialidadeAnterior = null;
+		String medicoAnterior = null;
+
+		entityManager.getTransaction().begin();
+
+		try {
+
+			for (AtendimentoBPAi a : lista) {
+
+				String esp = a.getEspecialidadeMedico() != null
+						? a.getEspecialidadeMedico() : "";
+
+				String med = a.getMedico() != null && a.getMedico().getNome() != null
+						? a.getMedico().getNome() : "";
+
+				// Nova combinação (especialidade + médico) → incrementa folha
+				if (!esp.equals(especialidadeAnterior) || !med.equals(medicoAnterior)) {
+					folhaAtual++;
+					especialidadeAnterior = esp;
+					medicoAnterior = med;
+				}
+
+				// Atribui a folha ao atendimento (será persistido pelo dirty checking)
+				a.setFolha(String.valueOf(folhaAtual));
+			}
+
+			entityManager.getTransaction().commit();
+
+		} catch (Exception e) {
+
+			if (entityManager.getTransaction().isActive()) {
+				entityManager.getTransaction().rollback();
+			}
+
+			throw new RuntimeException("Erro ao atribuir folhas: " + e.getMessage());
+		}
+
+		return folhaAtual;
+	}
+
+	/**
+	 * Header para o arquivo completo.
+	 * Usa o totalFolhas calculado (quantidade de médicos distintos)
+	 * ao invés de lista.size().
+	 */
+	private String montarHeaderCompleto(
+			List<AtendimentoBPAi> lista,
+			String competencia,
+			int totalFolhas) {
+
+		int totalLinhas = lista.size();
+		int somaControle = calcularSomaVerificacao(lista);
+
+		StringBuilder sb = new StringBuilder();
+
+		sb.append("01"); // seq 1 cbc-hdr
+		sb.append("#BPA#"); // seq 2 cbc-hdr
+		sb.append(padLeftZeros(competencia, 6)); // seq 3 cbc-mvm
+		sb.append(padLeftZeros(String.valueOf(totalLinhas), 6)); // seq 4 cbc-lin
+		sb.append(padLeftZeros(String.valueOf(totalFolhas), 6)); // seq 5 cbc-flh
+		sb.append(padLeftZeros(String.valueOf(somaControle), 4)); // seq 6 cbc-smt-vrf
+		sb.append(padRightSpaces("NUCLEO DE TELESSAUDE DE MS", 30)); // seq 7
+		sb.append(padRightSpaces("NTMS", 6)); // seq 8
+		sb.append(padLeftZeros("02955271000126", 14)); // seq 9
+		sb.append(padRightSpaces("SECRETARIA ESTADUAL DE SAUDE", 40)); // seq 10
+		sb.append("E"); // seq 11
+		sb.append(padRightSpaces("ED04.10", 10)); // seq 12
+
+		return sb.toString();
 	}
 
 	/**
@@ -265,9 +457,20 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 12 - prd-ibge
-		 * NUM, default Brancos
+		 * Código IBGE do município do paciente (6 posições, numérico).
+		 *
+		 * O código IBGE padrão tem 7 dígitos. O BPA-I usa 6 posições
+		 * (sem o dígito verificador), então truncamos o último dígito.
+		 *
+		 * Resolvido durante a importação via ViaCEP (CEP) ou CSV (nome).
+		 * Se não resolvido, preenchido com brancos (default do layout).
 		 */
-		sb.append(padRightSpaces("", 6));
+		String codigoIbge = endereco != null ? endereco.getCodigoIbge() : null;
+		// Trunca para 6 dígitos (remove dígito verificador do IBGE)
+		if (codigoIbge != null && codigoIbge.length() > 6) {
+			codigoIbge = codigoIbge.substring(0, 6);
+		}
+		sb.append(padNumOpcional(codigoIbge, 6));
 
 		/**
 		 * seq 13 - prd-cid
