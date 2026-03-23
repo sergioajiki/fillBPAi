@@ -13,7 +13,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Serviço responsável por:
@@ -57,6 +59,21 @@ public class AtendimentoImportacaoService {
 
 			Sheet sheet = workbook.getSheetAt(0);
 
+			// ==============================
+			// Pré-carrega CNS do DATASUS (single-pass para todos os médicos)
+			// ==============================
+
+			Set<String> nomesMedicos = coletarNomesMedicos(sheet);
+
+			if (!nomesMedicos.isEmpty()) {
+				List<String> avisosDatasus =
+						CnsProfissionalUtils.buscarLoteDatasus(nomesMedicos);
+
+				for (String aviso : avisosDatasus) {
+					resultado.adicionarAviso("DATASUS - " + aviso);
+				}
+			}
+
 			transaction.begin();
 
 			for (Row row : sheet) {
@@ -83,10 +100,9 @@ public class AtendimentoImportacaoService {
 					}
 
 					// 4. Cria/encontra entidades normalizadas e monta o atendimento
+					// findOrUpdate: se já existe atendimento idêntico, atualiza (evita duplicatas)
 					AtendimentoBPAi atendimento =
-							criarAtendimento(dto, resultado, row.getRowNum() + 1);
-
-					atendimentoRepository.salvar(atendimento);
+							criarOuAtualizarAtendimento(dto, resultado, row.getRowNum() + 1);
 
 					importados.add(atendimento);
 
@@ -133,10 +149,16 @@ public class AtendimentoImportacaoService {
 	}
 
 	/**
-	 * Cria um AtendimentoBPAi a partir do DTO processado,
-	 * realizando findOrCreate para Paciente, Medico e Estabelecimento.
+	 * Cria ou atualiza um AtendimentoBPAi a partir do DTO processado.
+	 *
+	 * Lógica de deduplicação: busca atendimento existente pela chave natural
+	 * (paciente + médico + data + sigtap). Se encontrado, atualiza os campos
+	 * (inclusive CNS profissional). Se não, cria novo registro.
+	 *
+	 * Isso evita duplicatas quando a mesma planilha é reimportada
+	 * (ex: após configurar o DATASUS para preencher CNS profissional).
 	 */
-	private AtendimentoBPAi criarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel) {
+	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel) {
 
 		// ==============================
 		// Paciente (findOrCreate por CPF)
@@ -166,15 +188,37 @@ public class AtendimentoImportacaoService {
 		Estabelecimento estabelecimento = buscarOuCriarEstabelecimento(dto);
 
 		// ==============================
-		// Monta o atendimento
+		// Deduplicação: busca atendimento existente
+		// Chave natural: paciente + médico + data + sigtap
 		// ==============================
 
-		AtendimentoBPAi atendimento = new AtendimentoBPAi();
+		AtendimentoBPAi atendimento = atendimentoRepository
+				.buscarDuplicata(paciente, medico, dto.getDataAgendamento(), dto.getSigtap())
+				.orElse(null);
 
-		atendimento.setPaciente(paciente);
-		atendimento.setMedico(medico);
+		boolean atualizacao = atendimento != null;
+
+		if (atualizacao) {
+
+			resultado.adicionarAviso(
+					"Linha " + linhaExcel + " - Aviso: Atendimento já existente atualizado"
+							+ " (paciente: " + paciente.getNome()
+							+ ", médico: " + medico.getNome()
+							+ ", data: " + dto.getDataAgendamento() + ")");
+		} else {
+
+			atendimento = new AtendimentoBPAi();
+			atendimento.setPaciente(paciente);
+			atendimento.setMedico(medico);
+			atendimento.setEstabelecimento(estabelecimento);
+			atendimentoRepository.salvar(atendimento);
+		}
+
+		// ==============================
+		// Atualiza campos (tanto para novo quanto para existente)
+		// ==============================
+
 		atendimento.setEstabelecimento(estabelecimento);
-
 		atendimento.setTipoServico(dto.getTipoServico());
 		atendimento.setSigtap(dto.getSigtap());
 		atendimento.setDataAgendamento(dto.getDataAgendamento());
@@ -184,11 +228,11 @@ public class AtendimentoImportacaoService {
 		atendimento.setCidConsulta(dto.getCidConsulta());
 
 		// ==============================
-		// CNS do profissional (lookup por CPF via CSV)
+		// CNS do profissional (lookup por nome via cache/DATASUS)
 		// ==============================
 
 		CnsProfissionalUtils.CnsResultado cnsResultado =
-				CnsProfissionalUtils.buscar(dto.getCpfMedico());
+				CnsProfissionalUtils.buscar(dto.getMedico());
 
 		if (cnsResultado.getCns() != null) {
 			atendimento.setCnsProfissional(cnsResultado.getCns());
@@ -316,5 +360,41 @@ public class AtendimentoImportacaoService {
 					estabelecimentoRepository.salvar(novo);
 					return novo;
 				});
+	}
+
+	/**
+	 * Coleta nomes únicos dos médicos da planilha Excel (primeira passada).
+	 * Utilizado para pré-carregar CNS do DATASUS em um único streaming pass.
+	 *
+	 * @param sheet aba da planilha Excel
+	 * @return conjunto de nomes de médicos (únicos)
+	 */
+	private Set<String> coletarNomesMedicos(Sheet sheet) {
+
+		Set<String> nomes = new LinkedHashSet<>();
+
+		for (Row row : sheet) {
+
+			if (row.getRowNum() == 0) {
+				continue;
+			}
+
+			try {
+
+				LinhaImportacaoDTO dto = excelService.importarLinha(row);
+				processor.processar(dto);
+
+				String nomeMedico = dto.getMedico();
+
+				if (nomeMedico != null && !nomeMedico.isBlank()) {
+					nomes.add(nomeMedico);
+				}
+
+			} catch (Exception e) {
+				// Ignora erros na coleta — serão tratados na segunda passada
+			}
+		}
+
+		return nomes;
 	}
 }

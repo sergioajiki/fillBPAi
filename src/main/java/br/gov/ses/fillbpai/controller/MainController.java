@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.controller;
 import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
 import br.gov.ses.fillbpai.service.ImportacaoResultado;
 import br.gov.ses.fillbpai.ui.FileChooserService;
+import br.gov.ses.fillbpai.ui.PreCadastroController;
 import br.gov.ses.fillbpai.ui.RelatorioController;
 import jakarta.persistence.EntityManager;
 import javafx.geometry.Insets;
@@ -41,7 +42,14 @@ public class MainController {
             importar(stage);
         });
 
-        HBox topBar = new HBox(10, btnImportar);
+        Button btnPreCadastro = new Button("Pré-Cadastro CNS");
+
+        btnPreCadastro.setOnAction(event -> {
+            Stage stage = (Stage) rootLayout.getScene().getWindow();
+            new PreCadastroController().abrirDialog(stage);
+        });
+
+        HBox topBar = new HBox(10, btnImportar, btnPreCadastro);
         topBar.setPadding(new Insets(10));
 
         rootLayout.setTop(topBar);
