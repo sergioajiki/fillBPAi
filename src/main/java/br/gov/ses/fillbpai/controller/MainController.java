@@ -10,135 +10,148 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 public class MainController {
 
-    private final EntityManager entityManager;
-    private final FileChooserService fileChooserService;
-    private final RelatorioController relatorioController;
-    private final BorderPane rootLayout;
+	private final EntityManager entityManager;
+	private final FileChooserService fileChooserService;
+	private final RelatorioController relatorioController;
+	private final BorderPane rootLayout;
 
-    public MainController(EntityManager entityManager, BorderPane rootLayout) {
+	public MainController(EntityManager entityManager, BorderPane rootLayout) {
 
-        this.entityManager = entityManager;
-        this.fileChooserService = new FileChooserService();
-        this.relatorioController = new RelatorioController(entityManager);
-        this.rootLayout = rootLayout;
+		this.entityManager = entityManager;
+		this.fileChooserService = new FileChooserService();
+		this.relatorioController = new RelatorioController(entityManager);
+		this.rootLayout = rootLayout;
 
-        configurarLayout();
+		configurarLayout();
 
-        // Carrega registros já existentes no banco
-        relatorioController.carregarDoBanco();
-    }
+		// Carrega registros já existentes no banco
+		relatorioController.carregarDoBanco();
+	}
 
-    private void configurarLayout() {
+	private void configurarLayout() {
 
-        Button btnImportar = new Button("Importar Planilha");
+		// ==============================
+		// Linha 1: Importar Planilha, Pré-Cadastro CNS, ... Competência
+		// ==============================
 
-        btnImportar.setOnAction(event -> {
-            Stage stage = (Stage) rootLayout.getScene().getWindow();
-            importar(stage);
-        });
+		Button btnImportar = new Button("Importar Planilha");
 
-        Button btnPreCadastro = new Button("Pré-Cadastro CNS");
+		btnImportar.setOnAction(event -> {
+			Stage stage = (Stage) rootLayout.getScene().getWindow();
+			importar(stage);
+		});
 
-        btnPreCadastro.setOnAction(event -> {
-            Stage stage = (Stage) rootLayout.getScene().getWindow();
-            new PreCadastroController().abrirDialog(stage);
-        });
+		Button btnPreCadastro = new Button("Pré-Cadastro CNS");
 
-        HBox topBar = new HBox(10, btnImportar, btnPreCadastro);
-        topBar.setPadding(new Insets(10));
+		btnPreCadastro.setOnAction(event -> {
+			Stage stage = (Stage) rootLayout.getScene().getWindow();
+			new PreCadastroController().abrirDialog(stage);
+		});
 
-        rootLayout.setTop(topBar);
-        rootLayout.setCenter(relatorioController.criarComponente());
-    }
+		// Spacer empurra o label de competência para a direita
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
 
-    private void importar(Stage stage) {
+		Label labelCompetencia = relatorioController.getLabelCompetencia();
+		labelCompetencia.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-        String caminho = fileChooserService.selecionarPlanilha(stage);
+		HBox topBar = new HBox(10, btnImportar, btnPreCadastro, spacer, labelCompetencia);
+		topBar.setPadding(new Insets(10));
 
-        if (caminho == null) {
-            return;
-        }
+		rootLayout.setTop(topBar);
+		rootLayout.setCenter(relatorioController.criarComponente());
+	}
 
-        AtendimentoImportacaoService service =
-                new AtendimentoImportacaoService(entityManager);
+	private void importar(Stage stage) {
 
-        ImportacaoResultado resultado =
-                service.importar(caminho);
+		String caminho = fileChooserService.selecionarPlanilha(stage);
 
-        mostrarResumoComLog(resultado);
+		if (caminho == null) {
+			return;
+		}
 
-        // 🔥 Recarrega sempre do banco (fonte oficial)
-        if (resultado.getTotalSucesso() > 0) {
-            relatorioController.carregarDoBanco();
-        }
-    }
+		AtendimentoImportacaoService service =
+				new AtendimentoImportacaoService(entityManager);
 
-    /**
-     * Exibe um diálogo com o resumo da importação.
-     *
-     * O log é dividido em duas seções:
-     * - ERROS: linhas que NÃO foram importadas (ex: campos obrigatórios ausentes)
-     * - AVISOS: linhas importadas com sucesso, mas com dados atípicos (ex: CNS legado)
-     *
-     * Isso permite ao usuário identificar rapidamente problemas
-     * e tomar ações corretivas quando necessário.
-     */
-    private void mostrarResumoComLog(ImportacaoResultado resultado) {
+		ImportacaoResultado resultado =
+				service.importar(caminho);
 
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Resultado da Importação");
-        alert.setHeaderText("Importação Finalizada");
+		mostrarResumoComLog(resultado);
 
-        // Resumo numérico: processados, sucesso, erros, avisos
-        Label resumo = new Label(
-                "Total processados: " + resultado.getTotalProcessados()
-                        + "\nSucesso: " + resultado.getTotalSucesso()
-                        + "\nErros: " + resultado.getTotalErro()
-                        + "\nAvisos: " + resultado.getTotalAvisos()
-        );
+		// Recarrega sempre do banco (fonte oficial)
+		if (resultado.getTotalSucesso() > 0) {
+			relatorioController.carregarDoBanco();
+		}
+	}
 
-        TextArea areaLog = new TextArea();
-        areaLog.setEditable(false);
-        areaLog.setWrapText(true);
-        areaLog.setPrefHeight(300);
+	/**
+	 * Exibe um diálogo com o resumo da importação.
+	 *
+	 * O log é dividido em duas seções:
+	 * - ERROS: linhas que NÃO foram importadas (ex: campos obrigatórios ausentes)
+	 * - AVISOS: linhas importadas com sucesso, mas com dados atípicos (ex: CNS legado)
+	 *
+	 * Isso permite ao usuário identificar rapidamente problemas
+	 * e tomar ações corretivas quando necessário.
+	 */
+	private void mostrarResumoComLog(ImportacaoResultado resultado) {
 
-        StringBuilder sb = new StringBuilder();
+		Alert alert = new Alert(Alert.AlertType.INFORMATION);
+		alert.setTitle("Resultado da Importação");
+		alert.setHeaderText("Importação Finalizada");
 
-        // Seção de erros — linhas que não foram importadas
-        if (!resultado.getErros().isEmpty()) {
-            sb.append("=== ERROS (linhas não importadas) ===\n");
-            for (String erro : resultado.getErros()) {
-                sb.append(erro).append("\n");
-            }
-        }
+		// Resumo numérico: processados, sucesso, erros, avisos
+		Label resumo = new Label(
+				"Total processados: " + resultado.getTotalProcessados()
+						+ "\nSucesso: " + resultado.getTotalSucesso()
+						+ "\nErros: " + resultado.getTotalErro()
+						+ "\nAvisos: " + resultado.getTotalAvisos()
+		);
 
-        // Seção de avisos — linhas importadas com ressalvas
-        if (!resultado.getAvisos().isEmpty()) {
-            if (sb.length() > 0) {
-                sb.append("\n");
-            }
-            sb.append("=== AVISOS (linhas importadas com ressalvas) ===\n");
-            for (String aviso : resultado.getAvisos()) {
-                sb.append(aviso).append("\n");
-            }
-        }
+		TextArea areaLog = new TextArea();
+		areaLog.setEditable(false);
+		areaLog.setWrapText(true);
+		areaLog.setPrefHeight(300);
 
-        // Se não houver erros nem avisos
-        if (sb.length() == 0) {
-            sb.append("Importação concluída sem erros ou avisos.");
-        }
+		StringBuilder sb = new StringBuilder();
 
-        areaLog.setText(sb.toString());
+		// Seção de erros — linhas que não foram importadas
+		if (!resultado.getErros().isEmpty()) {
+			sb.append("=== ERROS (linhas não importadas) ===\n");
+			for (String erro : resultado.getErros()) {
+				sb.append(erro).append("\n");
+			}
+		}
 
-        VBox layout = new VBox(10, resumo, new Label("Log de Importação:"), areaLog);
-        layout.setPadding(new Insets(10));
+		// Seção de avisos — linhas importadas com ressalvas
+		if (!resultado.getAvisos().isEmpty()) {
+			if (sb.length() > 0) {
+				sb.append("\n");
+			}
+			sb.append("=== AVISOS (linhas importadas com ressalvas) ===\n");
+			for (String aviso : resultado.getAvisos()) {
+				sb.append(aviso).append("\n");
+			}
+		}
 
-        alert.getDialogPane().setContent(layout);
-        alert.showAndWait();
-    }
+		// Se não houver erros nem avisos
+		if (sb.length() == 0) {
+			sb.append("Importação concluída sem erros ou avisos.");
+		}
+
+		areaLog.setText(sb.toString());
+
+		VBox layout = new VBox(10, resumo, new Label("Log de Importação:"), areaLog);
+		layout.setPadding(new Insets(10));
+
+		alert.getDialogPane().setContent(layout);
+		alert.showAndWait();
+	}
 }

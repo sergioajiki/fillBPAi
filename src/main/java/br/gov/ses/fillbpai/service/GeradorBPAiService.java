@@ -15,8 +15,11 @@ import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -235,45 +238,75 @@ public class GeradorBPAiService {
 	}
 
 	/**
-	 * Atribui folhas sequenciais aos atendimentos com base na ordenação
-	 * por especialidade e médico.
+	 * Atribui folhas aos atendimentos respeitando folhas já definidas manualmente.
 	 *
-	 * Cada combinação única (especialidade + nome do médico) recebe
-	 * um número de folha incremental. Todos os atendimentos dessa
-	 * combinação recebem o mesmo número de folha.
-	 *
-	 * Os valores são persistidos no banco para que sejam visíveis na tabela.
+	 * Lógica:
+	 * 1. Identifica combinações (especialidade + médico) que JÁ possuem folha
+	 * 2. Coleta os números de folha já em uso (reservados)
+	 * 3. Para combinações SEM folha, atribui números sequenciais
+	 *    pulando os números já reservados
+	 * 4. Persiste no banco via dirty checking
 	 *
 	 * @param lista atendimentos já ordenados por especialidade → médico
-	 * @return total de folhas distintas atribuídas
+	 * @return total de folhas distintas (manuais + auto-atribuídas)
 	 */
 	private int atribuirFolhas(List<AtendimentoBPAi> lista) {
 
-		int folhaAtual = 0;
-		String especialidadeAnterior = null;
-		String medicoAnterior = null;
+		// 1. Mapeia cada combinação (esp+med) → folha existente (ou null)
+		//    LinkedHashMap preserva a ordem de inserção (alfabética, já que lista está ordenada)
+		Map<String, String> chaveParaFolha = new LinkedHashMap<>();
+		Set<Integer> folhasReservadas = new HashSet<>();
 
+		for (AtendimentoBPAi a : lista) {
+
+			String chave = montarChaveMedico(a);
+
+			if (!chaveParaFolha.containsKey(chave)) {
+
+				String folhaExistente = a.getFolha();
+
+				chaveParaFolha.put(chave, folhaExistente);
+
+				// Se já tem folha, reserva o número para não ser reutilizado
+				if (folhaExistente != null && !folhaExistente.isBlank()) {
+					try {
+						folhasReservadas.add(Integer.parseInt(folhaExistente));
+					} catch (NumberFormatException ignored) {
+						// Folha não numérica — ignora na reserva
+					}
+				}
+			}
+		}
+
+		// 2. Atribui folhas sequenciais para quem não tem, pulando as reservadas
+		int proximaFolha = 1;
+
+		for (Map.Entry<String, String> entry : chaveParaFolha.entrySet()) {
+
+			if (entry.getValue() == null || entry.getValue().isBlank()) {
+
+				// Avança até encontrar um número livre
+				while (folhasReservadas.contains(proximaFolha)) {
+					proximaFolha++;
+				}
+
+				entry.setValue(String.valueOf(proximaFolha));
+				folhasReservadas.add(proximaFolha);
+				proximaFolha++;
+			}
+		}
+
+		// 3. Aplica as folhas a todos os atendimentos
 		entityManager.getTransaction().begin();
 
 		try {
 
 			for (AtendimentoBPAi a : lista) {
 
-				String esp = a.getEspecialidadeMedico() != null
-						? a.getEspecialidadeMedico() : "";
+				String chave = montarChaveMedico(a);
+				String folha = chaveParaFolha.get(chave);
 
-				String med = a.getMedico() != null && a.getMedico().getNome() != null
-						? a.getMedico().getNome() : "";
-
-				// Nova combinação (especialidade + médico) → incrementa folha
-				if (!esp.equals(especialidadeAnterior) || !med.equals(medicoAnterior)) {
-					folhaAtual++;
-					especialidadeAnterior = esp;
-					medicoAnterior = med;
-				}
-
-				// Atribui a folha ao atendimento (será persistido pelo dirty checking)
-				a.setFolha(String.valueOf(folhaAtual));
+				a.setFolha(folha);
 			}
 
 			entityManager.getTransaction().commit();
@@ -287,7 +320,21 @@ public class GeradorBPAiService {
 			throw new RuntimeException("Erro ao atribuir folhas: " + e.getMessage());
 		}
 
-		return folhaAtual;
+		return chaveParaFolha.size();
+	}
+
+	/**
+	 * Monta a chave única para identificar uma combinação especialidade + médico.
+	 */
+	private String montarChaveMedico(AtendimentoBPAi a) {
+
+		String esp = a.getEspecialidadeMedico() != null
+				? a.getEspecialidadeMedico() : "";
+
+		String med = a.getMedico() != null && a.getMedico().getNome() != null
+				? a.getMedico().getNome() : "";
+
+		return esp + "|" + med;
 	}
 
 	/**

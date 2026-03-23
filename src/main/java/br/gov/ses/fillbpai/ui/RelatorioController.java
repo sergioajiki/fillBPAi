@@ -22,7 +22,10 @@ import javafx.scene.layout.Region;
 
 import javafx.stage.Window;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -52,6 +55,9 @@ public class RelatorioController {
 
 	private Label totalLabel;
 
+	/** Label exibido na primeira linha com a competência atual */
+	private Label labelCompetencia = new Label("Competência: --");
+
 	private ComboBox<String> filtroEspecialidade = new ComboBox<>();
 
 	private ComboBox<String> filtroMedico = new ComboBox<>();
@@ -60,6 +66,10 @@ public class RelatorioController {
 	private TextField campoCnsProfissional = new TextField();
 
 	private Button btnAtualizar = new Button("OK");
+
+	private Button btnFolha = new Button("Folha");
+
+	private Button btnLimpar = new Button("Limpar");
 
 	// BOTÃO GERAR BPA — gera arquivo filtrado por especialidade/médico
 	private Button btnGerarBPA = new Button("Gerar BPA-I");
@@ -75,6 +85,13 @@ public class RelatorioController {
 	public RelatorioController(EntityManager entityManager) {
 
 		this.entityManager = entityManager;
+	}
+
+	/**
+	 * Retorna o label de competência para ser adicionado na topBar pelo MainController.
+	 */
+	public Label getLabelCompetencia() {
+		return labelCompetencia;
 	}
 
 	// ======================================================
@@ -118,6 +135,7 @@ public class RelatorioController {
 		VBox box = new VBox(
 				10,
 				criarBarraFiltros(),
+				criarBarraAcoes(),
 				scrollPane,
 				totalLabel
 		);
@@ -132,7 +150,7 @@ public class RelatorioController {
 	}
 
 	// ======================================================
-	// BARRA DE FILTROS
+	// LINHA 2 — BARRA DE FILTROS (Especialidade, Médico, CNS, Folha, OK, Limpar)
 	// ======================================================
 
 	private HBox criarBarraFiltros() {
@@ -148,6 +166,7 @@ public class RelatorioController {
 		filtroMedico.setDisable(true);
 		campoCnsProfissional.setDisable(true);
 		btnAtualizar.setDisable(true);
+		btnFolha.setDisable(true);
 
 		// EVENTO FILTRO ESPECIALIDADE
 		filtroEspecialidade.setOnAction(e -> {
@@ -168,14 +187,10 @@ public class RelatorioController {
 		// EVENTO ATUALIZAR BD — persiste apenas o CNS do profissional
 		btnAtualizar.setOnAction(e -> atualizarCns());
 
-		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
-		btnGerarBPA.setOnAction(e -> gerarBPA());
+		// EVENTO FOLHA — abre diálogo para definir número de folha manual
+		btnFolha.setOnAction(e -> definirFolha());
 
-		// EVENTO GERAR BPA COMPLETO — todos os médicos, folha auto-atribuída
-		btnGerarBPACompleto.setOnAction(e -> gerarBPACompleto());
-
-		Button btnLimpar = new Button("Limpar");
-
+		// EVENTO LIMPAR
 		btnLimpar.setOnAction(e -> limparFiltros());
 
 		return new HBox(
@@ -183,11 +198,177 @@ public class RelatorioController {
 				new Label("Especialidade:"), filtroEspecialidade,
 				new Label("Médico:"), filtroMedico,
 				new Label("CNS:"), campoCnsProfissional,
+				btnFolha,
 				btnAtualizar,
-				btnGerarBPA,
-				btnGerarBPACompleto,
 				btnLimpar
 		);
+	}
+
+	// ======================================================
+	// LINHA 3 — BARRA DE AÇÕES (Gerar BPA-I, Gerar BPA-I Completo)
+	// ======================================================
+
+	private HBox criarBarraAcoes() {
+
+		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
+		btnGerarBPA.setOnAction(e -> gerarBPA());
+
+		// EVENTO GERAR BPA COMPLETO — todos os médicos, folha auto-atribuída
+		btnGerarBPACompleto.setOnAction(e -> gerarBPACompleto());
+
+		HBox barra = new HBox(10, btnGerarBPA, btnGerarBPACompleto);
+		barra.setPadding(new Insets(0));
+
+		return barra;
+	}
+
+	// ======================================================
+	// DEFINIR FOLHA MANUAL
+	// ======================================================
+
+	/**
+	 * Abre um diálogo para definir o número de folha do médico selecionado.
+	 *
+	 * Regras:
+	 * - Se o médico já tem folha, ela será substituída pelo número informado
+	 * - Se o número já está sendo usado por outro médico (na mesma competência),
+	 *   exibe alerta e não permite a alteração
+	 * - Atualiza todos os atendimentos do médico/especialidade selecionados
+	 */
+	private void definirFolha() {
+
+		String medico = filtroMedico.getValue();
+		String especialidade = filtroEspecialidade.getValue();
+
+		if (medico == null || especialidade == null) {
+			mostrarMensagem("Selecione especialidade e médico.");
+			return;
+		}
+
+		// Descobre a folha atual do médico (se houver)
+		String folhaAtual = obterFolhaAtual(medico, especialidade);
+
+		TextInputDialog dialog = new TextInputDialog(folhaAtual != null ? folhaAtual : "");
+		dialog.setTitle("Definir Folha");
+		dialog.setHeaderText("Médico: " + medico + "\nEspecialidade: " + especialidade);
+		dialog.setContentText("Número da folha:");
+
+		Optional<String> resultado = dialog.showAndWait();
+
+		if (resultado.isEmpty() || resultado.get().isBlank()) {
+			return;
+		}
+
+		String novaFolha = resultado.get().trim();
+
+		// Valida que é numérico
+		if (!novaFolha.matches("\\d+")) {
+			mostrarAlerta("Número inválido. Informe apenas dígitos.");
+			return;
+		}
+
+		// Verifica se a folha já está em uso por outro médico
+		String medicoUsandoFolha = verificarFolhaEmUso(novaFolha, medico, especialidade);
+
+		if (medicoUsandoFolha != null) {
+			mostrarAlerta("Folha " + novaFolha + " já está em uso pelo médico: "
+					+ medicoUsandoFolha + ". Escolha outro número.");
+			return;
+		}
+
+		// Aplica a folha a todos os atendimentos do médico/especialidade
+		aplicarFolha(novaFolha, medico, especialidade);
+
+		carregarDoBanco();
+
+		mostrarMensagem("Folha " + novaFolha + " atribuída ao médico " + medico + ".");
+	}
+
+	/**
+	 * Obtém a folha atual de um médico/especialidade.
+	 *
+	 * @return número da folha ou null se não definida
+	 */
+	private String obterFolhaAtual(String medico, String especialidade) {
+
+		List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
+						"SELECT a FROM AtendimentoBPAi a " +
+								"JOIN a.medico m " +
+								"WHERE m.nome = :medico " +
+								"AND a.especialidadeMedico = :esp " +
+								"AND a.folha IS NOT NULL",
+						AtendimentoBPAi.class)
+				.setParameter("medico", medico)
+				.setParameter("esp", especialidade)
+				.setMaxResults(1)
+				.getResultList();
+
+		if (atendimentos.isEmpty()) {
+			return null;
+		}
+
+		return atendimentos.get(0).getFolha();
+	}
+
+	/**
+	 * Verifica se o número de folha já está sendo usado por outro médico.
+	 *
+	 * @return nome do médico que usa a folha, ou null se disponível
+	 */
+	private String verificarFolhaEmUso(String folha, String medicoAtual, String especialidadeAtual) {
+
+		List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
+						"SELECT a FROM AtendimentoBPAi a " +
+								"JOIN a.medico m " +
+								"WHERE a.folha = :folha " +
+								"AND (m.nome <> :medico OR a.especialidadeMedico <> :esp)",
+						AtendimentoBPAi.class)
+				.setParameter("folha", folha)
+				.setParameter("medico", medicoAtual)
+				.setParameter("esp", especialidadeAtual)
+				.setMaxResults(1)
+				.getResultList();
+
+		if (atendimentos.isEmpty()) {
+			return null;
+		}
+
+		return atendimentos.get(0).getMedico().getNome();
+	}
+
+	/**
+	 * Aplica o número de folha a todos os atendimentos do médico/especialidade.
+	 */
+	private void aplicarFolha(String folha, String medico, String especialidade) {
+
+		entityManager.getTransaction().begin();
+
+		try {
+
+			List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
+							"SELECT a FROM AtendimentoBPAi a " +
+									"JOIN a.medico m " +
+									"WHERE m.nome = :medico " +
+									"AND a.especialidadeMedico = :esp",
+							AtendimentoBPAi.class)
+					.setParameter("medico", medico)
+					.setParameter("esp", especialidade)
+					.getResultList();
+
+			for (AtendimentoBPAi a : atendimentos) {
+				a.setFolha(folha);
+			}
+
+			entityManager.getTransaction().commit();
+
+		} catch (Exception e) {
+
+			if (entityManager.getTransaction().isActive()) {
+				entityManager.getTransaction().rollback();
+			}
+
+			mostrarAlerta("Erro ao atribuir folha: " + e.getMessage());
+		}
 	}
 
 	// ======================================================
@@ -240,7 +421,8 @@ public class RelatorioController {
 	 * Regra de folha:
 	 * 1. Especialidades em ordem alfabética
 	 * 2. Médicos dentro de cada especialidade em ordem alfabética
-	 * 3. Folha sequencial: médico 1 = folha 1, médico 2 = folha 2, etc.
+	 * 3. Cada combinação (especialidade + médico) recebe uma folha sequencial:
+	 *    folha 1 para o primeiro médico, folha 2 para o segundo, etc.
 	 * 4. A sequência de folha é por competência (mês) — ao mudar o mês,
 	 *    a numeração é recalculada automaticamente.
 	 *
@@ -289,6 +471,8 @@ public class RelatorioController {
 		campoCnsProfissional.setDisable(true);
 
 		btnAtualizar.setDisable(true);
+
+		btnFolha.setDisable(true);
 
 		aplicarFiltros();
 	}
@@ -377,6 +561,8 @@ public class RelatorioController {
 		campoCnsProfissional.setDisable(false);
 
 		btnAtualizar.setDisable(false);
+
+		btnFolha.setDisable(false);
 	}
 
 	// ======================================================
@@ -564,6 +750,8 @@ public class RelatorioController {
 		atualizarCombos();
 
 		aplicarFiltros();
+
+		atualizarCompetencia();
 	}
 
 	public void carregarDoBanco() {
@@ -581,13 +769,61 @@ public class RelatorioController {
 	}
 
 	// ======================================================
-	// MENSAGEM
+	// COMPETÊNCIA
+	// ======================================================
+
+	/**
+	 * Atualiza o label de competência com base nos dados carregados.
+	 * Competência = yyyyMM da data de agendamento mais recente.
+	 */
+	private void atualizarCompetencia() {
+
+		if (lista.isEmpty()) {
+			labelCompetencia.setText("Competência: --");
+			return;
+		}
+
+		// Pega a data do primeiro registro para determinar a competência
+		String dataStr = lista.get(0).getDataAgendamento();
+
+		if (dataStr == null || dataStr.isBlank()) {
+			labelCompetencia.setText("Competência: --");
+			return;
+		}
+
+		try {
+
+			LocalDate data = LocalDate.parse(dataStr,
+					DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+
+			String competencia = data.format(
+					DateTimeFormatter.ofPattern("MM/yyyy"));
+
+			labelCompetencia.setText("Competência: " + competencia);
+
+		} catch (Exception e) {
+			labelCompetencia.setText("Competência: --");
+		}
+	}
+
+	// ======================================================
+	// MENSAGENS
 	// ======================================================
 
 	private void mostrarMensagem(String msg) {
 
 		Alert alert =
 				new Alert(Alert.AlertType.INFORMATION);
+
+		alert.setContentText(msg);
+
+		alert.showAndWait();
+	}
+
+	private void mostrarAlerta(String msg) {
+
+		Alert alert =
+				new Alert(Alert.AlertType.WARNING);
 
 		alert.setContentText(msg);
 
