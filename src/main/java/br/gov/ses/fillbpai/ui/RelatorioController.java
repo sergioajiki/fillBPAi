@@ -78,6 +78,12 @@ public class RelatorioController {
 	// atribuindo folhas sequenciais por especialidade (ordem alfabética)
 	private Button btnGerarBPACompleto = new Button("Gerar BPA-I Completo");
 
+	// BOTÃO VER LOG — exibe o log da última importação
+	private Button btnVerLog = new Button("Ver Log Importação");
+
+	/** Ação executada ao clicar em "Ver Log" — definida pelo MainController */
+	private Runnable acaoVerLog;
+
 	// ======================================================
 	// CONSTRUTOR
 	// ======================================================
@@ -85,6 +91,16 @@ public class RelatorioController {
 	public RelatorioController(EntityManager entityManager) {
 
 		this.entityManager = entityManager;
+	}
+
+	/**
+	 * Define a ação do botão "Ver Log Importação".
+	 * Chamado pelo MainController para injetar a lógica de exibição do log.
+	 *
+	 * @param acao runnable que exibe o diálogo de log
+	 */
+	public void setAcaoVerLog(Runnable acao) {
+		this.acaoVerLog = acao;
 	}
 
 	/**
@@ -216,7 +232,14 @@ public class RelatorioController {
 		// EVENTO GERAR BPA COMPLETO — todos os médicos, folha auto-atribuída
 		btnGerarBPACompleto.setOnAction(e -> gerarBPACompleto());
 
-		HBox barra = new HBox(10, btnGerarBPA, btnGerarBPACompleto);
+		// EVENTO VER LOG — exibe o log da última importação
+		btnVerLog.setOnAction(e -> {
+			if (acaoVerLog != null) {
+				acaoVerLog.run();
+			}
+		});
+
+		HBox barra = new HBox(10, btnGerarBPA, btnGerarBPACompleto, btnVerLog);
 		barra.setPadding(new Insets(0));
 
 		return barra;

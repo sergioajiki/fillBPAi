@@ -22,6 +22,9 @@ public class MainController {
 	private final RelatorioController relatorioController;
 	private final BorderPane rootLayout;
 
+	/** Último resultado de importação para consulta posterior via botão "Ver Log" */
+	private ImportacaoResultado ultimoResultado = null;
+
 	public MainController(EntityManager entityManager, BorderPane rootLayout) {
 
 		this.entityManager = entityManager;
@@ -66,6 +69,18 @@ public class MainController {
 		topBar.setPadding(new Insets(10));
 
 		rootLayout.setTop(topBar);
+
+		// Registra a ação do botão "Ver Log" na linha 3 do RelatorioController
+		relatorioController.setAcaoVerLog(() -> {
+			if (ultimoResultado != null) {
+				mostrarResumoComLog(ultimoResultado);
+			} else {
+				Alert alert = new Alert(Alert.AlertType.INFORMATION);
+				alert.setContentText("Nenhuma importação realizada nesta sessão.");
+				alert.showAndWait();
+			}
+		});
+
 		rootLayout.setCenter(relatorioController.criarComponente());
 	}
 
@@ -82,6 +97,8 @@ public class MainController {
 
 		ImportacaoResultado resultado =
 				service.importar(caminho);
+
+		ultimoResultado = resultado;
 
 		mostrarResumoComLog(resultado);
 
