@@ -15,15 +15,34 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * Controller principal da aplicação.
+ *
+ * Gerencia a barra superior (importação, pré-cadastro, competência)
+ * e delega a exibição de dados ao RelatorioController.
+ *
+ * O log de importação é persistido em arquivo (database/log_importacao.txt)
+ * para consulta a qualquer momento, mesmo após reiniciar a aplicação.
+ */
 public class MainController {
+
+	private static final Logger log = LoggerFactory.getLogger(MainController.class);
+
+	/** Caminho do arquivo de log de importação (mesmo diretório do H2) */
+	private static final Path CAMINHO_LOG = Path.of("database", "log_importacao.txt");
 
 	private final EntityManager entityManager;
 	private final FileChooserService fileChooserService;
 	private final RelatorioController relatorioController;
 	private final BorderPane rootLayout;
-
-	/** Último resultado de importação para consulta posterior via botão "Ver Log" */
-	private ImportacaoResultado ultimoResultado = null;
 
 	public MainController(EntityManager entityManager, BorderPane rootLayout) {
 
@@ -70,16 +89,8 @@ public class MainController {
 
 		rootLayout.setTop(topBar);
 
-		// Registra a ação do botão "Ver Log" na linha 3 do RelatorioController
-		relatorioController.setAcaoVerLog(() -> {
-			if (ultimoResultado != null) {
-				mostrarResumoComLog(ultimoResultado);
-			} else {
-				Alert alert = new Alert(Alert.AlertType.INFORMATION);
-				alert.setContentText("Nenhuma importação realizada nesta sessão.");
-				alert.showAndWait();
-			}
-		});
+		// Registra a ação do botão "Ver Log" — lê do arquivo persistido
+		relatorioController.setAcaoVerLog(this::exibirLogSalvo);
 
 		rootLayout.setCenter(relatorioController.criarComponente());
 	}
@@ -98,9 +109,11 @@ public class MainController {
 		ImportacaoResultado resultado =
 				service.importar(caminho);
 
-		ultimoResultado = resultado;
+		// Persiste o log em arquivo para consulta futura
+		String conteudoLog = montarConteudoLog(resultado);
+		salvarLogEmArquivo(conteudoLog);
 
-		mostrarResumoComLog(resultado);
+		mostrarLog(conteudoLog);
 
 		// Recarrega sempre do banco (fonte oficial)
 		if (resultado.getTotalSucesso() > 0) {
@@ -108,38 +121,23 @@ public class MainController {
 		}
 	}
 
+	// ======================================================
+	// LOG DE IMPORTAÇÃO
+	// ======================================================
+
 	/**
-	 * Exibe um diálogo com o resumo da importação.
-	 *
-	 * O log é dividido em duas seções:
-	 * - ERROS: linhas que NÃO foram importadas (ex: campos obrigatórios ausentes)
-	 * - AVISOS: linhas importadas com sucesso, mas com dados atípicos (ex: CNS legado)
-	 *
-	 * Isso permite ao usuário identificar rapidamente problemas
-	 * e tomar ações corretivas quando necessário.
+	 * Monta o conteúdo textual completo do log de importação.
 	 */
-	private void mostrarResumoComLog(ImportacaoResultado resultado) {
-
-		Alert alert = new Alert(Alert.AlertType.INFORMATION);
-		alert.setTitle("Resultado da Importação");
-		alert.setHeaderText("Importação Finalizada");
-
-		// Resumo numérico: processados, sucesso, erros, avisos
-		Label resumo = new Label(
-				"Total processados: " + resultado.getTotalProcessados()
-						+ "\nSucesso: " + resultado.getTotalSucesso()
-						+ "\nErros: " + resultado.getTotalErro()
-						+ "\nAvisos: " + resultado.getTotalAvisos()
-		);
-
-		TextArea areaLog = new TextArea();
-		areaLog.setEditable(false);
-		areaLog.setWrapText(true);
-		areaLog.setPrefHeight(300);
+	private String montarConteudoLog(ImportacaoResultado resultado) {
 
 		StringBuilder sb = new StringBuilder();
 
-		// Seção de erros — linhas que não foram importadas
+		sb.append("Total processados: ").append(resultado.getTotalProcessados()).append("\n");
+		sb.append("Sucesso: ").append(resultado.getTotalSucesso()).append("\n");
+		sb.append("Erros: ").append(resultado.getTotalErro()).append("\n");
+		sb.append("Avisos: ").append(resultado.getTotalAvisos()).append("\n");
+		sb.append("\n");
+
 		if (!resultado.getErros().isEmpty()) {
 			sb.append("=== ERROS (linhas não importadas) ===\n");
 			for (String erro : resultado.getErros()) {
@@ -147,9 +145,8 @@ public class MainController {
 			}
 		}
 
-		// Seção de avisos — linhas importadas com ressalvas
 		if (!resultado.getAvisos().isEmpty()) {
-			if (sb.length() > 0) {
+			if (!resultado.getErros().isEmpty()) {
 				sb.append("\n");
 			}
 			sb.append("=== AVISOS (linhas importadas com ressalvas) ===\n");
@@ -158,14 +155,72 @@ public class MainController {
 			}
 		}
 
-		// Se não houver erros nem avisos
-		if (sb.length() == 0) {
+		if (resultado.getErros().isEmpty() && resultado.getAvisos().isEmpty()) {
 			sb.append("Importação concluída sem erros ou avisos.");
 		}
 
-		areaLog.setText(sb.toString());
+		return sb.toString();
+	}
 
-		VBox layout = new VBox(10, resumo, new Label("Log de Importação:"), areaLog);
+	/**
+	 * Salva o log em arquivo para persistência entre sessões.
+	 */
+	private void salvarLogEmArquivo(String conteudo) {
+
+		try {
+
+			Files.createDirectories(CAMINHO_LOG.getParent());
+			Files.writeString(CAMINHO_LOG, conteudo, StandardCharsets.UTF_8);
+
+			log.info("Log de importação salvo em: {}", CAMINHO_LOG.toAbsolutePath());
+
+		} catch (IOException e) {
+			log.error("Erro ao salvar log de importação: {}", e.getMessage());
+		}
+	}
+
+	/**
+	 * Lê o log salvo em arquivo e exibe na tela.
+	 * Chamado pelo botão "Ver Log Importação".
+	 */
+	private void exibirLogSalvo() {
+
+		if (!Files.exists(CAMINHO_LOG)) {
+
+			Alert alert = new Alert(Alert.AlertType.INFORMATION);
+			alert.setContentText("Nenhum log de importação encontrado.");
+			alert.showAndWait();
+			return;
+		}
+
+		try {
+
+			String conteudo = Files.readString(CAMINHO_LOG, StandardCharsets.UTF_8);
+			mostrarLog(conteudo);
+
+		} catch (IOException e) {
+
+			Alert alert = new Alert(Alert.AlertType.ERROR);
+			alert.setContentText("Erro ao ler log: " + e.getMessage());
+			alert.showAndWait();
+		}
+	}
+
+	/**
+	 * Exibe o conteúdo do log em um diálogo.
+	 */
+	private void mostrarLog(String conteudo) {
+
+		Alert alert = new Alert(Alert.AlertType.INFORMATION);
+		alert.setTitle("Log de Importação");
+		alert.setHeaderText("Última Importação");
+
+		TextArea areaLog = new TextArea(conteudo);
+		areaLog.setEditable(false);
+		areaLog.setWrapText(true);
+		areaLog.setPrefHeight(400);
+
+		VBox layout = new VBox(10, areaLog);
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);
