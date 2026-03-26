@@ -81,9 +81,9 @@ public class GeradorBPAiService {
 				throw new RuntimeException("Nenhum registro encontrado");
 
 			String competencia =
-					lista.get(0)
-							.getDataAgendamento()
-							.format(FORMATO_COMPETENCIA);
+					calcularCompetencia(
+							lista.get(0).getDataAgendamento()
+					);
 
 			FileChooser chooser = new FileChooser();
 
@@ -185,9 +185,9 @@ public class GeradorBPAiService {
 
 			// 4. Determina competência a partir do primeiro registro
 			String competencia =
-					lista.get(0)
-							.getDataAgendamento()
-							.format(FORMATO_COMPETENCIA);
+					calcularCompetencia(
+							lista.get(0).getDataAgendamento()
+					);
 
 			// 5. FileChooser para o usuário escolher onde salvar
 			FileChooser chooser = new FileChooser();
@@ -582,7 +582,7 @@ public class GeradorBPAiService {
 		/**
 		 * seq 24 - prd-srv
 		 */
-		sb.append(padRightSpaces("160", 3)); // serviço
+		sb.append(padRightSpaces("", 3)); // serviço
 
 		/**
 		 * seq 25 - prd-clf
@@ -616,7 +616,7 @@ public class GeradorBPAiService {
 		 * NUM, default Brancos
 		 */
 		String codLogradouro = endereco != null ? endereco.getCodLogradouro() : null;
-		sb.append(padNumOpcional(codLogradouro, 3));
+		sb.append(padNumObrigatorio(codLogradouro, 3));
 
 		/**
 		 * seq 31 - prd-end_pcnte
@@ -827,19 +827,52 @@ public class GeradorBPAiService {
 	private static final Map<String, String> MAP_SERVICO = new HashMap<>();
 
 	static {
-		MAP_SERVICO.put("0301010307", "000");
+		MAP_SERVICO.put("0301010307", "");
 		MAP_SERVICO.put("0804010064", "009");
 	}
 
 	private String formatarServico(String sigtap) {
 
 		if (sigtap == null)
-			return padRightSpaces("", 3);
+			return "000";
 
 		String sigtapNumerico = sigtap.replaceAll("[^0-9]", "");
 
 		String servico = MAP_SERVICO.get(sigtapNumerico);
 
-		return servico != null ? servico : padRightSpaces("", 3);
+		if (servico == null)
+			return "000";
+
+		return padLeftZeros(servico, 3);
+	}
+
+	private String calcularCompetencia(LocalDate dataAtendimento) {
+
+		if (dataAtendimento == null)
+			throw new RuntimeException("Data do atendimento não pode ser nula");
+
+		// competência é o mês seguinte
+		LocalDate competencia = dataAtendimento.plusMonths(1);
+
+		return competencia.format(FORMATO_COMPETENCIA);
+	}
+
+	/**
+	 * Campo NUM obrigatório
+	 * - Apenas números
+	 * - Preenchimento com zeros à esquerda
+	 * - Default = 000
+	 */
+	private String padNumObrigatorio(String valor, int tamanho) {
+
+		if (valor == null)
+			valor = "";
+
+		valor = valor.replaceAll("[^0-9]", "");
+
+		if (valor.isEmpty())
+			valor = "0";
+
+		return padLeftZeros(valor, tamanho);
 	}
 }
