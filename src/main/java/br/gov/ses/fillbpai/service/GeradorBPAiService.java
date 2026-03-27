@@ -491,7 +491,9 @@ public class GeradorBPAiService {
 		 * ou ausente. O CPF é mais confiável como identificador.
 		 *
 		 * Exemplo: CPF "12345678901" → "000012345678901"
+		 *
 		 */
+
 		String cpfPaciente = paciente != null ? paciente.getCpf() : null;
 		sb.append(padNumOpcional(cpfPaciente, 15));
 
@@ -875,4 +877,32 @@ public class GeradorBPAiService {
 
 		return padLeftZeros(valor, tamanho);
 	}
+
+	/**
+	 * Formata CPF para campo prd-cnspac
+	 * - Remove caracteres não numéricos
+	 * - Mantém 11 dígitos
+	 * - Acrescenta 4 espaços à esquerda
+	 * - Total = 15 caracteres
+	 */
+	private String formatarCpfParaBpa(String cpf) {
+
+		if (cpf == null)
+			cpf = "";
+
+		// remove tudo que não for número
+		cpf = cpf.replaceAll("[^0-9]", "");
+
+		// limita a 11 dígitos
+		if (cpf.length() > 11) {
+			cpf = cpf.substring(0, 11);
+		}
+
+		// adiciona 4 espaços à esquerda
+		//return String.format("%15s", cpf);
+
+		// completa com espaços à direita
+		return padRightSpaces(cpf, 15);
+	}
+
 }
