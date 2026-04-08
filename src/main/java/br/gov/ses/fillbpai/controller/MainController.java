@@ -1,7 +1,9 @@
 package br.gov.ses.fillbpai.controller;
 
 import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
+import br.gov.ses.fillbpai.service.ErroValidacao;
 import br.gov.ses.fillbpai.service.ImportacaoResultado;
+import br.gov.ses.fillbpai.service.ValidacaoPlanilhaService;
 import br.gov.ses.fillbpai.ui.FileChooserService;
 import br.gov.ses.fillbpai.ui.PreCadastroController;
 import br.gov.ses.fillbpai.ui.RelatorioController;
@@ -13,6 +15,7 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import org.slf4j.Logger;
@@ -22,6 +25,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Controller principal da aplicação.
@@ -38,6 +42,9 @@ public class MainController {
 
 	/** Caminho do arquivo de log de importação (mesmo diretório do H2) */
 	private static final Path CAMINHO_LOG = Path.of("database", "log_importacao.txt");
+
+	/** Caminho do arquivo de log de erros de validação */
+	private static final Path CAMINHO_LOG_ERROS = Path.of("database", "log_erros_validacao.txt");
 
 	private final EntityManager entityManager;
 	private final FileChooserService fileChooserService;
@@ -92,6 +99,12 @@ public class MainController {
 		// Registra a ação do botão "Ver Log" — lê do arquivo persistido
 		relatorioController.setAcaoVerLog(this::exibirLogSalvo);
 
+		// Registra a ação do botão "Analisar Planilha" — valida sem importar
+		relatorioController.setAcaoAnalisarPlanilha(() -> {
+			Stage stage = (Stage) rootLayout.getScene().getWindow();
+			analisarPlanilha(stage);
+		});
+
 		rootLayout.setCenter(relatorioController.criarComponente());
 	}
 
@@ -103,19 +116,30 @@ public class MainController {
 			return;
 		}
 
+		// Validação pré-importação — bloqueia se houver erros
+		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
+		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
+
+		if (!errosValidacao.isEmpty()) {
+
+			String logErros = validacaoService.gerarLogTxt(errosValidacao);
+			salvarLogErrosEmArquivo(logErros);
+			mostrarDialogoErrosValidacao(logErros, stage);
+			return;
+		}
+
+		// Sem erros — prossegue com importação
 		AtendimentoImportacaoService service =
 				new AtendimentoImportacaoService(entityManager);
 
 		ImportacaoResultado resultado =
 				service.importar(caminho);
 
-		// Persiste o log em arquivo para consulta futura
 		String conteudoLog = montarConteudoLog(resultado);
 		salvarLogEmArquivo(conteudoLog);
 
 		mostrarLog(conteudoLog);
 
-		// Recarrega sempre do banco (fonte oficial)
 		if (resultado.getTotalSucesso() > 0) {
 			relatorioController.carregarDoBanco();
 		}
@@ -221,6 +245,99 @@ public class MainController {
 		areaLog.setPrefHeight(400);
 
 		VBox layout = new VBox(10, areaLog);
+		layout.setPadding(new Insets(10));
+
+		alert.getDialogPane().setContent(layout);
+		alert.showAndWait();
+	}
+
+	// ======================================================
+	// ANÁLISE E VALIDAÇÃO DE PLANILHA
+	// ======================================================
+
+	/**
+	 * Analisa a planilha à procura de erros de validação sem importar.
+	 * Exibe o resultado e permite download do log de erros em TXT.
+	 */
+	private void analisarPlanilha(Stage stage) {
+
+		String caminho = fileChooserService.selecionarPlanilha(stage);
+
+		if (caminho == null) {
+			return;
+		}
+
+		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
+		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
+
+		if (errosValidacao.isEmpty()) {
+
+			Alert alert = new Alert(Alert.AlertType.INFORMATION);
+			alert.setTitle("Validação da Planilha");
+			alert.setContentText("Nenhum erro encontrado. A planilha está pronta para importação.");
+			alert.showAndWait();
+			return;
+		}
+
+		String logErros = validacaoService.gerarLogTxt(errosValidacao);
+		salvarLogErrosEmArquivo(logErros);
+		mostrarDialogoErrosValidacao(logErros, stage);
+	}
+
+	/**
+	 * Salva o log de erros de validação em arquivo TXT.
+	 */
+	private void salvarLogErrosEmArquivo(String conteudo) {
+
+		try {
+
+			Files.createDirectories(CAMINHO_LOG_ERROS.getParent());
+			Files.writeString(CAMINHO_LOG_ERROS, conteudo, StandardCharsets.UTF_8);
+
+			log.info("Log de erros de validação salvo em: {}", CAMINHO_LOG_ERROS.toAbsolutePath());
+
+		} catch (IOException e) {
+			log.error("Erro ao salvar log de erros: {}", e.getMessage());
+		}
+	}
+
+	/**
+	 * Exibe diálogo com erros de validação e botão para download do log TXT.
+	 */
+	private void mostrarDialogoErrosValidacao(String logErros, Stage stage) {
+
+		Alert alert = new Alert(Alert.AlertType.WARNING);
+		alert.setTitle("Erros de Validação");
+		alert.setHeaderText("A planilha contém erros que impedem a importação");
+
+		TextArea areaLog = new TextArea(logErros);
+		areaLog.setEditable(false);
+		areaLog.setWrapText(true);
+		areaLog.setPrefHeight(400);
+
+		Button btnSalvarLog = new Button("Salvar Log TXT");
+		btnSalvarLog.setOnAction(e -> {
+
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Salvar Log de Erros");
+			fileChooser.setInitialFileName("log_erros_validacao.txt");
+			fileChooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt")
+			);
+
+			java.io.File arquivo = fileChooser.showSaveDialog(stage);
+
+			if (arquivo != null) {
+				try {
+					Files.writeString(arquivo.toPath(), logErros, StandardCharsets.UTF_8);
+					log.info("Log de erros exportado para: {}", arquivo.getAbsolutePath());
+				} catch (IOException ex) {
+					log.error("Erro ao exportar log: {}", ex.getMessage());
+				}
+			}
+		});
+
+		VBox layout = new VBox(10, areaLog, btnSalvarLog);
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);

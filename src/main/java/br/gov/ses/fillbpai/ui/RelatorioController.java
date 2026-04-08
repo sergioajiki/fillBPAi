@@ -81,8 +81,14 @@ public class RelatorioController {
 	// BOTÃO VER LOG — exibe o log da última importação
 	private Button btnVerLog = new Button("Ver Log Importação");
 
+	// BOTÃO ANALISAR PLANILHA — valida a planilha antes de importar
+	private Button btnAnalisarPlanilha = new Button("Analisar Planilha");
+
 	/** Ação executada ao clicar em "Ver Log" — definida pelo MainController */
 	private Runnable acaoVerLog;
+
+	/** Ação executada ao clicar em "Analisar Planilha" — definida pelo MainController */
+	private Runnable acaoAnalisarPlanilha;
 
 	// ======================================================
 	// CONSTRUTOR
@@ -101,6 +107,16 @@ public class RelatorioController {
 	 */
 	public void setAcaoVerLog(Runnable acao) {
 		this.acaoVerLog = acao;
+	}
+
+	/**
+	 * Define a ação do botão "Analisar Planilha".
+	 * Chamado pelo MainController para injetar a lógica de validação.
+	 *
+	 * @param acao runnable que executa a análise da planilha
+	 */
+	public void setAcaoAnalisarPlanilha(Runnable acao) {
+		this.acaoAnalisarPlanilha = acao;
 	}
 
 	/**
@@ -239,7 +255,14 @@ public class RelatorioController {
 			}
 		});
 
-		HBox barra = new HBox(10, btnGerarBPA, btnGerarBPACompleto, btnVerLog);
+		// EVENTO ANALISAR PLANILHA — valida planilha antes de importar
+		btnAnalisarPlanilha.setOnAction(e -> {
+			if (acaoAnalisarPlanilha != null) {
+				acaoAnalisarPlanilha.run();
+			}
+		});
+
+		HBox barra = new HBox(10, btnAnalisarPlanilha, btnGerarBPA, btnGerarBPACompleto, btnVerLog);
 		barra.setPadding(new Insets(0));
 
 		return barra;
