@@ -31,10 +31,22 @@ Arquitetura em camadas: `controller → service → repository → model`, com `
 - `Estabelecimento` — chave natural: codigo (único). Campos: id, codigo, nome.
 - `AtendimentoBPAi` — @ManyToOne para Paciente, Medico, Estabelecimento. Campos próprios: tipoServico, sigtap, dataAgendamento, horaAtendimento, especialidadeMedico, cboMedico, cidConsulta, cnsProfissional, cnesNts, codIne, folha.
 
+### Validação Pré-Importação
+Antes de importar, a planilha é validada por `ValidacaoPlanilhaService`. Se houver erros bloqueantes, a importação é **impedida** e um relatório de erros é exibido com opção de download em TXT.
+
+Regras bloqueantes (record `ErroValidacao`):
+- **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização
+- **CEP_AUSENTE** — CEP do endereço não informado
+- **CPF_AUSENTE** — CPF do paciente não informado
+
+O botão **"Analisar Planilha"** (barra de ações do `RelatorioController`) permite validar sem importar.
+Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
+
 ### Fluxo de Importação
-1. `ExcelImportService` — lê Excel, retorna `LinhaImportacaoDTO`
-2. `AtendimentoProcessor` — valida/normaliza (CNS, datas, etc.), retorna lista de avisos
-3. `AtendimentoImportacaoService` — primeira passada coleta nomes de médicos, pré-carrega CNS do DATASUS (single-pass), segunda passada processa normalmente: findOrCreate para entidades, resolve IBGE via `IbgeUtils`, resolve CNS profissional via `CnsProfissionalUtils` (por nome), persiste atendimento
+1. `ValidacaoPlanilhaService` — valida regras bloqueantes (CNS, CEP, CPF). Se erros → bloqueia importação
+2. `ExcelImportService` — lê Excel, retorna `LinhaImportacaoDTO`
+3. `AtendimentoProcessor` — valida/normaliza (CNS, datas, etc.), retorna lista de avisos
+4. `AtendimentoImportacaoService` — primeira passada coleta nomes de médicos, pré-carrega CNS do DATASUS (single-pass), segunda passada processa normalmente: findOrCreate para entidades, resolve IBGE via `IbgeUtils`, resolve CNS profissional via `CnsProfissionalUtils` (por nome), persiste atendimento
 
 ### Utilitários
 - `IbgeUtils` — resolve código IBGE: ViaCEP API (primário, por CEP) + CSV fallback (por nome do município)
