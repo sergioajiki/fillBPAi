@@ -32,14 +32,19 @@ Arquitetura em camadas: `controller → service → repository → model`, com `
 - `AtendimentoBPAi` — @ManyToOne para Paciente, Medico, Estabelecimento. Campos próprios: tipoServico, sigtap, dataAgendamento, horaAtendimento, especialidadeMedico, cboMedico, cidConsulta, cnsProfissional, cnesNts, codIne, folha.
 
 ### Validação Pré-Importação
-Antes de importar, a planilha é validada por `ValidacaoPlanilhaService`. Se houver erros bloqueantes, a importação é **impedida** e um relatório de erros é exibido com opção de download em TXT.
+Antes de importar, a planilha é validada por `ValidacaoPlanilhaService`. Se houver erros bloqueantes, a importação é **impedida** e um relatório de erros é exibido com opção de download em TXT. Avisos não-bloqueantes são exibidos em diálogo separado mas não impedem a importação.
 
-Regras bloqueantes (record `ErroValidacao`):
+`ErroValidacao` tem campo `severidade` (enum `ERRO`/`AVISO`) e método `isBloqueante()`.
+
+Tipos de ERRO (bloqueantes):
 - **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização
 - **CEP_AUSENTE** — CEP do endereço não informado
 - **CPF_AUSENTE** — CPF do paciente não informado
 
-O botão **"Analisar Planilha"** (barra de ações do `RelatorioController`) permite validar sem importar.
+Tipos de AVISO (não bloqueantes):
+- **CNS_INCOMUM** — CNS do paciente com mais de 15 dígitos (formato incomum)
+
+O botão **"Analisar Planilha"** (topBar, à esquerda de "Importar Planilha") permite validar sem importar.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 
 ### Fluxo de Importação
@@ -49,9 +54,9 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 4. `AtendimentoImportacaoService` — primeira passada coleta nomes de médicos, pré-carrega CNS do DATASUS (single-pass), segunda passada processa normalmente: findOrCreate para entidades, resolve IBGE via `IbgeUtils`, resolve CNS profissional via `CnsProfissionalUtils` (por nome), persiste atendimento
 
 ### Utilitários
-- `IbgeUtils` — resolve código IBGE: ViaCEP API (primário, por CEP) + CSV fallback (por nome do município)
+- `IbgeUtils` — resolve código IBGE em cascata: 1) CSV por nome do município, 2) cache pré-carregado do banco (CEP → codigoIbge de `Endereco`), 3) API ViaCEP como último recurso. `preCarregarCacheDb()` chamado em `AtendimentoImportacaoService` antes do loop de importação.
 - `CnsProfissionalUtils` — resolve CNS do profissional por **nome** (normalizado: uppercase, sem acentos). Fontes: cache local (`dados/medicos_cns.csv` formato `nome;cns`) + arquivo DATASUS (`tbDadosProfissionalSus*.csv`, 7M+ registros, streaming). Auto-detecta DATASUS em Documents. Divergências (múltiplos CNS, não encontrado) vão para log de avisos.
-- `CnsUtils` — processa/valida CNS de pacientes (aceita CNS legado >15 dígitos com aviso)
+- `CnsUtils` — processa/valida CNS de pacientes (aceita CNS incomum >15 dígitos com aviso `CNS_INCOMUM`)
 - `CepUtils` — normalização de CEP
 
 ### Geração BPA-I
@@ -59,6 +64,16 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 - Geração completa (todos os médicos, folha auto-atribuída: especialidades em ordem alfabética → médicos em ordem alfabética → folha sequencial por competência)
 - Seq 10 (prd-cnspac): usa CPF do paciente zero-padded 15 chars (não CNS)
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
+- **Pré-validação obrigatória**: `GeradorBPAiService.validarCnsProfissional()` bloqueia a geração se qualquer atendimento estiver sem CNS do profissional, exibindo relatório com médico/paciente/data de cada ocorrência
+
+### Layout da UI
+A tela principal tem 4 linhas:
+1. **topBar** (`MainController`): `[Analisar Planilha]` `[Importar Planilha]` `[Pré-Cadastro CNS]` ... `Competência`
+2. **Barra de ações** (`RelatorioController.criarBarraAcoes()`): `[Gerar BPA-I Completo]` `[⚠]` `[Gerar BPA-I]` `[Ver Log Importação]`
+   - Botão `⚠` (amarelo) aparece quando há atendimentos sem CNS do profissional; clicando exibe log de pendências. Atualizado automaticamente em cada `carregarDoBanco()`.
+3. **Barra de filtros** (`RelatorioController.criarBarraFiltros()`): `[Buscar médico: ___ ]` `[Buscar]` `Especialidade [▼]` `Médico [▼]` `CNS [___]` `[Folha]` `[OK]` `[Limpar]`
+   - Busca por nome do médico: correspondência parcial, case-insensitive, combinável com filtros de combo
+4. **Tabela** + rodapé `Total: N`
 
 ## Team Profile: Standard
 
