@@ -117,6 +117,14 @@ public class RelatorioController {
 	 */
 	public void setAcaoAnalisarPlanilha(Runnable acao) {
 		this.acaoAnalisarPlanilha = acao;
+		btnAnalisarPlanilha.setOnAction(e -> acao.run());
+	}
+
+	/**
+	 * Retorna o botão "Analisar Planilha" para ser posicionado pelo MainController.
+	 */
+	public Button getBtnAnalisarPlanilha() {
+		return btnAnalisarPlanilha;
 	}
 
 	/**
@@ -255,14 +263,7 @@ public class RelatorioController {
 			}
 		});
 
-		// EVENTO ANALISAR PLANILHA — valida planilha antes de importar
-		btnAnalisarPlanilha.setOnAction(e -> {
-			if (acaoAnalisarPlanilha != null) {
-				acaoAnalisarPlanilha.run();
-			}
-		});
-
-		HBox barra = new HBox(10, btnAnalisarPlanilha, btnGerarBPA, btnGerarBPACompleto, btnVerLog);
+		HBox barra = new HBox(10, btnGerarBPA, btnGerarBPACompleto, btnVerLog);
 		barra.setPadding(new Insets(0));
 
 		return barra;

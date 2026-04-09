@@ -91,7 +91,9 @@ public class MainController {
 		Label labelCompetencia = relatorioController.getLabelCompetencia();
 		labelCompetencia.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
-		HBox topBar = new HBox(10, btnImportar, btnPreCadastro, spacer, labelCompetencia);
+		Button btnAnalisarPlanilha = relatorioController.getBtnAnalisarPlanilha();
+
+		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnImportar, btnPreCadastro, spacer, labelCompetencia);
 		topBar.setPadding(new Insets(10));
 
 		rootLayout.setTop(topBar);
@@ -100,6 +102,7 @@ public class MainController {
 		relatorioController.setAcaoVerLog(this::exibirLogSalvo);
 
 		// Registra a ação do botão "Analisar Planilha" — valida sem importar
+		// O botão é posicionado na topBar (à esquerda de Importar Planilha)
 		relatorioController.setAcaoAnalisarPlanilha(() -> {
 			Stage stage = (Stage) rootLayout.getScene().getWindow();
 			analisarPlanilha(stage);
