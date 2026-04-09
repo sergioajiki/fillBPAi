@@ -454,7 +454,7 @@ public class RelatorioController {
 		}
 		catch (Exception ex) {
 
-			mostrarMensagem("Erro: " + ex.getMessage());
+			mostrarErroGeracao(ex.getMessage());
 		}
 	}
 
@@ -495,7 +495,7 @@ public class RelatorioController {
 
 		} catch (Exception ex) {
 
-			mostrarMensagem("Erro: " + ex.getMessage());
+			mostrarErroGeracao(ex.getMessage());
 		}
 	}
 
@@ -874,6 +874,22 @@ public class RelatorioController {
 
 		alert.setContentText(msg);
 
+		alert.showAndWait();
+	}
+
+	private void mostrarErroGeracao(String mensagem) {
+
+		Alert alert = new Alert(Alert.AlertType.ERROR);
+		alert.setTitle("Erro de Geração BPA-I");
+		alert.setHeaderText(null);
+
+		TextArea area = new TextArea(mensagem);
+		area.setEditable(false);
+		area.setWrapText(false);
+		area.setPrefHeight(350);
+		area.setPrefWidth(650);
+
+		alert.getDialogPane().setContent(area);
 		alert.showAndWait();
 	}
 }

@@ -80,6 +80,8 @@ public class GeradorBPAiService {
 			if (lista.isEmpty())
 				throw new RuntimeException("Nenhum registro encontrado");
 
+			validarCnsProfissional(lista);
+
 			String competencia =
 					calcularCompetencia(
 							lista.get(0).getDataAgendamento()
@@ -169,6 +171,8 @@ public class GeradorBPAiService {
 
 			if (lista.isEmpty())
 				throw new RuntimeException("Nenhum registro encontrado");
+
+			validarCnsProfissional(lista);
 
 			// 2. Ordena por especialidade (alfabética) → médico (alfabético)
 			lista.sort(Comparator
@@ -335,6 +339,48 @@ public class GeradorBPAiService {
 				? a.getMedico().getNome() : "";
 
 		return esp + "|" + med;
+	}
+
+	/**
+	 * Verifica se todos os atendimentos da lista possuem CNS do profissional preenchido.
+	 * Lança RuntimeException com relatório detalhado se houver registros sem CNS.
+	 *
+	 * @param lista atendimentos a verificar
+	 * @throws RuntimeException com log formatado listando os registros sem CNS
+	 */
+	private void validarCnsProfissional(List<AtendimentoBPAi> lista) {
+
+		List<AtendimentoBPAi> semCns = lista.stream()
+				.filter(a -> a.getCnsProfissional() == null || a.getCnsProfissional().isBlank())
+				.collect(java.util.stream.Collectors.toList());
+
+		if (semCns.isEmpty()) {
+			return;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("=== ERRO DE GERAÇÃO BPA-I ===\n");
+		sb.append("Geração bloqueada: ").append(semCns.size())
+				.append(" atendimento(s) sem CNS do profissional.\n");
+		sb.append("Preencha o CNS antes de gerar o arquivo.\n\n");
+		sb.append(String.format("%-30s| %-30s| %s%n", "Médico", "Paciente", "Data"));
+		sb.append("------------------------------|------------------------------|----------\n");
+
+		DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+		for (AtendimentoBPAi a : semCns) {
+			String medNome = a.getMedico() != null ? a.getMedico().getNome() : "(sem médico)";
+			String pacNome = a.getPaciente() != null ? a.getPaciente().getNome() : "(sem paciente)";
+			String data = a.getDataAgendamento() != null ? a.getDataAgendamento().format(fmt) : "";
+
+			// trunca nomes longos para caber na coluna
+			if (medNome.length() > 30) medNome = medNome.substring(0, 27) + "...";
+			if (pacNome.length() > 30) pacNome = pacNome.substring(0, 27) + "...";
+
+			sb.append(String.format("%-30s| %-30s| %s%n", medNome, pacNome, data));
+		}
+
+		throw new RuntimeException(sb.toString());
 	}
 
 	/**
