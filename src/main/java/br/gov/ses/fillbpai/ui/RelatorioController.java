@@ -180,8 +180,8 @@ public class RelatorioController {
 
 		VBox box = new VBox(
 				10,
-				criarBarraFiltros(),
 				criarBarraAcoes(),
+				criarBarraFiltros(),
 				scrollPane,
 				totalLabel
 		);
