@@ -108,8 +108,8 @@ public class ValidacaoPlanilhaService {
 							+ " dígitos (mínimo: 15)"));
 		} else if (cnsNormalizado.length() > 15) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-					ErroValidacao.CNS_LEGADO,
-					"CNS com formato legado (" + cnsNormalizado.length()
+					ErroValidacao.CNS_INCOMUM,
+					"CNS com formato incomum (" + cnsNormalizado.length()
 							+ " dígitos, esperado 15): " + cnsNormalizado));
 		}
 

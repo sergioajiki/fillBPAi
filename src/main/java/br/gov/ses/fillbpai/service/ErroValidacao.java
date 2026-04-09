@@ -27,8 +27,8 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CPF do paciente ausente ou vazio — ERRO bloqueante */
 	public static final String CPF_AUSENTE = "CPF_AUSENTE";
 
-	/** CNS do paciente com mais de 15 dígitos (formato legado) — AVISO, não bloqueia */
-	public static final String CNS_LEGADO = "CNS_LEGADO";
+	/** CNS do paciente com mais de 15 dígitos (formato incomum) — AVISO, não bloqueia */
+	public static final String CNS_INCOMUM = "CNS_INCOMUM";
 
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {

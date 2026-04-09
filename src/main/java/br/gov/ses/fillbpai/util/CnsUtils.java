@@ -67,9 +67,9 @@ public class CnsUtils {
 			);
 		}
 
-		// CNS com mais de 15 dígitos — formato legado (antigo), aceito com aviso
+		// CNS com mais de 15 dígitos — formato incomum, aceito com aviso
 		if (cnsLimpo.length() > 15) {
-			avisos.add("CNS com formato legado (" + cnsLimpo.length()
+			avisos.add("CNS com formato incomum (" + cnsLimpo.length()
 					+ " dígitos, esperado 15): " + cnsLimpo);
 		}
 
