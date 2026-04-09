@@ -78,11 +78,17 @@ public class RelatorioController {
 	// atribuindo folhas sequenciais por especialidade (ordem alfabética)
 	private Button btnGerarBPACompleto = new Button("Gerar BPA-I Completo");
 
+	// BOTÃO AVISO — indica pendências que impedem a geração do BPA-I completo
+	private Button btnAvisoGeracao = new Button("⚠");
+
 	// BOTÃO VER LOG — exibe o log da última importação
 	private Button btnVerLog = new Button("Ver Log Importação");
 
 	// BOTÃO ANALISAR PLANILHA — valida a planilha antes de importar
 	private Button btnAnalisarPlanilha = new Button("Analisar Planilha");
+
+	/** Mensagem atual de avisos que impedem a geração completa (null = sem avisos) */
+	private String avisosGeracao = null;
 
 	/** Ação executada ao clicar em "Ver Log" — definida pelo MainController */
 	private Runnable acaoVerLog;
@@ -245,16 +251,24 @@ public class RelatorioController {
 	}
 
 	// ======================================================
-	// LINHA 3 — BARRA DE AÇÕES (Gerar BPA-I, Gerar BPA-I Completo)
+	// LINHA 3 — BARRA DE AÇÕES (Gerar BPA-I Completo, ⚠, Gerar BPA-I, Ver Log)
 	// ======================================================
 
 	private HBox criarBarraAcoes() {
 
-		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
-		btnGerarBPA.setOnAction(e -> gerarBPA());
-
 		// EVENTO GERAR BPA COMPLETO — todos os médicos, folha auto-atribuída
 		btnGerarBPACompleto.setOnAction(e -> gerarBPACompleto());
+
+		// BOTÃO AVISO — estilo visual de alerta, visível apenas quando há pendências
+		btnAvisoGeracao.setStyle(
+				"-fx-background-color: #FFC107; -fx-text-fill: #000; " +
+				"-fx-font-weight: bold; -fx-cursor: hand;");
+		btnAvisoGeracao.setVisible(false);
+		btnAvisoGeracao.setManaged(false);
+		btnAvisoGeracao.setOnAction(e -> mostrarAvisosGeracao());
+
+		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
+		btnGerarBPA.setOnAction(e -> gerarBPA());
 
 		// EVENTO VER LOG — exibe o log da última importação
 		btnVerLog.setOnAction(e -> {
@@ -263,10 +277,86 @@ public class RelatorioController {
 			}
 		});
 
-		HBox barra = new HBox(10, btnGerarBPA, btnGerarBPACompleto, btnVerLog);
+		HBox barra = new HBox(10, btnGerarBPACompleto, btnAvisoGeracao, btnGerarBPA, btnVerLog);
 		barra.setPadding(new Insets(0));
 
 		return barra;
+	}
+
+	/**
+	 * Verifica no banco se existem atendimentos sem CNS do profissional.
+	 * Atualiza visibilidade do botão de aviso e armazena o log de pendências.
+	 */
+	private void verificarAvisosGeracao() {
+
+		try {
+
+			@SuppressWarnings("unchecked")
+			List<Object[]> semCns = entityManager.createQuery(
+					"SELECT m.nome, p.nome, a.dataAgendamento " +
+					"FROM AtendimentoBPAi a " +
+					"JOIN a.medico m " +
+					"JOIN a.paciente p " +
+					"WHERE a.cnsProfissional IS NULL OR a.cnsProfissional = ''")
+					.getResultList();
+
+			if (semCns.isEmpty()) {
+				avisosGeracao = null;
+				btnAvisoGeracao.setVisible(false);
+				btnAvisoGeracao.setManaged(false);
+				return;
+			}
+
+			DateTimeFormatter fmt = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+			StringBuilder sb = new StringBuilder();
+			sb.append("=== PENDÊNCIAS PARA GERAÇÃO BPA-I COMPLETO ===\n");
+			sb.append(semCns.size()).append(" atendimento(s) sem CNS do profissional:\n\n");
+			sb.append(String.format("%-30s| %-30s| %s%n", "Médico", "Paciente", "Data"));
+			sb.append("------------------------------|------------------------------|----------\n");
+
+			for (Object[] linha : semCns) {
+				String med = linha[0] != null ? linha[0].toString() : "(sem médico)";
+				String pac = linha[1] != null ? linha[1].toString() : "(sem paciente)";
+				String data = linha[2] != null
+						? ((java.time.LocalDate) linha[2]).format(fmt) : "";
+
+				if (med.length() > 30) med = med.substring(0, 27) + "...";
+				if (pac.length() > 30) pac = pac.substring(0, 27) + "...";
+
+				sb.append(String.format("%-30s| %-30s| %s%n", med, pac, data));
+			}
+
+			avisosGeracao = sb.toString();
+			btnAvisoGeracao.setVisible(true);
+			btnAvisoGeracao.setManaged(true);
+			btnAvisoGeracao.setTooltip(new Tooltip(
+					semCns.size() + " atendimento(s) sem CNS do profissional"));
+
+		} catch (Exception e) {
+			// Falha silenciosa — não impede o carregamento da tabela
+		}
+	}
+
+	/**
+	 * Exibe o log de pendências que impedem a geração do BPA-I completo.
+	 */
+	private void mostrarAvisosGeracao() {
+
+		if (avisosGeracao == null) return;
+
+		Alert alert = new Alert(Alert.AlertType.WARNING);
+		alert.setTitle("Pendências — Geração BPA-I Completo");
+		alert.setHeaderText("Existem atendimentos sem CNS do profissional");
+
+		TextArea area = new TextArea(avisosGeracao);
+		area.setEditable(false);
+		area.setWrapText(false);
+		area.setPrefHeight(350);
+		area.setPrefWidth(650);
+
+		alert.getDialogPane().setContent(area);
+		alert.showAndWait();
 	}
 
 	// ======================================================
@@ -813,6 +903,8 @@ public class RelatorioController {
 						AtendimentoBPAi.class);
 
 		atualizarDados(query.getResultList());
+
+		verificarAvisosGeracao();
 	}
 
 	// ======================================================
