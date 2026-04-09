@@ -62,6 +62,11 @@ public class RelatorioController {
 
 	private ComboBox<String> filtroMedico = new ComboBox<>();
 
+	// Campo e botão de busca livre por nome do médico
+	private TextField campoBuscaMedico = new TextField();
+
+	private Button btnBuscarMedico = new Button("Buscar");
+
 	// Campo para edição do CNS do profissional (habilitado após seleção de médico)
 	private TextField campoCnsProfissional = new TextField();
 
@@ -239,8 +244,15 @@ public class RelatorioController {
 		// EVENTO LIMPAR
 		btnLimpar.setOnAction(e -> limparFiltros());
 
+		// BUSCA LIVRE POR MÉDICO — acionada pelo botão ou pela tecla Enter
+		campoBuscaMedico.setPromptText("Nome do médico...");
+		campoBuscaMedico.setPrefWidth(180);
+		campoBuscaMedico.setOnAction(e -> aplicarFiltros());
+		btnBuscarMedico.setOnAction(e -> aplicarFiltros());
+
 		return new HBox(
 				10,
+				new Label("Buscar médico:"), campoBuscaMedico, btnBuscarMedico,
 				new Label("Especialidade:"), filtroEspecialidade,
 				new Label("Médico:"), filtroMedico,
 				new Label("CNS:"), campoCnsProfissional,
@@ -595,6 +607,8 @@ public class RelatorioController {
 
 	private void limparFiltros() {
 
+		campoBuscaMedico.clear();
+
 		filtroEspecialidade.getSelectionModel().clearSelection();
 
 		filtroMedico.getSelectionModel().clearSelection();
@@ -672,11 +686,13 @@ public class RelatorioController {
 
 	private void aplicarFiltros() {
 
+		String termoBusca = campoBuscaMedico.getText();
+
 		listaFiltrada.setPredicate(dto -> {
 
 			boolean esp = true;
-
 			boolean med = true;
+			boolean busca = true;
 
 			if (filtroEspecialidade.getValue() != null)
 				esp = filtroEspecialidade.getValue()
@@ -686,7 +702,13 @@ public class RelatorioController {
 				med = filtroMedico.getValue()
 						.equals(dto.getMedico());
 
-			return esp && med;
+			if (termoBusca != null && !termoBusca.isBlank()) {
+				String nomeMedico = dto.getMedico() != null ? dto.getMedico() : "";
+				busca = nomeMedico.toUpperCase()
+						.contains(termoBusca.trim().toUpperCase());
+			}
+
+			return esp && med && busca;
 		});
 
 		totalLabel.setText(
