@@ -13,8 +13,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -58,6 +60,12 @@ public class AtendimentoImportacaoService {
 			 Workbook workbook = new XSSFWorkbook(fis)) {
 
 			Sheet sheet = workbook.getSheetAt(0);
+
+			// ==============================
+			// Pré-carrega cache IBGE do banco (CEPs já resolvidos em importações anteriores)
+			// ==============================
+
+			IbgeUtils.preCarregarCacheDb(carregarCepIbgeDoBanco());
 
 			// ==============================
 			// Pré-carrega CNS do DATASUS (single-pass para todos os médicos)
@@ -360,6 +368,39 @@ public class AtendimentoImportacaoService {
 					estabelecimentoRepository.salvar(novo);
 					return novo;
 				});
+	}
+
+	/**
+	 * Carrega todos os pares CEP → codigoIbge já persistidos na tabela Endereco.
+	 * Usado para pré-popular o cache do IbgeUtils antes do loop de importação,
+	 * evitando chamadas à API ViaCEP para CEPs já conhecidos.
+	 */
+	private Map<String, String> carregarCepIbgeDoBanco() {
+
+		Map<String, String> mapa = new HashMap<>();
+
+		try {
+
+			@SuppressWarnings("unchecked")
+			List<Object[]> resultado = entityManager
+					.createQuery(
+							"SELECT e.cep, e.codigoIbge FROM Endereco e" +
+							" WHERE e.cep IS NOT NULL AND e.codigoIbge IS NOT NULL")
+					.getResultList();
+
+			for (Object[] linha : resultado) {
+				String cep   = (String) linha[0];
+				String ibge  = (String) linha[1];
+				if (cep != null && ibge != null) {
+					mapa.put(cep, ibge);
+				}
+			}
+
+		} catch (Exception e) {
+			// Falha não deve impedir a importação — o cache ficará vazio
+		}
+
+		return mapa;
 	}
 
 	/**

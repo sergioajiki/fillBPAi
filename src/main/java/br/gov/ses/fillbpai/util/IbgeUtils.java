@@ -22,15 +22,19 @@ import org.slf4j.LoggerFactory;
  * Utilitário para resolução de código IBGE de municípios.
  *
  * Estratégia de resolução (em cascata):
- * 1. PRIMÁRIO: Consulta API ViaCEP pelo CEP do paciente
- *    - Determinístico (CEP → município é 1:1)
- *    - Elimina problemas de homônimos entre estados
- *    - Resultados cacheados em memória para evitar chamadas repetidas
- *
- * 2. FALLBACK: Busca por nome do município em arquivo CSV embutido
- *    - Usado quando o CEP não está disponível ou a API falha
+ * 1. PRIMÁRIO: Busca por nome do município em arquivo CSV embutido
+ *    - Sem rede, resultado instantâneo
  *    - Normalização Unicode para matching (remove acentos, uppercase)
  *    - CSV contém municípios de MS (pode ser expandido)
+ *
+ * 2. SECUNDÁRIO: Cache de CEPs resolvidos (inclui dados pré-carregados do banco)
+ *    - Pré-populado antes da importação com CEP → codigoIbge dos endereços já persistidos
+ *    - Sem rede, resultado instantâneo para CEPs já conhecidos
+ *
+ * 3. FALLBACK: Consulta API ViaCEP pelo CEP do paciente
+ *    - Usado apenas quando CEP não está no cache
+ *    - Determinístico (CEP → município é 1:1)
+ *    - Resultados cacheados em memória para evitar chamadas repetidas
  *
  * Códigos IBGE:
  * - Padrão IBGE: 7 dígitos (2 estado + 4 município + 1 verificador)
@@ -64,7 +68,30 @@ public class IbgeUtils {
 			.build();
 
 	/**
-	 * Resolve o código IBGE usando CEP (primário) e nome do município (fallback).
+	 * Pré-carrega o cache de CEPs com dados já persistidos no banco de dados.
+	 * Deve ser chamado antes do loop de importação para evitar chamadas à API
+	 * para CEPs que já foram resolvidos em importações anteriores.
+	 *
+	 * @param cepParaIbge mapa de CEP normalizado → código IBGE (7 dígitos) vindo do banco
+	 */
+	public static void preCarregarCacheDb(java.util.Map<String, String> cepParaIbge) {
+		if (cepParaIbge == null || cepParaIbge.isEmpty()) {
+			return;
+		}
+		// Insere apenas CEPs que ainda não estão no cache (não sobrescreve resultados negativos)
+		cepParaIbge.forEach((cep, ibge) -> {
+			if (ibge != null && !ibge.isBlank()) {
+				cacheViaCep.putIfAbsent(cep, ibge);
+			}
+		});
+		log.info("Cache IBGE pré-carregado do banco: {} CEPs", cepParaIbge.size());
+	}
+
+	/**
+	 * Resolve o código IBGE em cascata:
+	 * 1. CSV (por nome do município) — sem rede, instantâneo
+	 * 2. Cache/banco (por CEP) — sem rede, instantâneo para CEPs já conhecidos
+	 * 3. API ViaCEP (por CEP) — apenas se não encontrado no cache
 	 *
 	 * @param cep CEP normalizado (8 dígitos, sem hífen) — pode ser null
 	 * @param nomeMunicipio nome do município da planilha — pode ser null
@@ -72,30 +99,30 @@ public class IbgeUtils {
 	 */
 	public static IbgeResultado resolver(String cep, String nomeMunicipio) {
 
-		// 1. Tentativa primária: CEP via ViaCEP API
-		if (cep != null && !cep.isBlank() && cep.length() >= 5) {
-
-			String codigoPorCep = buscarPorCep(cep);
-
-			if (codigoPorCep != null) {
-				log.debug("IBGE resolvido via CEP {}: {}", cep, codigoPorCep);
-				return new IbgeResultado(codigoPorCep, null);
-			}
-		}
-
-		// 2. Fallback: nome do município via CSV
+		// 1. CSV: busca por nome do município (sem rede)
 		if (nomeMunicipio != null && !nomeMunicipio.isBlank()) {
 
 			String codigoPorNome = buscarPorNome(nomeMunicipio);
 
 			if (codigoPorNome != null) {
 				log.debug("IBGE resolvido via CSV para '{}': {}", nomeMunicipio, codigoPorNome);
-				return new IbgeResultado(codigoPorNome,
-						"Código IBGE resolvido por nome (CSV), não por CEP: " + nomeMunicipio);
+				return new IbgeResultado(codigoPorNome, null);
 			}
 		}
 
-		// 3. Nenhuma estratégia funcionou
+		// 2. Cache/banco + 3. API ViaCEP: ambos via buscarPorCep (cache primeiro, API se necessário)
+		if (cep != null && !cep.isBlank() && cep.length() >= 5) {
+
+			String codigoPorCep = buscarPorCep(cep);
+
+			if (codigoPorCep != null) {
+				log.debug("IBGE resolvido via cache/API para CEP {}: {}", cep, codigoPorCep);
+				return new IbgeResultado(codigoPorCep,
+						"Código IBGE resolvido por CEP (não encontrado no CSV por nome): " + nomeMunicipio);
+			}
+		}
+
+		// Nenhuma estratégia funcionou
 		String aviso = "Código IBGE não encontrado para CEP=" + cep
 				+ ", município=" + nomeMunicipio
 				+ ". Campo prd-ibge será preenchido com brancos.";

@@ -46,8 +46,9 @@ public class Endereco {
 	/**
 	 * Código IBGE do município (7 dígitos).
 	 * Resolvido automaticamente durante a importação via:
-	 * 1. API ViaCEP (pelo CEP) — primário
-	 * 2. CSV embutido (pelo nome do município) — fallback
+	 * 1. CSV embutido (pelo nome do município) — primário, sem rede
+	 * 2. Banco de dados (pelo CEP, cache pré-carregado) — sem rede
+	 * 3. API ViaCEP (pelo CEP) — fallback com rede
 	 *
 	 * O BPA-I usa apenas 6 dígitos (sem verificador).
 	 * A truncagem é feita no GeradorBPAiService.
