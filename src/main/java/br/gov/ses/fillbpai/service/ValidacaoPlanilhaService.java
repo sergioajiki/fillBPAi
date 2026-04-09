@@ -93,39 +93,44 @@ public class ValidacaoPlanilhaService {
 
 		// -------------------------------------------------------
 		// Regra 1: CNS do paciente
-		// Após normalização (somente dígitos), deve ter ao menos 15 caracteres.
+		// - Ausente ou < 15 dígitos → ERRO bloqueante
+		// - > 15 dígitos (formato legado) → AVISO, não bloqueia
 		// -------------------------------------------------------
 		String cnsNormalizado = CnsUtils.normalizar(dto.getCnsPaciente());
 
 		if (cnsNormalizado == null || cnsNormalizado.isEmpty()) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.CNS_INVALIDO,
-					"CNS do paciente não informado"));
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CNS_INVALIDO, "CNS do paciente não informado"));
 		} else if (cnsNormalizado.length() < 15) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.CNS_INVALIDO,
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CNS_INVALIDO,
 					"CNS do paciente possui apenas " + cnsNormalizado.length()
 							+ " dígitos (mínimo: 15)"));
+		} else if (cnsNormalizado.length() > 15) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.CNS_LEGADO,
+					"CNS com formato legado (" + cnsNormalizado.length()
+							+ " dígitos, esperado 15): " + cnsNormalizado));
 		}
 
 		// -------------------------------------------------------
-		// Regra 2: CEP do endereço
-		// Campo obrigatório — necessário para resolução do código IBGE via ViaCEP.
+		// Regra 2: CEP do endereço — ERRO bloqueante
 		// -------------------------------------------------------
 		String cep = dto.getCep();
 
 		if (cep == null || cep.trim().isEmpty()) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.CEP_AUSENTE,
-					"CEP do endereço não informado"));
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CEP_AUSENTE, "CEP do endereço não informado"));
 		}
 
 		// -------------------------------------------------------
-		// Regra 3: CPF do paciente
-		// Campo obrigatório — usado como chave natural na entidade Paciente.
+		// Regra 3: CPF do paciente — ERRO bloqueante
 		// -------------------------------------------------------
 		String cpf = dto.getCpfPaciente();
 
 		if (cpf == null || cpf.trim().isEmpty()) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.CPF_AUSENTE,
-					"CPF do paciente não informado"));
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CPF_AUSENTE, "CPF do paciente não informado"));
 		}
 	}
 
@@ -143,27 +148,41 @@ public class ValidacaoPlanilhaService {
 	 */
 	public String gerarLogTxt(List<ErroValidacao> erros) {
 
-		StringBuilder sb = new StringBuilder();
+		List<ErroValidacao> bloqueantes = erros.stream()
+				.filter(ErroValidacao::isBloqueante)
+				.collect(java.util.stream.Collectors.toList());
 
+		List<ErroValidacao> avisos = erros.stream()
+				.filter(e -> !e.isBloqueante())
+				.collect(java.util.stream.Collectors.toList());
+
+		StringBuilder sb = new StringBuilder();
 		sb.append("=== RELATÓRIO DE VALIDAÇÃO DA PLANILHA ===\n");
-		sb.append("Total de erros encontrados: ").append(erros.size()).append("\n");
+		sb.append("Erros bloqueantes: ").append(bloqueantes.size()).append("\n");
+		sb.append("Avisos: ").append(avisos.size()).append("\n");
 
 		if (erros.isEmpty()) {
-			sb.append("\nNenhum erro encontrado. A planilha está apta para importação.\n");
+			sb.append("\nNenhum problema encontrado. A planilha está apta para importação.\n");
 			return sb.toString();
 		}
 
-		// Cabeçalho da tabela
-		sb.append("\n");
-		sb.append(String.format("%-6s| %-15s| %s%n", "Linha", "Tipo do Erro", "Detalhe"));
-		sb.append("------|-----------------|--------\n");
+		String separador = "------|-----------------|--------\n";
+		String cabecalho = String.format("%-6s| %-15s| %s%n", "Linha", "Tipo", "Detalhe");
 
-		// Uma linha por erro
-		for (ErroValidacao erro : erros) {
-			sb.append(String.format("%-6d| %-15s| %s%n",
-					erro.linha(),
-					erro.tipoErro(),
-					erro.detalhe()));
+		if (!bloqueantes.isEmpty()) {
+			sb.append("\n--- ERROS (impedem a importação) ---\n");
+			sb.append(cabecalho).append(separador);
+			for (ErroValidacao e : bloqueantes) {
+				sb.append(String.format("%-6d| %-15s| %s%n", e.linha(), e.tipoErro(), e.detalhe()));
+			}
+		}
+
+		if (!avisos.isEmpty()) {
+			sb.append("\n--- AVISOS (não impedem a importação) ---\n");
+			sb.append(cabecalho).append(separador);
+			for (ErroValidacao e : avisos) {
+				sb.append(String.format("%-6d| %-15s| %s%n", e.linha(), e.tipoErro(), e.detalhe()));
+			}
 		}
 
 		return sb.toString();

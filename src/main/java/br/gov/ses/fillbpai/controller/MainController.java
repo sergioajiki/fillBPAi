@@ -119,16 +119,21 @@ public class MainController {
 			return;
 		}
 
-		// Validação pré-importação — bloqueia se houver erros
+		// Validação pré-importação — bloqueia apenas se houver erros bloqueantes
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
 
-		if (!errosValidacao.isEmpty()) {
+		boolean temBloqueantes = errosValidacao.stream().anyMatch(ErroValidacao::isBloqueante);
 
+		if (!errosValidacao.isEmpty()) {
 			String logErros = validacaoService.gerarLogTxt(errosValidacao);
 			salvarLogErrosEmArquivo(logErros);
-			mostrarDialogoErrosValidacao(logErros, stage);
-			return;
+			if (temBloqueantes) {
+				mostrarDialogoErrosValidacao(logErros, stage);
+				return;
+			}
+			// Apenas avisos — exibe mas deixa importação prosseguir
+			mostrarDialogoAvisosValidacao(logErros, stage);
 		}
 
 		// Sem erros — prossegue com importação
@@ -334,6 +339,50 @@ public class MainController {
 				try {
 					Files.writeString(arquivo.toPath(), logErros, StandardCharsets.UTF_8);
 					log.info("Log de erros exportado para: {}", arquivo.getAbsolutePath());
+				} catch (IOException ex) {
+					log.error("Erro ao exportar log: {}", ex.getMessage());
+				}
+			}
+		});
+
+		VBox layout = new VBox(10, areaLog, btnSalvarLog);
+		layout.setPadding(new Insets(10));
+
+		alert.getDialogPane().setContent(layout);
+		alert.showAndWait();
+	}
+
+	/**
+	 * Exibe diálogo informativo com avisos de validação (não bloqueantes).
+	 * A importação prosseguirá normalmente após o fechamento.
+	 */
+	private void mostrarDialogoAvisosValidacao(String logAvisos, Stage stage) {
+
+		Alert alert = new Alert(Alert.AlertType.WARNING);
+		alert.setTitle("Avisos de Validação");
+		alert.setHeaderText("A planilha contém avisos (a importação prosseguirá normalmente)");
+
+		TextArea areaLog = new TextArea(logAvisos);
+		areaLog.setEditable(false);
+		areaLog.setWrapText(true);
+		areaLog.setPrefHeight(300);
+
+		Button btnSalvarLog = new Button("Salvar Log TXT");
+		btnSalvarLog.setOnAction(e -> {
+
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Salvar Log de Avisos");
+			fileChooser.setInitialFileName("log_avisos_validacao.txt");
+			fileChooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt")
+			);
+
+			java.io.File arquivo = fileChooser.showSaveDialog(stage);
+
+			if (arquivo != null) {
+				try {
+					Files.writeString(arquivo.toPath(), logAvisos, StandardCharsets.UTF_8);
+					log.info("Log de avisos exportado para: {}", arquivo.getAbsolutePath());
 				} catch (IOException ex) {
 					log.error("Erro ao exportar log: {}", ex.getMessage());
 				}
