@@ -154,23 +154,37 @@ public class GeradorBPAiService {
 	 * O sequencial (prd-seq) reinicia a cada troca de folha,
 	 * e também reinicia ao atingir 20 (regra do layout BPA-I).
 	 */
-	public void gerarArquivoCompletoComFileChooser(Window parentWindow) {
+	/**
+	 * @param competenciaAtendimento competência no formato YYYYMM referente ao mês de atendimento
+	 *                               (ex: "202503" para atendimentos de março de 2025)
+	 */
+	public void gerarArquivoCompletoComFileChooser(Window parentWindow, String competenciaAtendimento) {
 
 		try {
 
-			// 1. Carrega TODOS os atendimentos com relacionamentos
+			// Deriva o mês de atendimento a partir da competência selecionada
+			int atenAno  = Integer.parseInt(competenciaAtendimento.substring(0, 4));
+			int atenMes  = Integer.parseInt(competenciaAtendimento.substring(4, 6));
+
+			// 1. Carrega apenas os atendimentos do mês de competência selecionado
 			List<AtendimentoBPAi> lista =
 					entityManager.createQuery(
 									"SELECT a FROM AtendimentoBPAi a " +
 											"JOIN FETCH a.paciente p " +
 											"LEFT JOIN FETCH p.endereco " +
 											"JOIN FETCH a.medico " +
-											"LEFT JOIN FETCH a.estabelecimento",
+											"LEFT JOIN FETCH a.estabelecimento " +
+											"WHERE YEAR(a.dataAgendamento) = :ano " +
+											"AND MONTH(a.dataAgendamento) = :mes",
 									AtendimentoBPAi.class)
+							.setParameter("ano", atenAno)
+							.setParameter("mes", atenMes)
 							.getResultList();
 
 			if (lista.isEmpty())
-				throw new RuntimeException("Nenhum registro encontrado");
+				throw new RuntimeException(
+						"Nenhum registro encontrado para a competência "
+						+ String.format("%02d/%04d", atenMes, atenAno));
 
 			validarCnsProfissional(lista);
 
@@ -187,10 +201,10 @@ public class GeradorBPAiService {
 			//    e persiste os valores no banco
 			int totalFolhas = atribuirFolhas(lista);
 
-			// 4. Determina competência a partir do primeiro registro
+			// 4. Determina a competência BPA-I (mês seguinte ao atendimento)
 			String competencia =
 					calcularCompetencia(
-							lista.get(0).getDataAgendamento()
+							LocalDate.of(atenAno, atenMes, 1)
 					);
 
 			// 5. FileChooser para o usuário escolher onde salvar

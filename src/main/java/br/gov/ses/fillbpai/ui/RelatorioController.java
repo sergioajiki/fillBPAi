@@ -70,9 +70,9 @@ public class RelatorioController {
 	// Campo para edição do CNS do profissional (habilitado após seleção de médico)
 	private TextField campoCnsProfissional = new TextField();
 
-	private Button btnAtualizar = new Button("OK");
+	private Button btnAtualizar = new Button("Atualizar CNS");
 
-	private Button btnFolha = new Button("Folha");
+	private Button btnFolha = new Button("Definir Folha");
 
 	private Button btnLimpar = new Button("Limpar");
 
@@ -84,13 +84,24 @@ public class RelatorioController {
 	private Button btnGerarBPACompleto = new Button("Gerar BPA-I Completo");
 
 	// BOTÃO AVISO — indica pendências que impedem a geração do BPA-I completo
-	private Button btnAvisoGeracao = new Button("⚠");
+	private Button btnAvisoGeracao = new Button("⚠ Pendências CNS");
 
 	// BOTÃO VER LOG — exibe o log da última importação
 	private Button btnVerLog = new Button("Ver Log Importação");
 
 	// BOTÃO ANALISAR PLANILHA — valida a planilha antes de importar
 	private Button btnAnalisarPlanilha = new Button("Analisar Planilha");
+
+	/** Barra de edição (CNS e Folha) — visível apenas quando um médico está selecionado */
+	private HBox barraEdicao;
+
+	/** Competência selecionada para geração BPA-I (formato YYYYMM do mês de atendimento) */
+	private String competenciaSelecionada = null;
+
+	private Button btnSelecionarMes = new Button("Selecionar Mês");
+
+	/** Grupo Médico (label + combo) — visível apenas quando especialidade está selecionada */
+	private HBox grupoMedico;
 
 	/** Mensagem atual de avisos que impedem a geração completa (null = sem avisos) */
 	private String avisosGeracao = null;
@@ -108,6 +119,7 @@ public class RelatorioController {
 	public RelatorioController(EntityManager entityManager) {
 
 		this.entityManager = entityManager;
+		btnSelecionarMes.setOnAction(e -> abrirDialogSelecionarCompetencia());
 	}
 
 	/**
@@ -118,6 +130,14 @@ public class RelatorioController {
 	 */
 	public void setAcaoVerLog(Runnable acao) {
 		this.acaoVerLog = acao;
+		btnVerLog.setOnAction(e -> acao.run());
+	}
+
+	/**
+	 * Retorna o botão "Ver Log Importação" para ser posicionado pelo MainController.
+	 */
+	public Button getBtnVerLog() {
+		return btnVerLog;
 	}
 
 	/**
@@ -143,6 +163,13 @@ public class RelatorioController {
 	 */
 	public Label getLabelCompetencia() {
 		return labelCompetencia;
+	}
+
+	/**
+	 * Retorna o botão "Selecionar Mês" para ser posicionado pelo MainController.
+	 */
+	public Button getBtnSelecionarMes() {
+		return btnSelecionarMes;
 	}
 
 	// ======================================================
@@ -187,6 +214,7 @@ public class RelatorioController {
 				10,
 				criarBarraAcoes(),
 				criarBarraFiltros(),
+				criarBarraEdicao(),
 				scrollPane,
 				totalLabel
 		);
@@ -206,60 +234,137 @@ public class RelatorioController {
 
 	private HBox criarBarraFiltros() {
 
-		// Filtros de seleção — definem o contexto de edição
 		filtroEspecialidade.setPromptText("Especialidade");
 		filtroMedico.setPromptText("Médico");
 
-		// Campo de edição do CNS do profissional
-		campoCnsProfissional.setPromptText("Novo CNS");
+		// Grupo Médico: oculto até que especialidade seja selecionada
+		grupoMedico = new HBox(5, new Label("Médico:"), filtroMedico);
+		grupoMedico.setVisible(false);
+		grupoMedico.setManaged(false);
 
-		// Campos desabilitados até que um médico seja selecionado
-		filtroMedico.setDisable(true);
-		campoCnsProfissional.setDisable(true);
-		btnAtualizar.setDisable(true);
-		btnFolha.setDisable(true);
-
-		// EVENTO FILTRO ESPECIALIDADE
+		// EVENTO FILTRO ESPECIALIDADE — reseta busca livre ao usar seleção por especialidade
 		filtroEspecialidade.setOnAction(e -> {
-
+			if (filtroEspecialidade.getValue() != null) {
+				campoBuscaMedico.clear();
+				barraEdicao.setVisible(false);
+				barraEdicao.setManaged(false);
+			}
 			atualizarMedicosPorEspecialidade();
-
 			aplicarFiltros();
 		});
 
 		// EVENTO FILTRO MÉDICO
 		filtroMedico.setOnAction(e -> {
-
 			aplicarFiltros();
-
 			habilitarEdicao();
 		});
-
-		// EVENTO ATUALIZAR BD — persiste apenas o CNS do profissional
-		btnAtualizar.setOnAction(e -> atualizarCns());
-
-		// EVENTO FOLHA — abre diálogo para definir número de folha manual
-		btnFolha.setOnAction(e -> definirFolha());
 
 		// EVENTO LIMPAR
 		btnLimpar.setOnAction(e -> limparFiltros());
 
-		// BUSCA LIVRE POR MÉDICO — acionada pelo botão ou pela tecla Enter
+		// BUSCA LIVRE POR MÉDICO — exibe barra de edição quando há resultados
 		campoBuscaMedico.setPromptText("Nome do médico...");
 		campoBuscaMedico.setPrefWidth(180);
-		campoBuscaMedico.setOnAction(e -> aplicarFiltros());
-		btnBuscarMedico.setOnAction(e -> aplicarFiltros());
+		campoBuscaMedico.setOnAction(e -> executarBuscaLivre());
+		btnBuscarMedico.setOnAction(e -> executarBuscaLivre());
 
 		return new HBox(
 				10,
 				new Label("Buscar médico:"), campoBuscaMedico, btnBuscarMedico,
 				new Label("Especialidade:"), filtroEspecialidade,
-				new Label("Médico:"), filtroMedico,
-				new Label("CNS:"), campoCnsProfissional,
-				btnFolha,
-				btnAtualizar,
+				grupoMedico,
 				btnLimpar
 		);
+	}
+
+	private void executarBuscaLivre() {
+		// Reseta seleção por especialidade ao usar busca livre
+		if (campoBuscaMedico.getText() != null && !campoBuscaMedico.getText().isBlank()) {
+			filtroEspecialidade.getSelectionModel().clearSelection();
+			filtroMedico.getSelectionModel().clearSelection();
+			filtroMedico.getItems().clear();
+			grupoMedico.setVisible(false);
+			grupoMedico.setManaged(false);
+			barraEdicao.setVisible(false);
+			barraEdicao.setManaged(false);
+		}
+		aplicarFiltros();
+		String termo = campoBuscaMedico.getText();
+		if (termo != null && !termo.isBlank() && !listaFiltrada.isEmpty()) {
+			habilitarEdicao();
+		}
+	}
+
+	// ======================================================
+	// LINHA 4 — BARRA DE EDIÇÃO (aparece ao selecionar médico)
+	// ======================================================
+
+	private HBox criarBarraEdicao() {
+
+		campoCnsProfissional.setPromptText("Novo CNS");
+
+		btnAtualizar.setOnAction(e -> atualizarCns());
+		btnFolha.setOnAction(e -> definirFolha());
+
+		barraEdicao = new HBox(10,
+				new Label("CNS:"), campoCnsProfissional,
+				btnAtualizar,
+				btnFolha
+		);
+		barraEdicao.setVisible(false);
+		barraEdicao.setManaged(false);
+
+		return barraEdicao;
+	}
+
+	// ======================================================
+	// SELEÇÃO DE COMPETÊNCIA
+	// ======================================================
+
+	private void abrirDialogSelecionarCompetencia() {
+
+		int anoInicial  = LocalDate.now().getYear();
+		int mesInicial  = LocalDate.now().getMonthValue();
+
+		if (competenciaSelecionada != null) {
+			anoInicial = Integer.parseInt(competenciaSelecionada.substring(0, 4));
+			mesInicial = Integer.parseInt(competenciaSelecionada.substring(4, 6));
+		}
+
+		Spinner<Integer> spinnerMes = new Spinner<>(1, 12, mesInicial);
+		spinnerMes.setEditable(true);
+		spinnerMes.setPrefWidth(70);
+
+		Spinner<Integer> spinnerAno = new Spinner<>(2000, 2100, anoInicial);
+		spinnerAno.setEditable(true);
+		spinnerAno.setPrefWidth(90);
+
+		HBox content = new HBox(10,
+				new Label("Mês:"), spinnerMes,
+				new Label("Ano:"), spinnerAno);
+		content.setPadding(new Insets(10));
+
+		Dialog<String> dialog = new Dialog<>();
+		dialog.setTitle("Selecionar Competência");
+		dialog.setHeaderText("Escolha o mês de competência para geração do BPA-I");
+		dialog.getDialogPane().setContent(content);
+
+		ButtonType confirmar = new ButtonType("Confirmar", ButtonBar.ButtonData.OK_DONE);
+		dialog.getDialogPane().getButtonTypes().addAll(confirmar, ButtonType.CANCEL);
+
+		dialog.setResultConverter(btn -> {
+			if (btn == confirmar) {
+				return String.format("%04d%02d", spinnerAno.getValue(), spinnerMes.getValue());
+			}
+			return null;
+		});
+
+		dialog.showAndWait().ifPresent(comp -> {
+			competenciaSelecionada = comp;
+			int m = Integer.parseInt(comp.substring(4, 6));
+			int a = Integer.parseInt(comp.substring(0, 4));
+			labelCompetencia.setText(String.format("Competência: %02d/%04d", m, a));
+		});
 	}
 
 	// ======================================================
@@ -282,14 +387,7 @@ public class RelatorioController {
 		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
 		btnGerarBPA.setOnAction(e -> gerarBPA());
 
-		// EVENTO VER LOG — exibe o log da última importação
-		btnVerLog.setOnAction(e -> {
-			if (acaoVerLog != null) {
-				acaoVerLog.run();
-			}
-		});
-
-		HBox barra = new HBox(10, btnGerarBPACompleto, btnAvisoGeracao, btnGerarBPA, btnVerLog);
+		HBox barra = new HBox(10, btnSelecionarMes, btnGerarBPACompleto, btnAvisoGeracao, btnGerarBPA);
 		barra.setPadding(new Insets(0));
 
 		return barra;
@@ -580,6 +678,11 @@ public class RelatorioController {
 	 */
 	private void gerarBPACompleto() {
 
+		if (competenciaSelecionada == null) {
+			mostrarMensagem("Selecione a competência antes de gerar o BPA-I Completo.");
+			return;
+		}
+
 		try {
 
 			GeradorBPAiService service =
@@ -588,7 +691,7 @@ public class RelatorioController {
 			Window window =
 					tabela.getScene().getWindow();
 
-			service.gerarArquivoCompletoComFileChooser(window);
+			service.gerarArquivoCompletoComFileChooser(window, competenciaSelecionada);
 
 			// Recarrega tabela para exibir as folhas atribuídas
 			carregarDoBanco();
@@ -612,18 +715,15 @@ public class RelatorioController {
 		filtroEspecialidade.getSelectionModel().clearSelection();
 
 		filtroMedico.getSelectionModel().clearSelection();
-
 		filtroMedico.getItems().clear();
 
-		filtroMedico.setDisable(true);
+		grupoMedico.setVisible(false);
+		grupoMedico.setManaged(false);
 
 		campoCnsProfissional.clear();
 
-		campoCnsProfissional.setDisable(true);
-
-		btnAtualizar.setDisable(true);
-
-		btnFolha.setDisable(true);
+		barraEdicao.setVisible(false);
+		barraEdicao.setManaged(false);
 
 		aplicarFiltros();
 	}
@@ -651,37 +751,29 @@ public class RelatorioController {
 
 	private void atualizarMedicosPorEspecialidade() {
 
-		String especialidade =
-				filtroEspecialidade.getValue();
+		String especialidade = filtroEspecialidade.getValue();
 
 		filtroMedico.getItems().clear();
+		filtroMedico.getSelectionModel().clearSelection();
 
 		if (especialidade == null) {
-
-			filtroMedico.setDisable(true);
-
+			grupoMedico.setVisible(false);
+			grupoMedico.setManaged(false);
 			return;
 		}
 
 		List<String> medicos =
 				lista.stream()
-
-						.filter(dto ->
-								especialidade.equals(
-										dto.getEspecialidadeMedico()))
-
+						.filter(dto -> especialidade.equals(dto.getEspecialidadeMedico()))
 						.map(AtendimentoBPAiDTO::getMedico)
-
 						.distinct()
-
 						.sorted()
-
 						.collect(Collectors.toList());
 
-		filtroMedico.setItems(
-				FXCollections.observableArrayList(medicos));
+		filtroMedico.setItems(FXCollections.observableArrayList(medicos));
 
-		filtroMedico.setDisable(false);
+		grupoMedico.setVisible(true);
+		grupoMedico.setManaged(true);
 	}
 
 	private void aplicarFiltros() {
@@ -717,11 +809,8 @@ public class RelatorioController {
 
 	private void habilitarEdicao() {
 
-		campoCnsProfissional.setDisable(false);
-
-		btnAtualizar.setDisable(false);
-
-		btnFolha.setDisable(false);
+		barraEdicao.setVisible(true);
+		barraEdicao.setManaged(true);
 	}
 
 	// ======================================================
@@ -737,33 +826,42 @@ public class RelatorioController {
 	private void atualizarCns() {
 
 		String medico = filtroMedico.getValue();
-
-		String especialidade =
-				filtroEspecialidade.getValue();
+		String especialidade = filtroEspecialidade.getValue();
+		String termoBusca = campoBuscaMedico.getText();
 
 		entityManager.getTransaction().begin();
 
 		try {
 
-			List<AtendimentoBPAi> lista =
-					entityManager.createQuery(
-									"SELECT a FROM AtendimentoBPAi a " +
-											"JOIN a.medico m " +
-											"WHERE m.nome = :medico " +
-											"AND a.especialidadeMedico = :esp",
-									AtendimentoBPAi.class)
+			List<AtendimentoBPAi> atendimentos;
 
-							.setParameter("medico", medico)
+			if (medico != null && especialidade != null) {
+				// Caminho combo: médico + especialidade específicos
+				atendimentos = entityManager.createQuery(
+								"SELECT a FROM AtendimentoBPAi a JOIN a.medico m " +
+								"WHERE m.nome = :medico AND a.especialidadeMedico = :esp",
+								AtendimentoBPAi.class)
+						.setParameter("medico", medico)
+						.setParameter("esp", especialidade)
+						.getResultList();
 
-							.setParameter("esp", especialidade)
+			} else if (termoBusca != null && !termoBusca.isBlank()) {
+				// Caminho busca livre: todos os registros cujo médico contém o termo
+				atendimentos = entityManager.createQuery(
+								"SELECT a FROM AtendimentoBPAi a JOIN a.medico m " +
+								"WHERE UPPER(m.nome) LIKE :termo",
+								AtendimentoBPAi.class)
+						.setParameter("termo", "%" + termoBusca.trim().toUpperCase() + "%")
+						.getResultList();
 
-							.getResultList();
+			} else {
+				entityManager.getTransaction().rollback();
+				mostrarMensagem("Selecione um médico ou use a busca por nome.");
+				return;
+			}
 
-			for (AtendimentoBPAi a : lista) {
-
-				// Atualiza apenas o CNS do profissional
-				a.setCnsProfissional(
-						campoCnsProfissional.getText());
+			for (AtendimentoBPAi a : atendimentos) {
+				a.setCnsProfissional(campoCnsProfissional.getText());
 			}
 
 			entityManager.getTransaction().commit();
@@ -772,8 +870,7 @@ public class RelatorioController {
 
 			carregarDoBanco();
 
-		}
-		catch (Exception ex) {
+		} catch (Exception ex) {
 
 			entityManager.getTransaction().rollback();
 
@@ -939,12 +1036,16 @@ public class RelatorioController {
 	 */
 	private void atualizarCompetencia() {
 
+		// Se o usuário já selecionou manualmente, preserva a seleção
+		if (competenciaSelecionada != null) {
+			return;
+		}
+
 		if (lista.isEmpty()) {
 			labelCompetencia.setText("Competência: --");
 			return;
 		}
 
-		// Pega a data do primeiro registro para determinar a competência
 		String dataStr = lista.get(0).getDataAgendamento();
 
 		if (dataStr == null || dataStr.isBlank()) {
@@ -957,10 +1058,11 @@ public class RelatorioController {
 			LocalDate data = LocalDate.parse(dataStr,
 					DateTimeFormatter.ofPattern("dd/MM/yyyy"));
 
-			String competencia = data.format(
-					DateTimeFormatter.ofPattern("MM/yyyy"));
+			// Auto-detecta a competência a partir dos dados carregados
+			competenciaSelecionada = data.format(DateTimeFormatter.ofPattern("yyyyMM"));
 
-			labelCompetencia.setText("Competência: " + competencia);
+			labelCompetencia.setText("Competência: "
+					+ data.format(DateTimeFormatter.ofPattern("MM/yyyy")));
 
 		} catch (Exception e) {
 			labelCompetencia.setText("Competência: --");
