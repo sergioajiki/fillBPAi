@@ -12,8 +12,7 @@ O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de a
 - Maven para build
 
 ## Build & Run
-- Maven não está no PATH do sistema. Usar caminho completo:
-  `C:\Users\sergi\.m2\wrapper\dists\apache-maven-3.9.11\d6d3cbd4012d4c1d840e93277aca316c\bin\mvn.cmd`
+- Usar o wrapper do projeto: `mvnw.cmd compile` (na raiz do projeto)
 - `mvn test` roda automaticamente via PostToolUse hook (Edit/Write) — NÃO rodar manualmente em agents/subagents
 
 ## GitHub
@@ -51,29 +50,37 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 1. `ValidacaoPlanilhaService` — valida regras bloqueantes (CNS, CEP, CPF). Se erros → bloqueia importação
 2. `ExcelImportService` — lê Excel, retorna `LinhaImportacaoDTO`
 3. `AtendimentoProcessor` — valida/normaliza (CNS, datas, etc.), retorna lista de avisos
-4. `AtendimentoImportacaoService` — primeira passada coleta nomes de médicos, pré-carrega CNS do DATASUS (single-pass), segunda passada processa normalmente: findOrCreate para entidades, resolve IBGE via `IbgeUtils`, resolve CNS profissional via `CnsProfissionalUtils` (por nome), persiste atendimento
+4. `AtendimentoImportacaoService` — processa normalmente: findOrCreate para entidades, resolve IBGE via `IbgeUtils`, resolve CNS profissional via `CnsProfissionalUtils` (por nome), persiste atendimento
 
 ### Utilitários
 - `IbgeUtils` — resolve código IBGE em cascata: 1) CSV por nome do município, 2) cache pré-carregado do banco (CEP → codigoIbge de `Endereco`), 3) API ViaCEP como último recurso. `preCarregarCacheDb()` chamado em `AtendimentoImportacaoService` antes do loop de importação.
-- `CnsProfissionalUtils` — resolve CNS do profissional por **nome** (normalizado: uppercase, sem acentos). Fontes: cache local (`dados/medicos_cns.csv` formato `nome;cns`) + arquivo DATASUS (`tbDadosProfissionalSus*.csv`, 7M+ registros, streaming). Auto-detecta DATASUS em Documents. Divergências (múltiplos CNS, não encontrado) vão para log de avisos.
+- `CnsProfissionalUtils` — resolve CNS do profissional por **nome** (normalizado: uppercase, sem acentos). Fonte única: `dados/medicos_cns.csv` (classpath + arquivo externo `src/main/resources/dados/medicos_cns.csv`, formato `nome;cns`). Sem consulta ao DATASUS. Profissional não encontrado gera aviso no log de importação.
 - `CnsUtils` — processa/valida CNS de pacientes (aceita CNS incomum >15 dígitos com aviso `CNS_INCOMUM`)
 - `CepUtils` — normalização de CEP
 
 ### Geração BPA-I
-- Geração individual (filtrada por especialidade/médico)
-- Geração completa (todos os médicos, folha auto-atribuída: especialidades em ordem alfabética → médicos em ordem alfabética → folha sequencial por competência)
+- Geração individual (filtrada por especialidade/médico selecionados)
+- Geração completa (atendimentos do mês de competência selecionado, folha auto-atribuída: especialidades em ordem alfabética → médicos em ordem alfabética → folha sequencial)
+- Competência para geração: selecionada via `[Selecionar Mês]`; auto-detectada da primeira carga de dados se não definida manualmente
+- `GeradorBPAiService.gerarArquivoCompletoComFileChooser(window, competenciaAtendimento)` recebe competência no formato `YYYYMM` do mês de atendimento e filtra por `YEAR/MONTH(dataAgendamento)`
 - Seq 10 (prd-cnspac): usa CPF do paciente zero-padded 15 chars (não CNS)
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
 - **Pré-validação obrigatória**: `GeradorBPAiService.validarCnsProfissional()` bloqueia a geração se qualquer atendimento estiver sem CNS do profissional, exibindo relatório com médico/paciente/data de cada ocorrência
 
 ### Layout da UI
-A tela principal tem 4 linhas:
-1. **topBar** (`MainController`): `[Analisar Planilha]` `[Importar Planilha]` `[Pré-Cadastro CNS]` ... `Competência`
-2. **Barra de ações** (`RelatorioController.criarBarraAcoes()`): `[Gerar BPA-I Completo]` `[⚠]` `[Gerar BPA-I]` `[Ver Log Importação]`
-   - Botão `⚠` (amarelo) aparece quando há atendimentos sem CNS do profissional; clicando exibe log de pendências. Atualizado automaticamente em cada `carregarDoBanco()`.
-3. **Barra de filtros** (`RelatorioController.criarBarraFiltros()`): `[Buscar médico: ___ ]` `[Buscar]` `Especialidade [▼]` `Médico [▼]` `CNS [___]` `[Folha]` `[OK]` `[Limpar]`
-   - Busca por nome do médico: correspondência parcial, case-insensitive, combinável com filtros de combo
-4. **Tabela** + rodapé `Total: N`
+A tela principal tem 5 linhas:
+1. **topBar** (`MainController`): `[Analisar Planilha]` `[Importar Planilha]` `[Ver Log Importação]` ... `Competência: MM/YYYY`
+2. **Barra de ações** (`RelatorioController.criarBarraAcoes()`): `[Selecionar Mês]` `[Gerar BPA-I Completo]` `[⚠ Pendências CNS]` `[Gerar BPA-I]`
+   - `[Selecionar Mês]`: abre dialog com spinners de mês/ano; competência selecionada exibida no canto superior direito
+   - `[⚠ Pendências CNS]` (amarelo): aparece quando há atendimentos sem CNS do profissional; clicando exibe log de pendências. Atualizado automaticamente em cada `carregarDoBanco()`.
+3. **Barra de filtros** (`RelatorioController.criarBarraFiltros()`): `[Buscar médico: ___ ]` `[Buscar]` `Especialidade [▼]` `Médico [▼]` `[Limpar]`
+   - **Busca livre** e **seleção por especialidade** são mutuamente exclusivas — cada uma reseta a outra ao ser acionada
+   - Combo `Médico` fica oculto até que uma especialidade seja selecionada
+4. **Barra de edição** (`RelatorioController.criarBarraEdicao()`): `CNS: [___]` `[Atualizar CNS]` `[Definir Folha]`
+   - Oculta por padrão; aparece ao selecionar médico no combo **ou** ao usar busca livre com resultados
+   - `[Atualizar CNS]` via combo: aplica a médico+especialidade selecionados. Via busca livre: aplica a todos os registros cujo médico contém o termo buscado
+   - `[Definir Folha]` sempre requer especialidade + médico selecionados nos combos
+5. **Tabela** + rodapé `Total: N`
 
 ## Team Profile: Standard
 
