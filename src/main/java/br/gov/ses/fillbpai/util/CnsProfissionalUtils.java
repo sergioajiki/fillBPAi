@@ -2,11 +2,8 @@ package br.gov.ses.fillbpai.util;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,27 +11,20 @@ import java.nio.file.StandardOpenOption;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Utilitário para resolução do CNS (Cartão Nacional de Saúde) do profissional
- * a partir do nome, utilizando cache local (CSV) e arquivo DATASUS como fonte primária.
- *
- * Estratégia de busca:
- * 1. Cache local: arquivo medicos_cns.csv (nome;cns) — rápido, persistente
- * 2. Arquivo DATASUS: tbDadosProfissionalSus*.csv — 7M+ registros, streaming
+ * a partir do nome, utilizando cache local (medicos_cns.csv).
  *
  * A busca por nome é normalizada: uppercase, sem acentos, trim.
  * Exemplo: "José da Silva" e "JOSE DA SILVA" são considerados iguais.
  *
- * Divergências (nome duplicado com CNS diferentes, nome não encontrado)
- * são reportadas como avisos no log de importação.
+ * Profissionais não encontrados são reportados como avisos no log de importação.
  */
 public class CnsProfissionalUtils {
 
@@ -48,57 +38,6 @@ public class CnsProfissionalUtils {
 
 	/** Mapa: nome normalizado → nome original (para exibição). Lazy loading. */
 	private static Map<String, String> mapaNomeOriginal = null;
-
-	/** Caminho do arquivo DATASUS para busca secundária */
-	private static String caminhoDatasus = null;
-
-	/**
-	 * Define o caminho do arquivo DATASUS para buscas de CNS.
-	 *
-	 * @param caminho caminho completo do arquivo CSV do DATASUS
-	 */
-	public static void setCaminhoDatasus(String caminho) {
-		caminhoDatasus = caminho;
-	}
-
-	/**
-	 * Retorna o caminho do arquivo DATASUS configurado.
-	 *
-	 * @return caminho do arquivo ou null se não configurado
-	 */
-	public static String getCaminhoDatasus() {
-		return caminhoDatasus;
-	}
-
-	/**
-	 * Tenta auto-detectar o arquivo DATASUS na pasta Documents do usuário.
-	 * Procura por arquivos com padrão "tbDadosProfissionalSus*.csv".
-	 *
-	 * @return true se encontrou e configurou o caminho, false caso contrário
-	 */
-	public static boolean autoDetectarDatasus() {
-
-		if (caminhoDatasus != null) {
-			return true;
-		}
-
-		File documentos = new File(System.getProperty("user.home"), "Documents");
-
-		if (!documentos.exists() || !documentos.isDirectory()) {
-			return false;
-		}
-
-		File[] arquivos = documentos.listFiles(
-				(dir, name) -> name.startsWith("tbDadosProfissionalSus") && name.endsWith(".csv"));
-
-		if (arquivos != null && arquivos.length > 0) {
-			caminhoDatasus = arquivos[0].getAbsolutePath();
-			log.info("Arquivo DATASUS auto-detectado: {}", caminhoDatasus);
-			return true;
-		}
-
-		return false;
-	}
 
 	/**
 	 * Busca o CNS do profissional pelo nome.
@@ -125,174 +64,11 @@ public class CnsProfissionalUtils {
 
 		// Nome não encontrado no cache — aviso para o log de importação
 		String aviso = "CNS do profissional não encontrado para: " + nome
-				+ ". Utilize o Pré-Cadastro CNS ou verifique o nome na planilha.";
+				+ ". Verifique o nome na planilha ou adicione o profissional ao medicos_cns.csv.";
 
 		log.debug(aviso);
 
 		return new CnsResultado(null, aviso);
-	}
-
-	/**
-	 * Busca em lote no arquivo DATASUS para um conjunto de nomes de profissionais.
-	 *
-	 * Realiza um único streaming pass pelo arquivo DATASUS (7M+ linhas),
-	 * buscando todos os nomes simultaneamente. Resultados encontrados são
-	 * cacheados no CSV local para futuras importações.
-	 *
-	 * @param nomes conjunto de nomes a buscar (não normalizados)
-	 * @return lista de avisos gerados durante a busca
-	 */
-	public static List<String> buscarLoteDatasus(Set<String> nomes) {
-
-		List<String> avisos = new ArrayList<>();
-
-		if (nomes == null || nomes.isEmpty()) {
-			return avisos;
-		}
-
-		carregarCsvSeNecessario();
-
-		// Filtra apenas nomes que NÃO estão no cache local
-		Map<String, String> nomesParaBuscar = new LinkedHashMap<>();
-
-		for (String nome : nomes) {
-
-			if (nome == null || nome.isBlank()) {
-				continue;
-			}
-
-			String nomeNormalizado = normalizar(nome);
-
-			if (!mapaCns.containsKey(nomeNormalizado)) {
-				nomesParaBuscar.put(nomeNormalizado, nome);
-			}
-		}
-
-		if (nomesParaBuscar.isEmpty()) {
-			log.info("Todos os profissionais já estão no cache local");
-			return avisos;
-		}
-
-		// Tenta auto-detectar o arquivo DATASUS se não configurado
-		if (caminhoDatasus == null) {
-			autoDetectarDatasus();
-		}
-
-		if (caminhoDatasus == null || !new File(caminhoDatasus).exists()) {
-
-			for (String nomeOriginal : nomesParaBuscar.values()) {
-				avisos.add("Arquivo DATASUS não configurado. CNS não encontrado para: "
-						+ nomeOriginal + ". Utilize o Pré-Cadastro CNS.");
-			}
-
-			return avisos;
-		}
-
-		log.info("Buscando {} profissional(is) no arquivo DATASUS...", nomesParaBuscar.size());
-
-		// Mapa temporário para detectar duplicatas: nomeNorm → lista de CNS encontrados
-		Map<String, List<String>> resultadosDatasus = new HashMap<>();
-
-		try (BufferedReader reader = new BufferedReader(
-				new InputStreamReader(
-						new FileInputStream(caminhoDatasus),
-						Charset.forName("ISO-8859-1")))) {
-
-			String linha;
-			boolean primeiraLinha = true;
-			int linhasProcessadas = 0;
-
-			while ((linha = reader.readLine()) != null) {
-
-				if (primeiraLinha) {
-					primeiraLinha = false;
-					continue;
-				}
-
-				linhasProcessadas++;
-
-				// Log de progresso a cada 1M de linhas
-				if (linhasProcessadas % 1_000_000 == 0) {
-					log.info("DATASUS: {} milhões de linhas processadas...",
-							linhasProcessadas / 1_000_000);
-				}
-
-				String[] campos = linha.split(";");
-
-				if (campos.length < 4) {
-					continue;
-				}
-
-				String nomeDatasus = removerAspas(campos[2]);
-				String cnsDatasus = removerAspas(campos[3]);
-
-				if (nomeDatasus.isEmpty() || cnsDatasus.isEmpty()) {
-					continue;
-				}
-
-				String nomeNormDatasus = normalizar(nomeDatasus);
-
-				if (nomesParaBuscar.containsKey(nomeNormDatasus)) {
-
-					resultadosDatasus
-							.computeIfAbsent(nomeNormDatasus, k -> new ArrayList<>())
-							.add(cnsDatasus);
-				}
-			}
-
-			log.info("DATASUS: {} linhas processadas no total", linhasProcessadas);
-
-		} catch (Exception e) {
-			log.error("Erro ao buscar no arquivo DATASUS: {}", e.getMessage());
-			avisos.add("Erro ao acessar arquivo DATASUS: " + e.getMessage());
-			return avisos;
-		}
-
-		// Processa resultados: cache + detecção de divergências
-		for (Map.Entry<String, String> entry : nomesParaBuscar.entrySet()) {
-
-			String nomeNorm = entry.getKey();
-			String nomeOriginal = entry.getValue();
-
-			List<String> cnsEncontrados = resultadosDatasus.get(nomeNorm);
-
-			if (cnsEncontrados == null || cnsEncontrados.isEmpty()) {
-
-				avisos.add("CNS do profissional não encontrado no DATASUS para: "
-						+ nomeOriginal + ". Utilize o Pré-Cadastro CNS.");
-				continue;
-			}
-
-			// Usa o primeiro CNS encontrado
-			String cnsPrimeiro = cnsEncontrados.get(0);
-
-			// Detecta CNS duplicados diferentes para o mesmo nome
-			long cnsDistintos = cnsEncontrados.stream().distinct().count();
-
-			if (cnsDistintos > 1) {
-
-				List<String> cnsUnicos = cnsEncontrados.stream().distinct().toList();
-
-				avisos.add("Profissional '" + nomeOriginal
-						+ "' possui " + cnsDistintos
-						+ " CNS diferentes no DATASUS: " + cnsUnicos
-						+ ". Utilizando o primeiro: " + cnsPrimeiro
-						+ ". Verifique e corrija manualmente se necessário.");
-
-				log.warn("Divergência DATASUS: '{}' possui {} CNS diferentes: {}",
-						nomeOriginal, cnsDistintos, cnsUnicos);
-			}
-
-			// Salva no cache local
-			mapaCns.put(nomeNorm, cnsPrimeiro);
-			mapaNomeOriginal.put(nomeNorm, nomeOriginal);
-
-			salvarNoCsv(nomeOriginal, cnsPrimeiro);
-
-			log.info("CNS encontrado no DATASUS para '{}': {}", nomeOriginal, cnsPrimeiro);
-		}
-
-		return avisos;
 	}
 
 	/**
@@ -526,18 +302,6 @@ public class CnsProfissionalUtils {
 				.replaceAll("\\p{M}", "");
 
 		return semAcentos.toUpperCase().trim();
-	}
-
-	/**
-	 * Remove aspas duplas de um campo CSV.
-	 */
-	private static String removerAspas(String campo) {
-
-		if (campo == null) {
-			return "";
-		}
-
-		return campo.replace("\"", "").trim();
 	}
 
 	/**

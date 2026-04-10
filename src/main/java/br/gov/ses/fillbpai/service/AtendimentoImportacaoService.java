@@ -14,10 +14,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * Serviço responsável por:
@@ -66,21 +64,6 @@ public class AtendimentoImportacaoService {
 			// ==============================
 
 			IbgeUtils.preCarregarCacheDb(carregarCepIbgeDoBanco());
-
-			// ==============================
-			// Pré-carrega CNS do DATASUS (single-pass para todos os médicos)
-			// ==============================
-
-			Set<String> nomesMedicos = coletarNomesMedicos(sheet);
-
-			if (!nomesMedicos.isEmpty()) {
-				List<String> avisosDatasus =
-						CnsProfissionalUtils.buscarLoteDatasus(nomesMedicos);
-
-				for (String aviso : avisosDatasus) {
-					resultado.adicionarAviso("DATASUS - " + aviso);
-				}
-			}
 
 			transaction.begin();
 
@@ -403,39 +386,4 @@ public class AtendimentoImportacaoService {
 		return mapa;
 	}
 
-	/**
-	 * Coleta nomes únicos dos médicos da planilha Excel (primeira passada).
-	 * Utilizado para pré-carregar CNS do DATASUS em um único streaming pass.
-	 *
-	 * @param sheet aba da planilha Excel
-	 * @return conjunto de nomes de médicos (únicos)
-	 */
-	private Set<String> coletarNomesMedicos(Sheet sheet) {
-
-		Set<String> nomes = new LinkedHashSet<>();
-
-		for (Row row : sheet) {
-
-			if (row.getRowNum() == 0) {
-				continue;
-			}
-
-			try {
-
-				LinhaImportacaoDTO dto = excelService.importarLinha(row);
-				processor.processar(dto);
-
-				String nomeMedico = dto.getMedico();
-
-				if (nomeMedico != null && !nomeMedico.isBlank()) {
-					nomes.add(nomeMedico);
-				}
-
-			} catch (Exception e) {
-				// Ignora erros na coleta — serão tratados na segunda passada
-			}
-		}
-
-		return nomes;
-	}
 }

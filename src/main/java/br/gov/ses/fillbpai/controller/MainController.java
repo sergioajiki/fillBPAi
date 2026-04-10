@@ -5,7 +5,6 @@ import br.gov.ses.fillbpai.service.ErroValidacao;
 import br.gov.ses.fillbpai.service.ImportacaoResultado;
 import br.gov.ses.fillbpai.service.ValidacaoPlanilhaService;
 import br.gov.ses.fillbpai.ui.FileChooserService;
-import br.gov.ses.fillbpai.ui.PreCadastroController;
 import br.gov.ses.fillbpai.ui.RelatorioController;
 import jakarta.persistence.EntityManager;
 import javafx.geometry.Insets;
@@ -30,7 +29,7 @@ import java.util.List;
 /**
  * Controller principal da aplicação.
  *
- * Gerencia a barra superior (importação, pré-cadastro, competência)
+ * Gerencia a barra superior (importação, competência)
  * e delega a exibição de dados ao RelatorioController.
  *
  * O log de importação é persistido em arquivo (database/log_importacao.txt)
@@ -67,7 +66,7 @@ public class MainController {
 	private void configurarLayout() {
 
 		// ==============================
-		// Linha 1: Importar Planilha, Pré-Cadastro CNS, ... Competência
+		// Linha 1: Analisar Planilha, Importar Planilha, ... Competência
 		// ==============================
 
 		Button btnImportar = new Button("Importar Planilha");
@@ -75,13 +74,6 @@ public class MainController {
 		btnImportar.setOnAction(event -> {
 			Stage stage = (Stage) rootLayout.getScene().getWindow();
 			importar(stage);
-		});
-
-		Button btnPreCadastro = new Button("Pré-Cadastro CNS");
-
-		btnPreCadastro.setOnAction(event -> {
-			Stage stage = (Stage) rootLayout.getScene().getWindow();
-			new PreCadastroController().abrirDialog(stage);
 		});
 
 		// Spacer empurra o label de competência para a direita
@@ -92,8 +84,9 @@ public class MainController {
 		labelCompetencia.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
 		Button btnAnalisarPlanilha = relatorioController.getBtnAnalisarPlanilha();
+		Button btnVerLog = relatorioController.getBtnVerLog();
 
-		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnImportar, btnPreCadastro, spacer, labelCompetencia);
+		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnImportar, btnVerLog, spacer, labelCompetencia);
 		topBar.setPadding(new Insets(10));
 
 		rootLayout.setTop(topBar);
