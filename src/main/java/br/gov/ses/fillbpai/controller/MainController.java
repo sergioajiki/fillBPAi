@@ -129,16 +129,22 @@ public class MainController {
 			mostrarDialogoAvisosValidacao(logErros, stage);
 		}
 
-		// Sem erros — prossegue com importação
+		processarImportacao(caminho, stage);
+	}
+
+	/**
+	 * Executa a importação do arquivo já validado, exibe o log e recarrega a tabela.
+	 * Chamado tanto pelo fluxo normal de importação quanto pelo botão da janela de análise.
+	 */
+	private void processarImportacao(String caminho, Stage stage) {
+
 		AtendimentoImportacaoService service =
 				new AtendimentoImportacaoService(entityManager);
 
-		ImportacaoResultado resultado =
-				service.importar(caminho);
+		ImportacaoResultado resultado = service.importar(caminho);
 
 		String conteudoLog = montarConteudoLog(resultado);
 		salvarLogEmArquivo(conteudoLog);
-
 		mostrarLog(conteudoLog);
 
 		if (resultado.getTotalSucesso() > 0) {
@@ -271,18 +277,94 @@ public class MainController {
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
 
-		if (errosValidacao.isEmpty()) {
+		boolean temBloqueantes = errosValidacao.stream().anyMatch(ErroValidacao::isBloqueante);
 
-			Alert alert = new Alert(Alert.AlertType.INFORMATION);
-			alert.setTitle("Validação da Planilha");
-			alert.setContentText("Nenhum erro encontrado. A planilha está pronta para importação.");
-			alert.showAndWait();
+		if (errosValidacao.isEmpty()) {
+			// Sem erros — exibe resultado com botão de importação direta
+			mostrarDialogoAnaliseOk(caminho, stage);
 			return;
 		}
 
 		String logErros = validacaoService.gerarLogTxt(errosValidacao);
 		salvarLogErrosEmArquivo(logErros);
-		mostrarDialogoErrosValidacao(logErros, stage);
+
+		if (temBloqueantes) {
+			// Erros bloqueantes — sem botão de importação
+			mostrarDialogoErrosValidacao(logErros, stage);
+		} else {
+			// Apenas avisos — exibe com botão de importação direta
+			mostrarDialogoAvisosAnalise(logErros, caminho, stage);
+		}
+	}
+
+	/**
+	 * Exibe resultado positivo da análise com botão para importar diretamente.
+	 */
+	private void mostrarDialogoAnaliseOk(String caminho, Stage stage) {
+
+		Alert alert = new Alert(Alert.AlertType.INFORMATION);
+		alert.setTitle("Validação da Planilha");
+		alert.setHeaderText("Nenhum erro encontrado");
+
+		Label msg = new Label("A planilha está pronta para importação.");
+
+		Button btnImportar = new Button("Importar Planilha");
+		btnImportar.setOnAction(e -> {
+			alert.close();
+			processarImportacao(caminho, stage);
+		});
+
+		VBox layout = new VBox(10, msg, btnImportar);
+		layout.setPadding(new Insets(10));
+
+		alert.getDialogPane().setContent(layout);
+		alert.showAndWait();
+	}
+
+	/**
+	 * Exibe avisos de validação (não bloqueantes) com botão para importar diretamente.
+	 * Usado apenas no fluxo de análise — no fluxo de importação os avisos são exibidos
+	 * sem botão, pois a importação prossegue automaticamente.
+	 */
+	private void mostrarDialogoAvisosAnalise(String logAvisos, String caminho, Stage stage) {
+
+		Alert alert = new Alert(Alert.AlertType.WARNING);
+		alert.setTitle("Avisos de Validação");
+		alert.setHeaderText("A planilha contém avisos mas pode ser importada");
+
+		TextArea areaLog = new TextArea(logAvisos);
+		areaLog.setEditable(false);
+		areaLog.setWrapText(true);
+		areaLog.setPrefHeight(300);
+
+		Button btnSalvarLog = new Button("Salvar Log TXT");
+		btnSalvarLog.setOnAction(e -> {
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Salvar Log de Avisos");
+			fileChooser.setInitialFileName("log_avisos_validacao.txt");
+			fileChooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt"));
+			java.io.File arquivo = fileChooser.showSaveDialog(stage);
+			if (arquivo != null) {
+				try {
+					Files.writeString(arquivo.toPath(), logAvisos, StandardCharsets.UTF_8);
+				} catch (IOException ex) {
+					log.error("Erro ao exportar log: {}", ex.getMessage());
+				}
+			}
+		});
+
+		Button btnImportar = new Button("Importar Planilha");
+		btnImportar.setOnAction(e -> {
+			alert.close();
+			processarImportacao(caminho, stage);
+		});
+
+		VBox layout = new VBox(10, areaLog, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
+		layout.setPadding(new Insets(10));
+
+		alert.getDialogPane().setContent(layout);
+		alert.showAndWait();
 	}
 
 	/**
