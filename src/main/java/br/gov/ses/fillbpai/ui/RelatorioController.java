@@ -86,6 +86,12 @@ public class RelatorioController {
 	// BOTÃO AVISO — indica pendências que impedem a geração do BPA-I completo
 	private Button btnAvisoGeracao = new Button("⚠ Pendências CNS");
 
+	// BOTÃO AVISO PARCIAL — folha ou CNS ausente no médico/especialidade selecionados
+	private Button btnAvisoParcial = new Button("⚠");
+
+	/** Mensagem de pendências do BPA-I parcial (null = sem pendências) */
+	private String avisosParcial = null;
+
 	// BOTÃO VER LOG — exibe o log da última importação
 	private Button btnVerLog = new Button("Ver Log Importação");
 
@@ -387,7 +393,15 @@ public class RelatorioController {
 		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
 		btnGerarBPA.setOnAction(e -> gerarBPA());
 
-		HBox barra = new HBox(10, btnSelecionarMes, btnGerarBPACompleto, btnAvisoGeracao, btnGerarBPA);
+		// Botão de aviso parcial — estilo amarelo, oculto por padrão
+		btnAvisoParcial.setStyle(
+				"-fx-background-color: #FFC107; -fx-text-fill: #000; " +
+				"-fx-font-weight: bold; -fx-cursor: hand;");
+		btnAvisoParcial.setVisible(false);
+		btnAvisoParcial.setManaged(false);
+		btnAvisoParcial.setOnAction(e -> mostrarAvisosParcial());
+
+		HBox barra = new HBox(10, btnSelecionarMes, btnGerarBPACompleto, btnAvisoGeracao, btnGerarBPA, btnAvisoParcial);
 		barra.setPadding(new Insets(0));
 
 		return barra;
@@ -446,6 +460,89 @@ public class RelatorioController {
 		} catch (Exception e) {
 			// Falha silenciosa — não impede o carregamento da tabela
 		}
+	}
+
+	/**
+	 * Verifica folha e CNS ausentes para o médico/especialidade selecionados.
+	 * Atualiza visibilidade do botão de aviso parcial.
+	 */
+	private void verificarAvisosParcial() {
+
+		String especialidade = filtroEspecialidade.getValue();
+		String medico = filtroMedico.getValue();
+
+		if (especialidade == null || medico == null) {
+			avisosParcial = null;
+			btnAvisoParcial.setVisible(false);
+			btnAvisoParcial.setManaged(false);
+			return;
+		}
+
+		try {
+
+			long semFolha = (long) entityManager.createQuery(
+					"SELECT COUNT(a) FROM AtendimentoBPAi a JOIN a.medico m " +
+					"WHERE m.nome = :medico AND a.especialidadeMedico = :esp " +
+					"AND (a.folha IS NULL OR a.folha = '')")
+					.setParameter("medico", medico)
+					.setParameter("esp", especialidade)
+					.getSingleResult();
+
+			long semCns = (long) entityManager.createQuery(
+					"SELECT COUNT(a) FROM AtendimentoBPAi a JOIN a.medico m " +
+					"WHERE m.nome = :medico AND a.especialidadeMedico = :esp " +
+					"AND (a.cnsProfissional IS NULL OR a.cnsProfissional = '')")
+					.setParameter("medico", medico)
+					.setParameter("esp", especialidade)
+					.getSingleResult();
+
+			if (semFolha == 0 && semCns == 0) {
+				avisosParcial = null;
+				btnAvisoParcial.setVisible(false);
+				btnAvisoParcial.setManaged(false);
+				return;
+			}
+
+			StringBuilder sb = new StringBuilder();
+			sb.append("=== PENDÊNCIAS — GERAÇÃO BPA-I PARCIAL ===\n");
+			sb.append("Médico: ").append(medico).append("\n");
+			sb.append("Especialidade: ").append(especialidade).append("\n\n");
+			if (semFolha > 0)
+				sb.append("⚠ Folha ausente: ").append(semFolha).append(" atendimento(s)\n");
+			if (semCns > 0)
+				sb.append("⚠ CNS do profissional ausente: ").append(semCns).append(" atendimento(s)\n");
+
+			avisosParcial = sb.toString();
+
+			StringBuilder tooltip = new StringBuilder();
+			if (semFolha > 0) tooltip.append("Folha ausente: ").append(semFolha).append("\n");
+			if (semCns   > 0) tooltip.append("CNS ausente: ").append(semCns);
+
+			btnAvisoParcial.setVisible(true);
+			btnAvisoParcial.setManaged(true);
+			btnAvisoParcial.setTooltip(new Tooltip(tooltip.toString().trim()));
+
+		} catch (Exception e) {
+			// Falha silenciosa
+		}
+	}
+
+	private void mostrarAvisosParcial() {
+
+		if (avisosParcial == null) return;
+
+		Alert alert = new Alert(Alert.AlertType.WARNING);
+		alert.setTitle("Pendências — Geração BPA-I Parcial");
+		alert.setHeaderText("Existem pendências que impedem a geração");
+
+		TextArea area = new TextArea(avisosParcial);
+		area.setEditable(false);
+		area.setWrapText(false);
+		area.setPrefHeight(200);
+		area.setPrefWidth(500);
+
+		alert.getDialogPane().setContent(area);
+		alert.showAndWait();
 	}
 
 	/**
@@ -629,9 +726,12 @@ public class RelatorioController {
 		String medico = filtroMedico.getValue();
 
 		if (especialidade == null || medico == null) {
-
 			mostrarMensagem("Selecione especialidade e médico.");
+			return;
+		}
 
+		if (avisosParcial != null) {
+			mostrarAvisosParcial();
 			return;
 		}
 
@@ -725,6 +825,10 @@ public class RelatorioController {
 		barraEdicao.setVisible(false);
 		barraEdicao.setManaged(false);
 
+		avisosParcial = null;
+		btnAvisoParcial.setVisible(false);
+		btnAvisoParcial.setManaged(false);
+
 		aplicarFiltros();
 	}
 
@@ -811,6 +915,7 @@ public class RelatorioController {
 
 		barraEdicao.setVisible(true);
 		barraEdicao.setManaged(true);
+		verificarAvisosParcial();
 	}
 
 	// ======================================================
@@ -1024,6 +1129,7 @@ public class RelatorioController {
 		atualizarDados(query.getResultList());
 
 		verificarAvisosGeracao();
+		verificarAvisosParcial();
 	}
 
 	// ======================================================
