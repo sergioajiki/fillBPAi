@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.model.*;
 import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
+import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
@@ -285,8 +286,12 @@ public class AtendimentoImportacaoService {
 		endereco.setMunicipio(dto.getMunicipio());
 		endereco.setTipoZona(dto.getTipoZona());
 		endereco.setCep(dto.getCep());
-		endereco.setCodLogradouro(dto.getCodLogradouro());
-		endereco.setEndereco(dto.getEndereco());
+
+		// Deriva tipo de logradouro a partir do prefixo do endereço
+		LogradouroUtils.LogradouroResultado logr = LogradouroUtils.resolver(dto.getEndereco());
+		endereco.setCodLogradouro(
+				logr.getCodLogradouro() != null ? logr.getCodLogradouro() : dto.getCodLogradouro());
+		endereco.setEndereco(logr.getEndereco());
 		endereco.setComplemento(dto.getComplemento());
 		endereco.setNumero(dto.getNumero());
 		endereco.setBairro(dto.getBairro());
