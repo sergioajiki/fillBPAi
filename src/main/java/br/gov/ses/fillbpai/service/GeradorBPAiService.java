@@ -644,12 +644,14 @@ public class GeradorBPAiService {
 		/**
 		 * seq 24 - prd-srv
 		 */
-		sb.append(padRightSpaces("", 3)); // serviço
+		sb.append(formatarServico(a.getSigtap()));
+
+		/** sb.append(padRightSpaces("", 3)); */  // serviço
 
 		/**
 		 * seq 25 - prd-clf
 		 */
-		sb.append(formatarServico(a.getSigtap()));    // classificação
+		sb.append(formatarClassificacao(a.getSigtap()));    // classificação
 
 		/**
 		 * seq 26 - prd-equipe_Seq
@@ -888,24 +890,46 @@ public class GeradorBPAiService {
 	 */
 	private static final Map<String, String> MAP_SERVICO = new HashMap<>();
 
-	static {
+		static {
 		MAP_SERVICO.put("0301010307", "");
-		MAP_SERVICO.put("0804010064", "009");
+		MAP_SERVICO.put("0804010064", "160");
 	}
+
+	private static final Map<String, String> MAP_CLASSIFICACAO = new HashMap<>();
+
+	static {
+		MAP_CLASSIFICACAO.put("0804010064", "009");
+	}
+
 
 	private String formatarServico(String sigtap) {
 
 		if (sigtap == null)
-			return "000";
+			return padRightSpaces("", 3);
 
 		String sigtapNumerico = sigtap.replaceAll("[^0-9]", "");
 
 		String servico = MAP_SERVICO.get(sigtapNumerico);
 
-		if (servico == null)
-			return "000";
+		if (servico == null || servico.isBlank())
+			return padRightSpaces("", 3);
 
 		return padLeftZeros(servico, 3);
+	}
+
+	private String formatarClassificacao(String sigtap) {
+
+		if (sigtap == null)
+			return padRightSpaces("", 3);
+
+		String sigtapNumerico = sigtap.replaceAll("[^0-9]", "");
+
+		String cls = MAP_CLASSIFICACAO.get(sigtapNumerico);
+
+		if (cls == null || cls.isBlank())
+			return padRightSpaces("", 3);
+
+		return padLeftZeros(cls, 3);
 	}
 
 	private String calcularCompetencia(LocalDate dataAtendimento) {
