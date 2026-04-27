@@ -279,6 +279,7 @@ public class RelatorioController {
 				new Label("Buscar médico:"), campoBuscaMedico, btnBuscarMedico,
 				new Label("Especialidade:"), filtroEspecialidade,
 				grupoMedico,
+				btnGerarBPA, btnAvisoParcial,
 				btnLimpar
 		);
 	}
@@ -401,7 +402,7 @@ public class RelatorioController {
 		btnAvisoParcial.setManaged(false);
 		btnAvisoParcial.setOnAction(e -> mostrarAvisosParcial());
 
-		HBox barra = new HBox(10, btnSelecionarMes, btnGerarBPACompleto, btnAvisoGeracao, btnGerarBPA, btnAvisoParcial);
+		HBox barra = new HBox(10, btnSelecionarMes, btnGerarBPACompleto, btnAvisoGeracao);
 		barra.setPadding(new Insets(0));
 
 		return barra;
@@ -730,6 +731,11 @@ public class RelatorioController {
 			return;
 		}
 
+		if (competenciaSelecionada == null) {
+			mostrarMensagem("Selecione a competência (mês) antes de gerar o BPA-I.");
+			return;
+		}
+
 		if (avisosParcial != null) {
 			mostrarAvisosParcial();
 			return;
@@ -746,7 +752,8 @@ public class RelatorioController {
 			service.gerarArquivoComFileChooser(
 					window,
 					especialidade,
-					medico
+					medico,
+					competenciaSelecionada
 			);
 
 			mostrarMensagem("Arquivo gerado com sucesso.");

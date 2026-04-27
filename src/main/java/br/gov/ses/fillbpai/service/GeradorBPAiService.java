@@ -59,9 +59,13 @@ public class GeradorBPAiService {
 	public void gerarArquivoComFileChooser(
 			Window parentWindow,
 			String especialidade,
-			String medico) {
+			String medico,
+			String competenciaAtendimento) {
 
 		try {
+
+			int atenAno = Integer.parseInt(competenciaAtendimento.substring(0, 4));
+			int atenMes = Integer.parseInt(competenciaAtendimento.substring(4, 6));
 
 			List<AtendimentoBPAi> lista =
 					entityManager.createQuery(
@@ -71,21 +75,24 @@ public class GeradorBPAiService {
 											"JOIN FETCH a.medico " +
 											"LEFT JOIN FETCH a.estabelecimento " +
 											"WHERE a.especialidadeMedico = :esp " +
-											"AND a.medico.nome = :med",
+											"AND a.medico.nome = :med " +
+											"AND YEAR(a.dataAgendamento) = :ano " +
+											"AND MONTH(a.dataAgendamento) = :mes",
 									AtendimentoBPAi.class)
 							.setParameter("esp", especialidade)
 							.setParameter("med", medico)
+							.setParameter("ano", atenAno)
+							.setParameter("mes", atenMes)
 							.getResultList();
 
 			if (lista.isEmpty())
-				throw new RuntimeException("Nenhum registro encontrado");
+				throw new RuntimeException(
+						"Nenhum registro encontrado para "
+						+ medico + " em " + String.format("%02d/%04d", atenMes, atenAno));
 
 			validarCnsProfissional(lista);
 
-			String competencia =
-					calcularCompetencia(
-							lista.get(0).getDataAgendamento()
-					);
+			String competencia = calcularCompetencia(LocalDate.of(atenAno, atenMes, 1));
 
 			FileChooser chooser = new FileChooser();
 
