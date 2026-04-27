@@ -124,7 +124,7 @@ public class GeradorBPAiService {
 
 					sequencial++;
 
-					if (sequencial > 20)
+					if (sequencial > 99)
 						sequencial = 1;
 				}
 			}
