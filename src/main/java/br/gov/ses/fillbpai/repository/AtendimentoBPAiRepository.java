@@ -6,7 +6,9 @@ import br.gov.ses.fillbpai.model.Paciente;
 import jakarta.persistence.EntityManager;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -29,6 +31,39 @@ public class AtendimentoBPAiRepository {
         return entityManager
                 .createQuery("FROM AtendimentoBPAi", AtendimentoBPAi.class)
                 .getResultList();
+    }
+
+    /**
+     * Pré-carrega um mapa de folhas já atribuídas, agrupadas por
+     * (especialidade | médico). A folha é vínculo permanente do par
+     * especialidade+médico — independente do mês — e deve ser reutilizada
+     * em todas as importações seguintes.
+     *
+     * Chave: "especialidade|medicoId"
+     * Valor: número da folha já atribuída
+     */
+    public Map<String, String> buscarMapaFolhaPorEspecialidadeMedico() {
+
+        List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
+                "SELECT a FROM AtendimentoBPAi a JOIN FETCH a.medico " +
+                "WHERE a.folha IS NOT NULL",
+                AtendimentoBPAi.class
+        ).getResultList();
+
+        Map<String, String> mapa = new HashMap<>();
+
+        for (AtendimentoBPAi a : atendimentos) {
+            String esp    = a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico() : "";
+            Long medicoId = a.getMedico().getId();
+            String folha  = a.getFolha();
+
+            if (folha == null || folha.isBlank()) continue;
+
+            String chave = esp + "|" + medicoId;
+            mapa.putIfAbsent(chave, folha);
+        }
+
+        return mapa;
     }
 
     /**

@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(\"C:\\\\Users\\\\sergi\\\\.m2\\\\wrapper\\\\dists\\\\apache-maven-3.9.11\\\\d6d3cbd4012d4c1d840e93277aca316c\\\\bin\\\\mvn.cmd\" compile:*)",
-      "Bash(cmd.exe /c \"C:\\\\Users\\\\sergioa\\\\Desenvolvimento\\\\fillBPAi\\\\mvnw.cmd compile -q 2>&1\")"
+      "Bash(cmd.exe /c \"C:\\\\Users\\\\sergioa\\\\Desenvolvimento\\\\fillBPAi\\\\mvnw.cmd compile -q 2>&1\")",
+      "Bash(mvnw.cmd test *)",
+      "PowerShell(Get-Command *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sergioa\\\\Desenvolvimento\\\\fillBPAi\" -Recurse -Directory)",
+      "Bash(Select-Object -First 20)"
     ]
   }
 }

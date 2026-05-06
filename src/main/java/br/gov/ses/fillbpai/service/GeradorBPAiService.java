@@ -285,20 +285,28 @@ public class GeradorBPAiService {
 		for (AtendimentoBPAi a : lista) {
 
 			String chave = montarChaveMedico(a);
+			String folhaExistente = a.getFolha();
 
 			if (!chaveParaFolha.containsKey(chave)) {
 
-				String folhaExistente = a.getFolha();
-
 				chaveParaFolha.put(chave, folhaExistente);
 
-				// Se já tem folha, reserva o número para não ser reutilizado
 				if (folhaExistente != null && !folhaExistente.isBlank()) {
 					try {
 						folhasReservadas.add(Integer.parseInt(folhaExistente));
 					} catch (NumberFormatException ignored) {
-						// Folha não numérica — ignora na reserva
 					}
+				}
+
+			} else if ((chaveParaFolha.get(chave) == null || chaveParaFolha.get(chave).isBlank())
+					&& folhaExistente != null && !folhaExistente.isBlank()) {
+
+				// Chave já registrada como null, mas este atendimento tem folha definida
+				// (atendimento antigo aparece depois do novo na lista ordenada)
+				chaveParaFolha.put(chave, folhaExistente);
+				try {
+					folhasReservadas.add(Integer.parseInt(folhaExistente));
+				} catch (NumberFormatException ignored) {
 				}
 			}
 		}

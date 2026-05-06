@@ -39,11 +39,11 @@ public class MainController {
 
 	private static final Logger log = LoggerFactory.getLogger(MainController.class);
 
-	/** Caminho do arquivo de log de importação (mesmo diretório do H2) */
-	private static final Path CAMINHO_LOG = Path.of("database", "log_importacao.txt");
+	/** Caminho do último log de importação salvo — atualizado a cada importação */
+	private Path caminhoLog = Path.of("database", "log_importacao.txt");
 
-	/** Caminho do arquivo de log de erros de validação */
-	private static final Path CAMINHO_LOG_ERROS = Path.of("database", "log_erros_validacao.txt");
+	/** Caminho do último log de erros de validação salvo */
+	private Path caminhoLogErros = Path.of("database", "log_erros_validacao.txt");
 
 	private final EntityManager entityManager;
 	private final FileChooserService fileChooserService;
@@ -112,6 +112,8 @@ public class MainController {
 			return;
 		}
 
+		String nomePlanilha = nomePlanilhaSemExtensao(caminho);
+
 		// Validação pré-importação — bloqueia apenas se houver erros bloqueantes
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
@@ -120,13 +122,13 @@ public class MainController {
 
 		if (!errosValidacao.isEmpty()) {
 			String logErros = validacaoService.gerarLogTxt(errosValidacao);
-			salvarLogErrosEmArquivo(logErros);
+			salvarLogErrosEmArquivo(logErros, nomePlanilha);
 			if (temBloqueantes) {
-				mostrarDialogoErrosValidacao(logErros, stage);
+				mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage);
 				return;
 			}
 			// Apenas avisos — exibe mas deixa importação prosseguir
-			mostrarDialogoAvisosValidacao(logErros, stage);
+			mostrarDialogoAvisosValidacao(logErros, nomePlanilha, stage);
 		}
 
 		processarImportacao(caminho, stage);
@@ -144,7 +146,7 @@ public class MainController {
 		ImportacaoResultado resultado = service.importar(caminho);
 
 		String conteudoLog = montarConteudoLog(resultado);
-		salvarLogEmArquivo(conteudoLog);
+		salvarLogEmArquivo(conteudoLog, nomePlanilhaSemExtensao(caminho));
 		mostrarLog(conteudoLog);
 
 		if (resultado.getTotalSucesso() > 0) {
@@ -194,16 +196,18 @@ public class MainController {
 	}
 
 	/**
-	 * Salva o log em arquivo para persistência entre sessões.
+	 * Salva o log de importação em arquivo nomeado com a planilha de origem.
 	 */
-	private void salvarLogEmArquivo(String conteudo) {
+	private void salvarLogEmArquivo(String conteudo, String nomePlanilha) {
+
+		caminhoLog = Path.of("database", "log_importacao_" + nomePlanilha + ".txt");
 
 		try {
 
-			Files.createDirectories(CAMINHO_LOG.getParent());
-			Files.writeString(CAMINHO_LOG, conteudo, StandardCharsets.UTF_8);
+			Files.createDirectories(caminhoLog.getParent());
+			Files.writeString(caminhoLog, conteudo, StandardCharsets.UTF_8);
 
-			log.info("Log de importação salvo em: {}", CAMINHO_LOG.toAbsolutePath());
+			log.info("Log de importação salvo em: {}", caminhoLog.toAbsolutePath());
 
 		} catch (IOException e) {
 			log.error("Erro ao salvar log de importação: {}", e.getMessage());
@@ -216,7 +220,7 @@ public class MainController {
 	 */
 	private void exibirLogSalvo() {
 
-		if (!Files.exists(CAMINHO_LOG)) {
+		if (!Files.exists(caminhoLog)) {
 
 			Alert alert = new Alert(Alert.AlertType.INFORMATION);
 			alert.setContentText("Nenhum log de importação encontrado.");
@@ -226,7 +230,7 @@ public class MainController {
 
 		try {
 
-			String conteudo = Files.readString(CAMINHO_LOG, StandardCharsets.UTF_8);
+			String conteudo = Files.readString(caminhoLog, StandardCharsets.UTF_8);
 			mostrarLog(conteudo);
 
 		} catch (IOException e) {
@@ -274,6 +278,8 @@ public class MainController {
 			return;
 		}
 
+		String nomePlanilha = nomePlanilhaSemExtensao(caminho);
+
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
 
@@ -286,14 +292,14 @@ public class MainController {
 		}
 
 		String logErros = validacaoService.gerarLogTxt(errosValidacao);
-		salvarLogErrosEmArquivo(logErros);
+		salvarLogErrosEmArquivo(logErros, nomePlanilha);
 
 		if (temBloqueantes) {
 			// Erros bloqueantes — sem botão de importação
-			mostrarDialogoErrosValidacao(logErros, stage);
+			mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage);
 		} else {
 			// Apenas avisos — exibe com botão de importação direta
-			mostrarDialogoAvisosAnalise(logErros, caminho, stage);
+			mostrarDialogoAvisosAnalise(logErros, nomePlanilha, caminho, stage);
 		}
 	}
 
@@ -326,7 +332,7 @@ public class MainController {
 	 * Usado apenas no fluxo de análise — no fluxo de importação os avisos são exibidos
 	 * sem botão, pois a importação prossegue automaticamente.
 	 */
-	private void mostrarDialogoAvisosAnalise(String logAvisos, String caminho, Stage stage) {
+	private void mostrarDialogoAvisosAnalise(String logAvisos, String nomePlanilha, String caminho, Stage stage) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Avisos de Validação");
@@ -341,7 +347,7 @@ public class MainController {
 		btnSalvarLog.setOnAction(e -> {
 			FileChooser fileChooser = new FileChooser();
 			fileChooser.setTitle("Salvar Log de Avisos");
-			fileChooser.setInitialFileName("log_avisos_validacao.txt");
+			fileChooser.setInitialFileName("log_avisos_validacao_" + nomePlanilha + ".txt");
 			fileChooser.getExtensionFilters().add(
 					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt"));
 			java.io.File arquivo = fileChooser.showSaveDialog(stage);
@@ -368,16 +374,18 @@ public class MainController {
 	}
 
 	/**
-	 * Salva o log de erros de validação em arquivo TXT.
+	 * Salva o log de erros de validação em arquivo nomeado com a planilha de origem.
 	 */
-	private void salvarLogErrosEmArquivo(String conteudo) {
+	private void salvarLogErrosEmArquivo(String conteudo, String nomePlanilha) {
+
+		caminhoLogErros = Path.of("database", "log_erros_validacao_" + nomePlanilha + ".txt");
 
 		try {
 
-			Files.createDirectories(CAMINHO_LOG_ERROS.getParent());
-			Files.writeString(CAMINHO_LOG_ERROS, conteudo, StandardCharsets.UTF_8);
+			Files.createDirectories(caminhoLogErros.getParent());
+			Files.writeString(caminhoLogErros, conteudo, StandardCharsets.UTF_8);
 
-			log.info("Log de erros de validação salvo em: {}", CAMINHO_LOG_ERROS.toAbsolutePath());
+			log.info("Log de erros de validação salvo em: {}", caminhoLogErros.toAbsolutePath());
 
 		} catch (IOException e) {
 			log.error("Erro ao salvar log de erros: {}", e.getMessage());
@@ -387,7 +395,7 @@ public class MainController {
 	/**
 	 * Exibe diálogo com erros de validação e botão para download do log TXT.
 	 */
-	private void mostrarDialogoErrosValidacao(String logErros, Stage stage) {
+	private void mostrarDialogoErrosValidacao(String logErros, String nomePlanilha, Stage stage) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Erros de Validação");
@@ -403,7 +411,7 @@ public class MainController {
 
 			FileChooser fileChooser = new FileChooser();
 			fileChooser.setTitle("Salvar Log de Erros");
-			fileChooser.setInitialFileName("log_erros_validacao.txt");
+			fileChooser.setInitialFileName("log_erros_validacao_" + nomePlanilha + ".txt");
 			fileChooser.getExtensionFilters().add(
 					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt")
 			);
@@ -431,7 +439,15 @@ public class MainController {
 	 * Exibe diálogo informativo com avisos de validação (não bloqueantes).
 	 * A importação prosseguirá normalmente após o fechamento.
 	 */
-	private void mostrarDialogoAvisosValidacao(String logAvisos, Stage stage) {
+	/** Extrai o nome do arquivo da planilha sem extensão, sanitizado para uso em nomes de arquivo. */
+	private String nomePlanilhaSemExtensao(String caminho) {
+		String nome = Path.of(caminho).getFileName().toString();
+		int dot = nome.lastIndexOf('.');
+		if (dot > 0) nome = nome.substring(0, dot);
+		return nome.replaceAll("[\\\\/:*?\"<>|]", "_");
+	}
+
+	private void mostrarDialogoAvisosValidacao(String logAvisos, String nomePlanilha, Stage stage) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Avisos de Validação");
@@ -447,7 +463,7 @@ public class MainController {
 
 			FileChooser fileChooser = new FileChooser();
 			fileChooser.setTitle("Salvar Log de Avisos");
-			fileChooser.setInitialFileName("log_avisos_validacao.txt");
+			fileChooser.setInitialFileName("log_avisos_validacao_" + nomePlanilha + ".txt");
 			fileChooser.getExtensionFilters().add(
 					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt")
 			);

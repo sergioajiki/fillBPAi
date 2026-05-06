@@ -66,6 +66,10 @@ public class AtendimentoImportacaoService {
 
 			IbgeUtils.preCarregarCacheDb(carregarCepIbgeDoBanco());
 
+			// Pré-carrega folhas já atribuídas para propagar a novos atendimentos na importação
+			Map<String, String> mapaFolhas =
+					atendimentoRepository.buscarMapaFolhaPorEspecialidadeMedico();
+
 			transaction.begin();
 
 			for (Row row : sheet) {
@@ -94,7 +98,7 @@ public class AtendimentoImportacaoService {
 					// 4. Cria/encontra entidades normalizadas e monta o atendimento
 					// findOrUpdate: se já existe atendimento idêntico, atualiza (evita duplicatas)
 					AtendimentoBPAi atendimento =
-							criarOuAtualizarAtendimento(dto, resultado, row.getRowNum() + 1);
+							criarOuAtualizarAtendimento(dto, resultado, row.getRowNum() + 1, mapaFolhas);
 
 					importados.add(atendimento);
 
@@ -150,7 +154,7 @@ public class AtendimentoImportacaoService {
 	 * Isso evita duplicatas quando a mesma planilha é reimportada
 	 * (ex: após configurar o DATASUS para preencher CNS profissional).
 	 */
-	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel) {
+	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel, Map<String, String> mapaFolhas) {
 
 		// ==============================
 		// Paciente (findOrCreate por CPF)
@@ -218,6 +222,20 @@ public class AtendimentoImportacaoService {
 		atendimento.setEspecialidadeMedico(dto.getEspecialidadeMedico());
 		atendimento.setCboMedico(dto.getCboMedico());
 		atendimento.setCidConsulta(dto.getCidConsulta());
+
+		// ==============================
+		// Herança de folha para novos atendimentos
+		// Se o médico já possui folha atribuída para este mês, propaga para o novo registro
+		// ==============================
+
+		if (!atualizacao && (atendimento.getFolha() == null || atendimento.getFolha().isBlank())) {
+			String chave = resolverChaveFolha(
+					dto.getEspecialidadeMedico(), medico.getId());
+			String folhaExistente = mapaFolhas.get(chave);
+			if (folhaExistente != null) {
+				atendimento.setFolha(folhaExistente);
+			}
+		}
 
 		// ==============================
 		// CNS do profissional (lookup por nome via cache/DATASUS)
@@ -356,6 +374,15 @@ public class AtendimentoImportacaoService {
 					estabelecimentoRepository.salvar(novo);
 					return novo;
 				});
+	}
+
+	/**
+	 * Monta a chave de lookup no mapa de folhas existentes.
+	 * Formato idêntico ao usado em buscarMapaFolhaPorEspecialidadeMedico().
+	 */
+	private String resolverChaveFolha(String especialidade, Long medicoId) {
+		String esp = especialidade != null ? especialidade : "";
+		return esp + "|" + medicoId;
 	}
 
 	/**

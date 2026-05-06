@@ -10,6 +10,7 @@ import jakarta.persistence.TypedQuery;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.*;
 import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 
 import javafx.geometry.Insets;
 
@@ -46,6 +47,9 @@ public class RelatorioController {
 
 	private final FilteredList<AtendimentoBPAiDTO> listaFiltrada =
 			new FilteredList<>(lista, p -> true);
+
+	private final SortedList<AtendimentoBPAiDTO> listaSorted =
+			new SortedList<>(listaFiltrada);
 
 	// ======================================================
 	// COMPONENTES
@@ -188,7 +192,8 @@ public class RelatorioController {
 
 		// IMPORTANTE:
 		// sempre usar listaFiltrada, nunca alterar colunas dinamicamente
-		tabela.setItems(listaFiltrada);
+		listaSorted.comparatorProperty().bind(tabela.comparatorProperty());
+		tabela.setItems(listaSorted);
 
 		// Desativa o resize automático que comprime colunas para caber na janela.
 		// Com UNCONSTRAINED, cada coluna mantém seu prefWidth (150px),
@@ -1123,6 +1128,10 @@ public class RelatorioController {
 	}
 
 	public void carregarDoBanco() {
+
+		// Evita que o cache L1 do EntityManager devolva entidades antigas —
+		// garante que a query sempre leia o estado atual do banco.
+		entityManager.clear();
 
 		TypedQuery<AtendimentoBPAi> query =
 				entityManager.createQuery(
