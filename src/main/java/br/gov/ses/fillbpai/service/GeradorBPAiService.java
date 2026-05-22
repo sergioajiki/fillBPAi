@@ -967,7 +967,7 @@ public class GeradorBPAiService {
 	private String padNumObrigatorio(String valor, int tamanho) {
 
 		if (valor == null)
-			valor = "";
+			valor = "081";
 
 		valor = valor.replaceAll("[^0-9]", "");
 
