@@ -159,7 +159,7 @@ public class GeradorBPAiService {
 	 *    Na próxima competência, a numeração recomeça.
 	 *
 	 * O sequencial (prd-seq) reinicia a cada troca de folha,
-	 * e também reinicia ao atingir 20 (regra do layout BPA-I).
+	 * e também reinicia ao atingir 99 (regra do layout BPA-I).
 	 */
 	/**
 	 * @param competenciaAtendimento competência no formato YYYYMM referente ao mês de atendimento
@@ -251,7 +251,7 @@ public class GeradorBPAiService {
 
 					sequencial++;
 
-					if (sequencial > 20)
+					if (sequencial > 99)
 						sequencial = 1;
 				}
 			}
@@ -952,10 +952,7 @@ public class GeradorBPAiService {
 		if (dataAtendimento == null)
 			throw new RuntimeException("Data do atendimento não pode ser nula");
 
-		// competência é o mês seguinte
-		LocalDate competencia = dataAtendimento.plusMonths(1);
-
-		return competencia.format(FORMATO_COMPETENCIA);
+		return dataAtendimento.format(FORMATO_COMPETENCIA);
 	}
 
 	/**
