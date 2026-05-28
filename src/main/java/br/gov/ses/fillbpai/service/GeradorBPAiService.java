@@ -551,8 +551,13 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 9 - prd-pa
+		 * NUTRICIONISTA e PSICÓLOGO usam código fixo 0301010315
 		 */
-		sb.append(padLeftZeros(sigtap, 10));
+		String especialidade = a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico().trim().toUpperCase() : "";
+		String prdPa = (especialidade.equals("NUTRICIONISTA") || especialidade.equals("PSICÓLOGO"))
+				? "0301010315"
+				: sigtap;
+		sb.append(padLeftZeros(prdPa, 10));
 
 		/**
 		 * seq 10 - prd-cnspac
@@ -952,7 +957,11 @@ public class GeradorBPAiService {
 		if (dataAtendimento == null)
 			throw new RuntimeException("Data do atendimento não pode ser nula");
 
-		return dataAtendimento.format(FORMATO_COMPETENCIA);
+		// EXCEPCIONAL: todas as importações deste mês são consideradas competência 5 (maio/2025)
+		// Remover este bloco após ajuste e descomentar a linha original abaixo
+		return LocalDate.of(dataAtendimento.getYear(), 5, 1).format(FORMATO_COMPETENCIA);
+
+		// return dataAtendimento.format(FORMATO_COMPETENCIA);
 	}
 
 	/**
