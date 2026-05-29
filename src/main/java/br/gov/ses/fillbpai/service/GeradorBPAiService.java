@@ -664,14 +664,14 @@ public class GeradorBPAiService {
 		/**
 		 * seq 24 - prd-srv
 		 */
-		sb.append(formatarServico(a.getSigtap()));
+		sb.append(formatarServico(prdPa));
 
 		/** sb.append(padRightSpaces("", 3)); */  // serviço
 
 		/**
 		 * seq 25 - prd-clf
 		 */
-		sb.append(formatarClassificacao(a.getSigtap()));    // classificação
+		sb.append(formatarClassificacao(prdPa));    // classificação
 
 		/**
 		 * seq 26 - prd-equipe_Seq
