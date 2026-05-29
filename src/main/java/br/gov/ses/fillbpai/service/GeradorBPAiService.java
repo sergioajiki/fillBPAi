@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets;
  * 132 caracteres (MANTIDO INALTERADO)
  * <p>
  * REGISTRO:
- * 340 caracteres
+ * 352 caracteres
  * <p>
  * Layout oficial do Ministério da Saúde
  * <p>
@@ -475,8 +475,8 @@ public class GeradorBPAiService {
 	/**
 	 * ============================================================
 	 * REGISTRO BPA-I COMPLETO
-	 * 340 caracteres
-	 * seq 1 até seq 38
+	 * 352 caracteres
+	 * seq 1 até seq 40
 	 * ============================================================
 	 */
 	private String montarRegistro(
@@ -582,7 +582,7 @@ public class GeradorBPAiService {
 		 * ALFA, M ou F
 		 */
 		String sexo = paciente != null ? paciente.getSexo() : null;
-		sb.append(sexo != null ? sexo : "M");
+		sb.append(sexo != null ? sexo : "F");
 
 		/**
 		 * seq 12 - prd-ibge
@@ -744,7 +744,20 @@ public class GeradorBPAiService {
 		sb.append(padNumOpcional(a.getCodIne(), 10));
 
 		/**
-		 * seq 38 - prd-fim
+		 * seq 38 - prd_cpf_pcnte
+		 * CPF do paciente, 11 chars, numérico
+		 */
+		String cpfPacienteNum = paciente != null ? somenteNumeros(paciente.getCpf()) : "";
+		sb.append(padLeftZeros(cpfPacienteNum, 11));
+
+		/**
+		 * seq 39 - prd_situacao_rua
+		 * ALFA, 1 char, valores: N ou S, padrão N
+		 */
+		sb.append("N");
+
+		/**
+		 * seq 40 - prd-fim
 		 * CRLF controlado pelo writer.newLine()
 		 */
 
