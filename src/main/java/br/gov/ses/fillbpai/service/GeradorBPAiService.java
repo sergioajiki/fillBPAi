@@ -15,11 +15,11 @@ import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -169,11 +169,15 @@ public class GeradorBPAiService {
 
 		try {
 
-			// Deriva o mês de atendimento a partir da competência selecionada
 			int atenAno  = Integer.parseInt(competenciaAtendimento.substring(0, 4));
 			int atenMes  = Integer.parseInt(competenciaAtendimento.substring(4, 6));
 
-			// 1. Carrega apenas os atendimentos do mês de competência selecionado
+			// 1. Calcula a competência alvo a partir do mês selecionado
+			String competencia = calcularCompetencia(LocalDate.of(atenAno, atenMes, 1));
+
+			// 2. Carrega todos os atendimentos do ano e filtra pelos que pertencem
+			//    à competência alvo — inclui múltiplos meses quando a competência
+			//    é a mesma para todos (ex: exceção em que todos os meses → 202505)
 			List<AtendimentoBPAi> lista =
 					entityManager.createQuery(
 									"SELECT a FROM AtendimentoBPAi a " +
@@ -181,38 +185,35 @@ public class GeradorBPAiService {
 											"LEFT JOIN FETCH p.endereco " +
 											"JOIN FETCH a.medico " +
 											"LEFT JOIN FETCH a.estabelecimento " +
-											"WHERE YEAR(a.dataAgendamento) = :ano " +
-											"AND MONTH(a.dataAgendamento) = :mes",
+											"WHERE YEAR(a.dataAgendamento) = :ano",
 									AtendimentoBPAi.class)
 							.setParameter("ano", atenAno)
-							.setParameter("mes", atenMes)
-							.getResultList();
+							.getResultList()
+							.stream()
+							.filter(a -> competencia.equals(
+									calcularCompetencia(a.getDataAgendamento())))
+							.collect(Collectors.toList());
 
 			if (lista.isEmpty())
 				throw new RuntimeException(
-						"Nenhum registro encontrado para a competência "
-						+ String.format("%02d/%04d", atenMes, atenAno));
+						"Nenhum registro encontrado para a competência " + competencia);
 
 			validarCnsProfissional(lista);
 
-			// 2. Ordena por especialidade (alfabética) → médico (alfabético)
+			// 3. Ordena por especialidade (alfabética) → médico (alfabético) → mês
 			lista.sort(Comparator
 					.comparing((AtendimentoBPAi a) ->
 							a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico() : "")
 					.thenComparing(a ->
 							a.getMedico() != null && a.getMedico().getNome() != null
 									? a.getMedico().getNome() : "")
+					.thenComparingInt(a ->
+							a.getDataAgendamento() != null
+									? a.getDataAgendamento().getMonthValue() : 0)
 			);
 
-			// 3. Atribui folhas sequenciais por combinação (especialidade + médico)
-			//    e persiste os valores no banco
-			int totalFolhas = atribuirFolhas(lista);
-
-			// 4. Determina a competência BPA-I (mês seguinte ao atendimento)
-			String competencia =
-					calcularCompetencia(
-							LocalDate.of(atenAno, atenMes, 1)
-					);
+			// 4. Atribui folhas sequenciais em memória (sem persistir no banco)
+			int totalFolhas = atribuirFolhas(lista, atenAno);
 
 			// 5. FileChooser para o usuário escolher onde salvar
 			FileChooser chooser = new FileChooser();
@@ -263,97 +264,54 @@ public class GeradorBPAiService {
 	}
 
 	/**
-	 * Atribui folhas aos atendimentos respeitando folhas já definidas manualmente.
+	 * Atribui folhas aos atendimentos do mês atual em memória, sem persistir no banco.
 	 *
 	 * Lógica:
-	 * 1. Identifica combinações (especialidade + médico) que JÁ possuem folha
-	 * 2. Coleta os números de folha já em uso (reservados)
-	 * 3. Para combinações SEM folha, atribui números sequenciais
-	 *    pulando os números já reservados
-	 * 4. Persiste no banco via dirty checking
+	 * 1. Consulta todas as combinações (especialidade + médico + mês) do ano inteiro
+	 * 2. Atribui folhas sequenciais em ordem: especialidade → médico → mês
+	 * 3. Aplica ao mês atual apenas em memória — sem gravar no banco
 	 *
-	 * @param lista atendimentos já ordenados por especialidade → médico
-	 * @return total de folhas distintas (manuais + auto-atribuídas)
+	 * Sem persistência não há dados desatualizados causando conflito entre meses.
+	 * A continuidade entre meses é garantida pela ordenação determinística.
+	 *
+	 * @param lista atendimentos do mês atual, já ordenados por especialidade → médico
+	 * @param atenAno ano de atendimento, usado para limitar a consulta ao ano corrente
+	 * @return total de folhas distintas no mês atual (para o header do arquivo)
 	 */
-	private int atribuirFolhas(List<AtendimentoBPAi> lista) {
+	private int atribuirFolhas(List<AtendimentoBPAi> lista, int atenAno) {
 
-		// 1. Mapeia cada combinação (esp+med) → folha existente (ou null)
-		//    LinkedHashMap preserva a ordem de inserção (alfabética, já que lista está ordenada)
+		// 1. Consulta todas as combinações do ano ordenadas deterministicamente
+		List<Object[]> todasCombinacoes = entityManager.createQuery(
+				"SELECT DISTINCT a.especialidadeMedico, a.medico.nome, MONTH(a.dataAgendamento) " +
+				"FROM AtendimentoBPAi a " +
+				"WHERE YEAR(a.dataAgendamento) = :ano " +
+				"ORDER BY a.especialidadeMedico, a.medico.nome, MONTH(a.dataAgendamento)",
+				Object[].class)
+				.setParameter("ano", atenAno)
+				.getResultList();
+
+		// 2. Atribui folha sequencial a cada combinação (esp + médico + mês)
 		Map<String, String> chaveParaFolha = new LinkedHashMap<>();
-		Set<Integer> folhasReservadas = new HashSet<>();
-
-		for (AtendimentoBPAi a : lista) {
-
-			String chave = montarChaveMedico(a);
-			String folhaExistente = a.getFolha();
-
-			if (!chaveParaFolha.containsKey(chave)) {
-
-				chaveParaFolha.put(chave, folhaExistente);
-
-				if (folhaExistente != null && !folhaExistente.isBlank()) {
-					try {
-						folhasReservadas.add(Integer.parseInt(folhaExistente));
-					} catch (NumberFormatException ignored) {
-					}
-				}
-
-			} else if ((chaveParaFolha.get(chave) == null || chaveParaFolha.get(chave).isBlank())
-					&& folhaExistente != null && !folhaExistente.isBlank()) {
-
-				// Chave já registrada como null, mas este atendimento tem folha definida
-				// (atendimento antigo aparece depois do novo na lista ordenada)
-				chaveParaFolha.put(chave, folhaExistente);
-				try {
-					folhasReservadas.add(Integer.parseInt(folhaExistente));
-				} catch (NumberFormatException ignored) {
-				}
-			}
-		}
-
-		// 2. Atribui folhas sequenciais para quem não tem, pulando as reservadas
 		int proximaFolha = 1;
 
-		for (Map.Entry<String, String> entry : chaveParaFolha.entrySet()) {
-
-			if (entry.getValue() == null || entry.getValue().isBlank()) {
-
-				// Avança até encontrar um número livre
-				while (folhasReservadas.contains(proximaFolha)) {
-					proximaFolha++;
-				}
-
-				entry.setValue(String.valueOf(proximaFolha));
-				folhasReservadas.add(proximaFolha);
-				proximaFolha++;
+		for (Object[] row : todasCombinacoes) {
+			String chave = (row[0] != null ? (String) row[0] : "") + "|"
+					+ (row[1] != null ? (String) row[1] : "") + "|"
+					+ row[2];
+			if (!chaveParaFolha.containsKey(chave)) {
+				chaveParaFolha.put(chave, String.valueOf(proximaFolha++));
 			}
 		}
 
-		// 3. Aplica as folhas a todos os atendimentos
-		entityManager.getTransaction().begin();
-
-		try {
-
-			for (AtendimentoBPAi a : lista) {
-
-				String chave = montarChaveMedico(a);
-				String folha = chaveParaFolha.get(chave);
-
-				a.setFolha(folha);
-			}
-
-			entityManager.getTransaction().commit();
-
-		} catch (Exception e) {
-
-			if (entityManager.getTransaction().isActive()) {
-				entityManager.getTransaction().rollback();
-			}
-
-			throw new RuntimeException("Erro ao atribuir folhas: " + e.getMessage());
+		// 3. Aplica folhas ao mês atual em memória (sem persistir)
+		for (AtendimentoBPAi a : lista) {
+			a.setFolha(chaveParaFolha.get(montarChaveMedicoMes(a)));
 		}
 
-		return chaveParaFolha.size();
+		return (int) lista.stream()
+				.map(this::montarChaveMedico)
+				.distinct()
+				.count();
 	}
 
 	/**
@@ -368,6 +326,23 @@ public class GeradorBPAiService {
 				? a.getMedico().getNome() : "";
 
 		return esp + "|" + med;
+	}
+
+	/**
+	 * Monta a chave única para identificar uma combinação especialidade + médico + mês.
+	 */
+	private String montarChaveMedicoMes(AtendimentoBPAi a) {
+
+		String esp = a.getEspecialidadeMedico() != null
+				? a.getEspecialidadeMedico() : "";
+
+		String med = a.getMedico() != null && a.getMedico().getNome() != null
+				? a.getMedico().getNome() : "";
+
+		int mes = a.getDataAgendamento() != null
+				? a.getDataAgendamento().getMonthValue() : 0;
+
+		return esp + "|" + med + "|" + mes;
 	}
 
 	/**
