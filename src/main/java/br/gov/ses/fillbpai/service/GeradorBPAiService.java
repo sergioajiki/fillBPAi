@@ -926,12 +926,14 @@ public class GeradorBPAiService {
 		static {
 		MAP_SERVICO.put("0301010307", "");
 		MAP_SERVICO.put("0804010064", "160");
+		MAP_SERVICO.put("0301010315", "160");
 	}
 
 	private static final Map<String, String> MAP_CLASSIFICACAO = new HashMap<>();
 
 	static {
 		MAP_CLASSIFICACAO.put("0804010064", "009");
+		MAP_CLASSIFICACAO.put("0301010315", "006");
 	}
 
 
