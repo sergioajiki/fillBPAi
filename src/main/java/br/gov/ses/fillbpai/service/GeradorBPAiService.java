@@ -116,7 +116,7 @@ public class GeradorBPAiService {
 				 * HEADER — linha 1
 				 */
 				writer.write(montarHeader(lista, competencia));
-				writer.newLine();
+				writer.write("\r\n"); // seq 13 cbc-fim: CR+LF obrigatório conforme layout BPA
 
 				/**
 				 * REGISTROS — linhas seguintes
@@ -127,7 +127,7 @@ public class GeradorBPAiService {
 
 					writer.write(montarRegistro(a, competencia, sequencial));
 
-					writer.newLine();
+					writer.write("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
 
 					sequencial++;
 
@@ -248,7 +248,7 @@ public class GeradorBPAiService {
 					}
 
 					writer.write(montarRegistro(a, competencia, sequencial));
-					writer.newLine();
+					writer.write("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
 
 					sequencial++;
 
@@ -493,9 +493,9 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 3 - prd-cmp
-		 * posição 010-015
+		 * posição 010-015 — AAAAMM da data de atendimento do registro
 		 */
-		sb.append(competencia);
+		sb.append(a.getDataAgendamento().format(FORMATO_COMPETENCIA));
 
 		/**
 		 * seq 4 - prd-cnsmed
@@ -536,21 +536,9 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 10 - prd-cnspac
-		 * Campo de identificação do paciente (15 caracteres, numérico).
-		 *
-		 * REGRA DE NEGÓCIO:
-		 * Utiliza o CPF do paciente (11 dígitos) completado com zeros
-		 * à esquerda até 15 caracteres, em substituição ao CNS.
-		 *
-		 * Motivo: o CNS pode estar em formato legado (>15 dígitos)
-		 * ou ausente. O CPF é mais confiável como identificador.
-		 *
-		 * Exemplo: CPF "12345678901" → "000012345678901"
-		 *
+		 * 15 espaços brancos — CNS não utilizado
 		 */
-
-		String cpfPaciente = paciente != null ? paciente.getCpf() : null;
-		sb.append(padNumOpcional(cpfPaciente, 15));
+		sb.append(padRightSpaces("", 15));
 
 		/**
 		 * seq 11 - prd-sexo

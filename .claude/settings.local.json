@@ -6,7 +6,11 @@
       "Bash(mvnw.cmd test *)",
       "PowerShell(Get-Command *)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\sergioa\\\\Desenvolvimento\\\\fillBPAi\" -Recurse -Directory)",
-      "Bash(Select-Object -First 20)"
+      "Bash(Select-Object -First 20)",
+      "PowerShell(mvn *)",
+      "PowerShell($mvn = \"C:\\\\Users\\\\sergioa\\\\.m2\\\\wrapper\\\\dists\\\\apache-maven-3.9.11-bin\\\\6mqf5t809d9geo83kj4ttckcbc\\\\apache-maven-3.9.11\\\\bin\\\\mvn.cmd\"; Set-Location \"C:\\\\Users\\\\sergioa\\\\Desenvolvimento\\\\fillBPAi\"; & $mvn dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile=target\\\\classpath.txt -q 2>&1; Get-Content target\\\\classpath.txt | Select-Object -First 1)",
+      "PowerShell($mvn = \"C:\\\\Users\\\\sergioa\\\\.m2\\\\wrapper\\\\dists\\\\apache-maven-3.9.11-bin\\\\6mqf5t809d9geo83kj4ttckcbc\\\\apache-maven-3.9.11\\\\bin\\\\mvn.cmd\"; Set-Location \"C:\\\\Users\\\\sergioa\\\\Desenvolvimento\\\\fillBPAi\"; & $mvn \"dependency:build-classpath\" \"-Dmdep.outputFile=target/classpath.txt\" -q 2>&1)",
+      "PowerShell($cp = Get-Content \"C:\\\\Users\\\\sergioa\\\\Desenvolvimento\\\\fillBPAi\\\\target\\\\classpath.txt\"; Write-Output \"CP length: $\\($cp.Length\\)\"; $cp.Split\\(';'\\) | Where-Object {$_ -match \"poi|slf4j|hibernate\"} | Select-Object -First 6)"
     ]
   }
 }
