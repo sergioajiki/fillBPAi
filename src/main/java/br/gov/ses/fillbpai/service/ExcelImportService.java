@@ -57,6 +57,7 @@ public class ExcelImportService {
 		dto.setNumero(getString(row.getCell(19)));
 		dto.setBairro(getString(row.getCell(20)));
 		dto.setComplemento(getString(row.getCell(21)));
+		dto.setSexoPaciente(getString(row.getCell(22)));
 
 		return dto;
 	}

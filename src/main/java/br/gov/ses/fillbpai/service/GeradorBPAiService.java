@@ -542,7 +542,7 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 11 - prd-sexo
-		 * ALFA, M ou F
+		 * ALFA — F (feminino), M (masculino) ou I (indeterminado)
 		 */
 		String sexo = paciente != null ? paciente.getSexo() : null;
 		sb.append(sexo != null ? sexo : "F");
