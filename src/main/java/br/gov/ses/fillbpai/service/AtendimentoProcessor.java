@@ -67,6 +67,7 @@ public class AtendimentoProcessor {
 
 		normalizarCpf(dto);
 		normalizarCep(dto);
+		normalizarSexo(dto);
 		limitarCamposBanco(dto);
 
 		// ===============================
@@ -309,6 +310,34 @@ public class AtendimentoProcessor {
 			dto.setCep(
 					CepUtils.normalizar(dto.getCep())
 			);
+		}
+	}
+
+	/**
+	 * Normaliza o sexo do paciente para o código de 1 caractere usado no BPA-I.
+	 * Aceita valor abreviado (F/M/I) ou por extenso (Feminino/Masculino/Indeterminado),
+	 * em qualquer combinação de maiúsculas/minúsculas.
+	 */
+	private void normalizarSexo(LinhaImportacaoDTO dto) {
+
+		if (isNullOrEmpty(dto.getSexoPaciente())) {
+			return;
+		}
+
+		switch (dto.getSexoPaciente().trim().toUpperCase()) {
+			case "F":
+			case "FEMININO":
+				dto.setSexoPaciente("F");
+				break;
+			case "M":
+			case "MASCULINO":
+				dto.setSexoPaciente("M");
+				break;
+			case "I":
+			case "INDETERMINADO":
+				dto.setSexoPaciente("I");
+				break;
+			// Valor não reconhecido: mantém como veio
 		}
 	}
 
