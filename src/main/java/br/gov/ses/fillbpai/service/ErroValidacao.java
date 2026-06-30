@@ -36,6 +36,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CNS do paciente com mais de 15 dígitos (formato incomum) — AVISO, não bloqueia */
 	public static final String CNS_INCOMUM = "CNS_INCOMUM";
 
+	/** Raça do paciente informada como Indígena — verificação de etnia necessária — AVISO, não bloqueia */
+	public static final String RACA_INDIGENA = "RACA_INDIGENA";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

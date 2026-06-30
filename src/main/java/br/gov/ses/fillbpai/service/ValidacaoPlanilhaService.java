@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -146,6 +147,23 @@ public class ValidacaoPlanilhaService {
 					ErroValidacao.CPF_INVALIDO,
 					"CPF com tamanho inválido (" + (cpfNormalizado != null ? cpfNormalizado.length() : 0)
 							+ " dígitos, esperado 11): " + cpf.trim()));
+		}
+
+		// -------------------------------------------------------
+		// Regra 4: Raça Indígena — AVISO, não bloqueia
+		// -------------------------------------------------------
+		String raca = dto.getRacaPaciente();
+
+		if (raca != null && !raca.trim().isEmpty()) {
+			String racaNorm = Normalizer
+					.normalize(raca.trim(), Normalizer.Form.NFD)
+					.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
+					.toUpperCase();
+			if ("INDIGENA".equals(racaNorm)) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.RACA_INDIGENA,
+						"Raca informada como Indigena - e necessario verificar a etnia do paciente"));
+			}
 		}
 	}
 

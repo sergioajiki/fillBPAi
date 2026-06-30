@@ -8,6 +8,7 @@ import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -81,6 +82,7 @@ public class AtendimentoProcessor {
 		validarCep(dto);
 		validarCpf(dto);
 		avisos.addAll(validarCns(dto));
+		avisos.addAll(verificarRacaIndigena(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -219,6 +221,34 @@ public class AtendimentoProcessor {
 			throw new IllegalArgumentException(
 					"CPF com tamanho inválido (" + cpf.length() + " dígitos, esperado 11): " + cpf);
 		}
+	}
+
+	/**
+	 * Verifica se a raça do paciente é Indígena (com ou sem acento, qualquer capitalização).
+	 * Quando detectado, gera aviso para verificação manual da etnia.
+	 *
+	 * @return lista com aviso, ou lista vazia
+	 */
+	private List<String> verificarRacaIndigena(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+
+		String raca = dto.getRacaPaciente();
+
+		if (isNullOrEmpty(raca)) {
+			return avisos;
+		}
+
+		String racaNorm = Normalizer
+				.normalize(raca.trim(), Normalizer.Form.NFD)
+				.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
+				.toUpperCase();
+
+		if ("INDIGENA".equals(racaNorm)) {
+			avisos.add("Raca informada como Indigena - e necessario verificar a etnia do paciente");
+		}
+
+		return avisos;
 	}
 
 	/**
