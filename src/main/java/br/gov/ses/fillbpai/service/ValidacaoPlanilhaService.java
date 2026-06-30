@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.service;
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
+import br.gov.ses.fillbpai.util.CpfUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
@@ -139,6 +140,12 @@ public class ValidacaoPlanilhaService {
 		if (cpf == null || cpf.trim().isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CPF_AUSENTE, "CPF do paciente não informado"));
+		} else if (!CpfUtils.isValido(cpf)) {
+			String cpfNormalizado = CpfUtils.normalizar(cpf);
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CPF_INVALIDO,
+					"CPF com tamanho inválido (" + (cpfNormalizado != null ? cpfNormalizado.length() : 0)
+							+ " dígitos, esperado 11): " + cpf.trim()));
 		}
 	}
 

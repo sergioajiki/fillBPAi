@@ -6,6 +6,7 @@ import br.gov.ses.fillbpai.util.TimeUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
+import br.gov.ses.fillbpai.util.CpfUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -77,6 +78,8 @@ public class AtendimentoProcessor {
 		// ===============================
 
 		validarCamposObrigatorios(dto);
+		validarCep(dto);
+		validarCpf(dto);
 		avisos.addAll(validarCns(dto));
 
 		// ===============================
@@ -187,6 +190,38 @@ public class AtendimentoProcessor {
 	// ===============================
 
 	/**
+	 * Valida o tamanho do CEP após normalização.
+	 * CEP presente com tamanho diferente de 8 dígitos é erro bloqueante.
+	 *
+	 * @throws IllegalArgumentException se o CEP estiver presente mas com tamanho incorreto
+	 */
+	private void validarCep(LinhaImportacaoDTO dto) {
+
+		String cep = dto.getCep();
+
+		if (!isNullOrEmpty(cep) && !CepUtils.isValido(cep)) {
+			throw new IllegalArgumentException(
+					"CEP com tamanho inválido (" + cep.length() + " dígitos, esperado 8): " + cep);
+		}
+	}
+
+	/**
+	 * Valida o tamanho do CPF após normalização.
+	 * CPF presente com tamanho diferente de 11 dígitos é erro bloqueante.
+	 *
+	 * @throws IllegalArgumentException se o CPF estiver presente mas com tamanho incorreto
+	 */
+	private void validarCpf(LinhaImportacaoDTO dto) {
+
+		String cpf = dto.getCpfPaciente();
+
+		if (!isNullOrEmpty(cpf) && !CpfUtils.isValido(cpf)) {
+			throw new IllegalArgumentException(
+					"CPF com tamanho inválido (" + cpf.length() + " dígitos, esperado 11): " + cpf);
+		}
+	}
+
+	/**
 	 * Valida campos obrigatórios para a importação.
 	 *
 	 * Campos obrigatórios:
@@ -273,27 +308,17 @@ public class AtendimentoProcessor {
 	// ===============================
 
 	/**
-	 * Remove formatação dos CPFs (paciente e médico).
-	 * Remove pontos e traços: 123.456.789-00 → 12345678900
+	 * Remove formatação dos CPFs (paciente e médico) via CpfUtils.
+	 * Remove pontos, traços e demais não-numéricos: 123.456.789-00 → 12345678900
 	 */
 	private void normalizarCpf(LinhaImportacaoDTO dto) {
 
 		if (!isNullOrEmpty(dto.getCpfPaciente())) {
-			dto.setCpfPaciente(
-					dto.getCpfPaciente()
-							.replace(".", "")
-							.replace("-", "")
-							.trim()
-			);
+			dto.setCpfPaciente(CpfUtils.normalizar(dto.getCpfPaciente()));
 		}
 
 		if (!isNullOrEmpty(dto.getCpfMedico())) {
-			dto.setCpfMedico(
-					dto.getCpfMedico()
-							.replace(".", "")
-							.replace("-", "")
-							.trim()
-			);
+			dto.setCpfMedico(CpfUtils.normalizar(dto.getCpfMedico()));
 		}
 	}
 

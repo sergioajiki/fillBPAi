@@ -30,6 +30,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CPF do paciente ausente ou vazio — ERRO bloqueante */
 	public static final String CPF_AUSENTE = "CPF_AUSENTE";
 
+	/** CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização) — ERRO bloqueante */
+	public static final String CPF_INVALIDO = "CPF_INVALIDO";
+
 	/** CNS do paciente com mais de 15 dígitos (formato incomum) — AVISO, não bloqueia */
 	public static final String CNS_INCOMUM = "CNS_INCOMUM";
 
