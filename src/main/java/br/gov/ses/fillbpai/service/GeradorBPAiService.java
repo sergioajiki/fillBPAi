@@ -935,11 +935,7 @@ public class GeradorBPAiService {
 		if (dataAtendimento == null)
 			throw new RuntimeException("Data do atendimento não pode ser nula");
 
-		// EXCEPCIONAL: todas as importações deste mês são consideradas competência 5 (maio/2025)
-		// Remover este bloco após ajuste e descomentar a linha original abaixo
-		return LocalDate.of(dataAtendimento.getYear(), 5, 1).format(FORMATO_COMPETENCIA);
-
-		// return dataAtendimento.format(FORMATO_COMPETENCIA);
+		return dataAtendimento.format(FORMATO_COMPETENCIA);
 	}
 
 	/**

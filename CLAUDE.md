@@ -38,6 +38,7 @@ Antes de importar, a planilha é validada por `ValidacaoPlanilhaService`. Se hou
 Tipos de ERRO (bloqueantes):
 - **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização
 - **CEP_AUSENTE** — CEP do endereço não informado
+- **CEP_INVALIDO** — CEP presente mas com tamanho incorreto (diferente de 8 dígitos após normalização)
 - **CPF_AUSENTE** — CPF do paciente não informado
 
 Tipos de AVISO (não bloqueantes):

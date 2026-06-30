@@ -40,14 +40,13 @@ public class CnsUtils {
 	 * Retorna o resultado contendo o CNS limpo e eventuais avisos.
 	 *
 	 * Regras de validação:
-	 * - CNS null/vazio → erro (IllegalArgumentException)
+	 * - CNS null/vazio → AVISO, retorna CNS vazio (não lança exceção)
 	 * - CNS com 15 dígitos → válido, sem avisos
 	 * - CNS com mais de 15 dígitos → válido (formato legado), emite aviso
-	 * - CNS com menos de 15 dígitos → erro (formato inválido)
+	 * - CNS com menos de 15 dígitos → AVISO, retorna CNS parcial (não lança exceção)
 	 *
 	 * @param cns valor bruto do CNS
 	 * @return resultado com CNS normalizado e lista de avisos
-	 * @throws IllegalArgumentException se CNS for nulo, vazio ou com menos de 15 dígitos
 	 */
 	public static CnsResultado processar(String cns) {
 
@@ -55,16 +54,17 @@ public class CnsUtils {
 
 		String cnsLimpo = normalizar(cns);
 
-		// CNS ausente — erro bloqueante
+		// CNS ausente — registrado com aviso (não bloqueia importação)
 		if (cnsLimpo == null || cnsLimpo.trim().isEmpty()) {
-			throw new IllegalArgumentException("CNS do paciente não informado.");
+			avisos.add("CNS do paciente não informado — registrado com aviso (CNS_INVALIDO)");
+			return new CnsResultado("", avisos);
 		}
 
-		// CNS com menos de 15 dígitos — formato inválido
+		// CNS com menos de 15 dígitos — registrado com aviso (não bloqueia importação)
 		if (cnsLimpo.length() < 15) {
-			throw new IllegalArgumentException(
-					"CNS inválido. Deve conter pelo menos 15 dígitos: " + cns
-			);
+			avisos.add("CNS inválido (apenas " + cnsLimpo.length()
+					+ " dígitos, mínimo 15) — registrado com aviso (CNS_INVALIDO): " + cns);
+			return new CnsResultado(cnsLimpo, avisos);
 		}
 
 		// CNS com mais de 15 dígitos — formato incomum, aceito com aviso

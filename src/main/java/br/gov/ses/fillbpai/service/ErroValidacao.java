@@ -18,11 +18,14 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 
 	public enum Severidade { ERRO, AVISO }
 
-	/** CNS do paciente com menos de 15 dígitos — ERRO bloqueante */
+	/** CNS do paciente ausente ou com menos de 15 dígitos — AVISO, não bloqueia */
 	public static final String CNS_INVALIDO = "CNS_INVALIDO";
 
 	/** CEP do endereço ausente ou vazio — ERRO bloqueante */
 	public static final String CEP_AUSENTE = "CEP_AUSENTE";
+
+	/** CEP presente mas com tamanho incorreto (diferente de 8 dígitos após normalização) — ERRO bloqueante */
+	public static final String CEP_INVALIDO = "CEP_INVALIDO";
 
 	/** CPF do paciente ausente ou vazio — ERRO bloqueante */
 	public static final String CPF_AUSENTE = "CPF_AUSENTE";

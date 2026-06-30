@@ -1,6 +1,7 @@
 package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
+import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -21,9 +22,10 @@ import java.util.List;
  * <p>
  * Regras validadas:
  * <ul>
- *   <li>CNS do paciente: deve possuir ao menos 15 dígitos após normalização</li>
- *   <li>CEP: não pode ser ausente ou vazio</li>
- *   <li>CPF do paciente: não pode ser ausente ou vazio</li>
+ *   <li>CNS do paciente ausente ou com menos de 15 dígitos: AVISO (não bloqueia)</li>
+ *   <li>CNS do paciente com mais de 15 dígitos: AVISO (não bloqueia)</li>
+ *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
+ *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
  * </ul>
  *
  * @see ErroValidacao
@@ -93,19 +95,19 @@ public class ValidacaoPlanilhaService {
 
 		// -------------------------------------------------------
 		// Regra 1: CNS do paciente
-		// - Ausente ou < 15 dígitos → ERRO bloqueante
+		// - Ausente ou < 15 dígitos → AVISO, não bloqueia
 		// - > 15 dígitos (formato legado) → AVISO, não bloqueia
 		// -------------------------------------------------------
 		String cnsNormalizado = CnsUtils.normalizar(dto.getCnsPaciente());
 
 		if (cnsNormalizado == null || cnsNormalizado.isEmpty()) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
-					ErroValidacao.CNS_INVALIDO, "CNS do paciente não informado"));
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.CNS_INVALIDO, "CNS do paciente não informado — registrado com aviso (CNS_INVALIDO)"));
 		} else if (cnsNormalizado.length() < 15) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_INVALIDO,
-					"CNS do paciente possui apenas " + cnsNormalizado.length()
-							+ " dígitos (mínimo: 15)"));
+					"CNS inválido (apenas " + cnsNormalizado.length()
+							+ " dígitos, mínimo 15) — registrado com aviso (CNS_INVALIDO)"));
 		} else if (cnsNormalizado.length() > 15) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_INCOMUM,
@@ -121,6 +123,12 @@ public class ValidacaoPlanilhaService {
 		if (cep == null || cep.trim().isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CEP_AUSENTE, "CEP do endereço não informado"));
+		} else if (!CepUtils.isValido(cep)) {
+			String cepNormalizado = CepUtils.normalizar(cep);
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CEP_INVALIDO,
+					"CEP com tamanho inválido (" + (cepNormalizado != null ? cepNormalizado.length() : 0)
+							+ " dígitos, esperado 8): " + cep.trim()));
 		}
 
 		// -------------------------------------------------------

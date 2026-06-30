@@ -37,4 +37,15 @@ public class CepUtils {
 
         return cep.replaceAll("[^0-9]", "");
     }
+
+    /**
+     * Retorna true se o CEP, após normalização, tiver exatamente 8 dígitos.
+     *
+     * @param cep CEP original (pode conter hífens/espaços)
+     * @return true se válido (8 dígitos), false caso contrário
+     */
+    public static boolean isValido(String cep) {
+        String normalizado = normalizar(cep);
+        return normalizado != null && normalizado.length() == 8;
+    }
 }
