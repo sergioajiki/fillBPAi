@@ -181,22 +181,17 @@ public class ValidacaoPlanilhaService {
 			return sb.toString();
 		}
 
-		String separador = "------|-----------------|--------\n";
-		String cabecalho = String.format("%-6s| %-15s| %s%n", "Linha", "Tipo", "Detalhe");
-
 		if (!bloqueantes.isEmpty()) {
 			sb.append("\n--- ERROS (impedem a importação) ---\n");
-			sb.append(cabecalho).append(separador);
 			for (ErroValidacao e : bloqueantes) {
-				sb.append(String.format("%-6d| %-15s| %s%n", e.linha(), e.tipoErro(), e.detalhe()));
+				sb.append(String.format("Linha %d - %s: %s%n", e.linha(), e.tipoErro(), e.detalhe()));
 			}
 		}
 
 		if (!avisos.isEmpty()) {
 			sb.append("\n--- AVISOS (não impedem a importação) ---\n");
-			sb.append(cabecalho).append(separador);
 			for (ErroValidacao e : avisos) {
-				sb.append(String.format("%-6d| %-15s| %s%n", e.linha(), e.tipoErro(), e.detalhe()));
+				sb.append(String.format("Linha %d - %s: %s%n", e.linha(), e.tipoErro(), e.detalhe()));
 			}
 		}
 
