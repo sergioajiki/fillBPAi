@@ -12,6 +12,8 @@ import org.slf4j.LoggerFactory;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.text.Normalizer;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,6 +39,32 @@ public class ValidacaoPlanilhaService {
 
 	private static final Logger log = LoggerFactory.getLogger(ValidacaoPlanilhaService.class);
 
+	private static final String[] COLUNAS_ESPERADAS = {
+		"Tipo de Serviço",
+		"DATA DE AGENDAMENTO",
+		"HORA ATENDIMENTO",
+		"ESTABELECIMENTO",
+		"ESPECIALIDADE/MEDICO",
+		"CPF DO MEDICO",
+		"CBO DO MEDICO",
+		"MUNICIPIOS",
+		"CPF DO PACIENTE",
+		"PACIENTE",
+		"CNS DO PACIENTE",
+		"RACA DO PACIENTE",
+		"DATA DE NASCIMENTO",
+		"CID DA CONSULTA",
+		"TELEFONE",
+		"TIPO_ZONA",
+		"Log",
+		"RUA",
+		"CEP",
+		"NUM. IMOVEL",
+		"BAIRRO",
+		"END. COMPLEMENTOS",
+		"SEXO"
+	};
+
 	/** Serviço de leitura de linhas Excel, reutilizado da importação. */
 	private final ExcelImportService excelService = new ExcelImportService();
 
@@ -59,6 +87,11 @@ public class ValidacaoPlanilhaService {
 
 			// Considera sempre a primeira aba da planilha
 			Sheet sheet = workbook.getSheetAt(0);
+
+			// Valida estrutura antes de processar linhas — aborta se colunas incorretas
+			if (!validarEstrutura(sheet, erros)) {
+				return erros;
+			}
 
 			for (Row row : sheet) {
 
@@ -168,6 +201,53 @@ public class ValidacaoPlanilhaService {
 	}
 
 	/**
+	 * Verifica se o cabeçalho da planilha contém as colunas obrigatórias na ordem correta.
+	 * A comparação ignora acentos e diferenças de capitalização.
+	 *
+	 * @return true se a estrutura estiver correta; false se houver qualquer divergência
+	 */
+	private boolean validarEstrutura(Sheet sheet, List<ErroValidacao> erros) {
+
+		Row cabecalho = sheet.getRow(0);
+
+		if (cabecalho == null) {
+			erros.add(new ErroValidacao(1, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.ESTRUTURA_INVALIDA,
+					"Planilha sem cabecalho — impossivel validar estrutura"));
+			return false;
+		}
+
+		boolean valida = true;
+
+		for (int i = 0; i < COLUNAS_ESPERADAS.length; i++) {
+
+			Cell celula = cabecalho.getCell(i);
+			String valorAtual = (celula != null) ? celula.getStringCellValue() : null;
+
+			String esperadoNorm = normalizarTexto(COLUNAS_ESPERADAS[i]);
+			String atualNorm    = normalizarTexto(valorAtual);
+
+			if (!esperadoNorm.equals(atualNorm)) {
+				erros.add(new ErroValidacao(1, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.ESTRUTURA_INVALIDA,
+						"Coluna " + (i + 1) + ": esperado \"" + COLUNAS_ESPERADAS[i]
+								+ "\", encontrado \"" + (valorAtual != null ? valorAtual : "(vazia)") + "\""));
+				valida = false;
+			}
+		}
+
+		return valida;
+	}
+
+	/** Remove acentos e converte para maiúsculas para comparação normalizada. */
+	private static String normalizarTexto(String texto) {
+		if (texto == null || texto.trim().isEmpty()) return "";
+		return Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
+				.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
+				.toUpperCase();
+	}
+
+	/**
 	 * Gera um relatório TXT formatado a partir da lista de erros de validação.
 	 * <p>
 	 * O relatório exibe cabeçalho, contagem total de erros e uma tabela com
@@ -179,7 +259,7 @@ public class ValidacaoPlanilhaService {
 	 * @param erros lista de erros retornada por {@link #validar(String)}
 	 * @return string com o relatório formatado, pronto para exibição ou gravação em arquivo
 	 */
-	public String gerarLogTxt(List<ErroValidacao> erros) {
+	public String gerarLogTxt(List<ErroValidacao> erros, String nomeArquivo) {
 
 		List<ErroValidacao> bloqueantes = erros.stream()
 				.filter(ErroValidacao::isBloqueante)
@@ -189,8 +269,13 @@ public class ValidacaoPlanilhaService {
 				.filter(e -> !e.isBloqueante())
 				.collect(java.util.stream.Collectors.toList());
 
+		String dataHora = LocalDateTime.now()
+				.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
+
 		StringBuilder sb = new StringBuilder();
 		sb.append("=== RELATÓRIO DE VALIDAÇÃO DA PLANILHA ===\n");
+		sb.append("Arquivo  : ").append(nomeArquivo).append("\n");
+		sb.append("Data/Hora: ").append(dataHora).append("\n");
 		sb.append("Erros bloqueantes: ").append(bloqueantes.size()).append("\n");
 		sb.append("Avisos: ").append(avisos.size()).append("\n");
 

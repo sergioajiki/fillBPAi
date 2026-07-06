@@ -98,6 +98,9 @@ public class GeradorBPAiService {
 
 			chooser.setTitle("Salvar BPA-I");
 
+			chooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Arquivo BPA-I (*.txt)", "*.txt"));
+
 			chooser.setInitialFileName(
 					especialidade + "_" + medico + "_" + competencia + ".txt"
 			);
@@ -106,6 +109,8 @@ public class GeradorBPAiService {
 
 			if (file == null)
 				return;
+
+			file = garantirExtensaoTxt(file);
 
 			try (BufferedWriter writer =
 						 Files.newBufferedWriter(
@@ -218,12 +223,18 @@ public class GeradorBPAiService {
 			// 5. FileChooser para o usuário escolher onde salvar
 			FileChooser chooser = new FileChooser();
 			chooser.setTitle("Salvar BPA-I Completo");
+
+			chooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Arquivo BPA-I (*.txt)", "*.txt"));
+
 			chooser.setInitialFileName("BPA-I_COMPLETO_" + competencia + ".txt");
 
 			File file = chooser.showSaveDialog(parentWindow);
 
 			if (file == null)
 				return;
+
+			file = garantirExtensaoTxt(file);
 
 			// 6. Escreve o arquivo no formato BPA-I (ISO-8859-1)
 			try (BufferedWriter writer =
@@ -312,6 +323,20 @@ public class GeradorBPAiService {
 				.map(this::montarChaveMedico)
 				.distinct()
 				.count();
+	}
+
+	/**
+	 * Garante que o arquivo escolhido no FileChooser tenha extensão .txt.
+	 * O diálogo nativo de salvar do Windows nem sempre preserva a extensão
+	 * do nome inicial sugerido (ex.: ao usar "Todos os arquivos"), então a
+	 * extensão é reforçada aqui antes da gravação.
+	 */
+	private File garantirExtensaoTxt(File file) {
+
+		if (file.getName().toLowerCase().endsWith(".txt"))
+			return file;
+
+		return new File(file.getParentFile(), file.getName() + ".txt");
 	}
 
 	/**
@@ -835,12 +860,49 @@ public class GeradorBPAiService {
 		// remove quebras de linha e caracteres de controle
 		valor = valor.replaceAll("[\\r\\n\\t]", " ").trim();
 
+		// substitui caracteres não representáveis em ISO-8859-1 (encoding do arquivo de saída),
+		// evitando UnmappableCharacterException ao gravar o arquivo
+		valor = sanitizarLatin1(valor);
+
 		// corta se exceder o tamanho máximo
 		if (valor.length() > tamanho) {
 			valor = valor.substring(0, tamanho);
 		}
 
 		return valor;
+	}
+
+	/**
+	 * Substitui caracteres fora do conjunto ISO-8859-1 (ex.: aspas curvas,
+	 * travessão, reticências digitadas via Word/Excel, emojis) por
+	 * equivalentes ASCII ou espaço, evitando falha ao gravar o arquivo BPA-I.
+	 */
+	private String sanitizarLatin1(String valor) {
+
+		if (valor == null || valor.isEmpty())
+			return "";
+
+		StringBuilder sb = new StringBuilder(valor.length());
+
+		for (int i = 0; i < valor.length(); i++) {
+
+			char c = valor.charAt(i);
+
+			if (c <= 0xFF) {
+				sb.append(c);
+				continue;
+			}
+
+			switch (c) {
+				case '‘': case '’': sb.append('\''); break; // aspas simples curvas
+				case '“': case '”': sb.append('"'); break;  // aspas duplas curvas
+				case '–': case '—': sb.append('-'); break;  // en-dash / em-dash
+				case '…': sb.append("..."); break;               // reticências
+				default: sb.append(' ');
+			}
+		}
+
+		return sb.toString();
 	}
 
 	private String formatarRaca(String raca) {

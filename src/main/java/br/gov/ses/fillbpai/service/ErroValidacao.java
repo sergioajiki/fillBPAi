@@ -39,6 +39,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Raça do paciente informada como Indígena — verificação de etnia necessária — AVISO, não bloqueia */
 	public static final String RACA_INDIGENA = "RACA_INDIGENA";
 
+	/** Estrutura da planilha inválida: coluna ausente, incorreta ou fora de ordem — ERRO bloqueante */
+	public static final String ESTRUTURA_INVALIDA = "ESTRUTURA_INVALIDA";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

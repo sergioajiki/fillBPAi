@@ -69,13 +69,6 @@ public class MainController {
 		// Linha 1: Analisar Planilha, Importar Planilha, ... Competência
 		// ==============================
 
-		Button btnImportar = new Button("Importar Planilha");
-
-		btnImportar.setOnAction(event -> {
-			Stage stage = (Stage) rootLayout.getScene().getWindow();
-			importar(stage);
-		});
-
 		// Spacer empurra o label de competência para a direita
 		Region spacer = new Region();
 		HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -86,7 +79,7 @@ public class MainController {
 		Button btnAnalisarPlanilha = relatorioController.getBtnAnalisarPlanilha();
 		Button btnVerLog = relatorioController.getBtnVerLog();
 
-		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnImportar, btnVerLog, spacer, labelCompetencia);
+		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnVerLog, spacer, labelCompetencia);
 		topBar.setPadding(new Insets(10));
 
 		rootLayout.setTop(topBar);
@@ -102,36 +95,6 @@ public class MainController {
 		});
 
 		rootLayout.setCenter(relatorioController.criarComponente());
-	}
-
-	private void importar(Stage stage) {
-
-		String caminho = fileChooserService.selecionarPlanilha(stage);
-
-		if (caminho == null) {
-			return;
-		}
-
-		String nomePlanilha = nomePlanilhaSemExtensao(caminho);
-
-		// Validação pré-importação — bloqueia apenas se houver erros bloqueantes
-		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
-		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
-
-		boolean temBloqueantes = errosValidacao.stream().anyMatch(ErroValidacao::isBloqueante);
-
-		if (!errosValidacao.isEmpty()) {
-			String logErros = validacaoService.gerarLogTxt(errosValidacao);
-			salvarLogErrosEmArquivo(logErros, nomePlanilha);
-			if (temBloqueantes) {
-				mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage);
-				return;
-			}
-			// Apenas avisos — exibe mas deixa importação prosseguir
-			mostrarDialogoAvisosValidacao(logErros, nomePlanilha, stage);
-		}
-
-		processarImportacao(caminho, stage);
 	}
 
 	/**
@@ -291,7 +254,8 @@ public class MainController {
 			return;
 		}
 
-		String logErros = validacaoService.gerarLogTxt(errosValidacao);
+		String nomeArquivo = Path.of(caminho).getFileName().toString();
+		String logErros = validacaoService.gerarLogTxt(errosValidacao, nomeArquivo);
 		salvarLogErrosEmArquivo(logErros, nomePlanilha);
 
 		if (temBloqueantes) {
@@ -435,10 +399,6 @@ public class MainController {
 		alert.showAndWait();
 	}
 
-	/**
-	 * Exibe diálogo informativo com avisos de validação (não bloqueantes).
-	 * A importação prosseguirá normalmente após o fechamento.
-	 */
 	/** Extrai o nome do arquivo da planilha sem extensão, sanitizado para uso em nomes de arquivo. */
 	private String nomePlanilhaSemExtensao(String caminho) {
 		String nome = Path.of(caminho).getFileName().toString();
@@ -447,43 +407,5 @@ public class MainController {
 		return nome.replaceAll("[\\\\/:*?\"<>|]", "_");
 	}
 
-	private void mostrarDialogoAvisosValidacao(String logAvisos, String nomePlanilha, Stage stage) {
-
-		Alert alert = new Alert(Alert.AlertType.WARNING);
-		alert.setTitle("Avisos de Validação");
-		alert.setHeaderText("A planilha contém avisos (a importação prosseguirá normalmente)");
-
-		TextArea areaLog = new TextArea(logAvisos);
-		areaLog.setEditable(false);
-		areaLog.setWrapText(true);
-		areaLog.setPrefHeight(300);
-
-		Button btnSalvarLog = new Button("Salvar Log TXT");
-		btnSalvarLog.setOnAction(e -> {
-
-			FileChooser fileChooser = new FileChooser();
-			fileChooser.setTitle("Salvar Log de Avisos");
-			fileChooser.setInitialFileName("log_avisos_validacao_" + nomePlanilha + ".txt");
-			fileChooser.getExtensionFilters().add(
-					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt")
-			);
-
-			java.io.File arquivo = fileChooser.showSaveDialog(stage);
-
-			if (arquivo != null) {
-				try {
-					Files.writeString(arquivo.toPath(), logAvisos, StandardCharsets.UTF_8);
-					log.info("Log de avisos exportado para: {}", arquivo.getAbsolutePath());
-				} catch (IOException ex) {
-					log.error("Erro ao exportar log: {}", ex.getMessage());
-				}
-			}
-		});
-
-		VBox layout = new VBox(10, areaLog, btnSalvarLog);
-		layout.setPadding(new Insets(10));
-
-		alert.getDialogPane().setContent(layout);
-		alert.showAndWait();
-	}
 }
+
