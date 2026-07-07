@@ -943,13 +943,14 @@ public class GeradorBPAiService {
 
 	/**
 	 * Regra de negócio:
-	 * SIGTAP 03.01.01.030-7 -> 000
+	 * SIGTAP 03.01.01.030-7 -> 006
 	 * SIGTAP 08.04.01.006-4 -> 009
+	 * SIGTAP 03.01.01.031-5 -> 006
 	 */
 	private static final Map<String, String> MAP_SERVICO = new HashMap<>();
 
 		static {
-		MAP_SERVICO.put("0301010307", "");
+		MAP_SERVICO.put("0301010307", "160");
 		MAP_SERVICO.put("0804010064", "160");
 		MAP_SERVICO.put("0301010315", "160");
 	}
@@ -957,6 +958,7 @@ public class GeradorBPAiService {
 	private static final Map<String, String> MAP_CLASSIFICACAO = new HashMap<>();
 
 	static {
+		MAP_CLASSIFICACAO.put("0301010307", "006");
 		MAP_CLASSIFICACAO.put("0804010064", "009");
 		MAP_CLASSIFICACAO.put("0301010315", "006");
 	}
