@@ -51,7 +51,10 @@ public class AtendimentoProcessor {
 		// ===============================
 
 		separarEstabelecimento(dto);
-		separarEspecialidadeEMedico(dto);
+		// separarEspecialidadeEMedico(dto);
+		// Desativado: a planilha atual já traz especialidade (coluna E) e
+		// nome do médico (coluna F) em campos separados — ver ExcelImportService.
+		// Mantido comentado como referência enquanto o novo layout é validado em produção.
 
 		// ===============================
 		// 2. Definir SIGTAP
@@ -166,26 +169,30 @@ public class AtendimentoProcessor {
 		dto.setEstabelecimento(partes[1]);
 	}
 
-	/**
-	 * Separa o campo combinado "ESPECIALIDADE - NOME DO MÉDICO"
-	 * em dois campos distintos: especialidadeMedico e medico (nome).
-	 *
-	 * Exemplo: "CARDIOLOGIA - DR. SILVA" → especialidade="CARDIOLOGIA", médico="DR. SILVA"
-	 */
-	private void separarEspecialidadeEMedico(LinhaImportacaoDTO dto) {
-
-		String valorOriginal = dto.getEspecialidadeMedico();
-
-		if (isNullOrEmpty(valorOriginal)) {
-			return;
-		}
-
-		String[] partes =
-				StringUtils.separarEspecialidadeEMedico(valorOriginal);
-
-		dto.setEspecialidadeMedico(partes[0]);
-		dto.setMedico(partes[1]);
-	}
+	// Desativado: a planilha atual já traz especialidade e nome do médico em
+	// colunas separadas (ver ExcelImportService). Mantido comentado como
+	// referência enquanto o novo layout é validado em produção.
+	//
+	// /**
+	//  * Separa o campo combinado "ESPECIALIDADE - NOME DO MÉDICO"
+	//  * em dois campos distintos: especialidadeMedico e medico (nome).
+	//  *
+	//  * Exemplo: "CARDIOLOGIA - DR. SILVA" → especialidade="CARDIOLOGIA", médico="DR. SILVA"
+	//  */
+	// private void separarEspecialidadeEMedico(LinhaImportacaoDTO dto) {
+	//
+	// 	String valorOriginal = dto.getEspecialidadeMedico();
+	//
+	// 	if (isNullOrEmpty(valorOriginal)) {
+	// 		return;
+	// 	}
+	//
+	// 	String[] partes =
+	// 			StringUtils.separarEspecialidadeEMedico(valorOriginal);
+	//
+	// 	dto.setEspecialidadeMedico(partes[0]);
+	// 	dto.setMedico(partes[1]);
+	// }
 
 	// ===============================
 	// VALIDAÇÕES

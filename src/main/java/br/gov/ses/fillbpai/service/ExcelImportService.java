@@ -35,29 +35,34 @@ public class ExcelImportService {
 		dto.setDataAgendamentoString(getString(row.getCell(1)));
 		dto.setHoraAtendimentoString(getString(row.getCell(2)));
 		dto.setEstabelecimento(getString(row.getCell(3)));
+
+		// Colunas (E) e (F): especialidade e nome do médico já vêm separados
+		// (antes vinham combinados em uma única coluna "ESPECIALIDADE - NOME")
 		dto.setEspecialidadeMedico(getString(row.getCell(4)));
-		dto.setCpfMedico(getString(row.getCell(5)));
-		dto.setCboMedico(getString(row.getCell(6)));
-		dto.setMunicipio(getString(row.getCell(7)));
-		dto.setCpfPaciente(getString(row.getCell(8)));
-		dto.setPaciente(getString(row.getCell(9)));
-		dto.setCnsPaciente(getString(row.getCell(10)));
-		dto.setRacaPaciente(getString(row.getCell(11)));
+		dto.setMedico(getString(row.getCell(5)));
+
+		dto.setCpfMedico(getString(row.getCell(6)));
+		dto.setCboMedico(getString(row.getCell(7)));
+		dto.setMunicipio(getString(row.getCell(8)));
+		dto.setCpfPaciente(getString(row.getCell(9)));
+		dto.setPaciente(getString(row.getCell(10)));
+		dto.setCnsPaciente(getString(row.getCell(11)));
+		dto.setRacaPaciente(getString(row.getCell(12)));
 
 		// Data de nascimento armazenada como String (conversão posterior)
-		dto.setDataNascimentoString(getString(row.getCell(12)));
+		dto.setDataNascimentoString(getString(row.getCell(13)));
 
-		dto.setCidConsulta(getString(row.getCell(13)));
-		dto.setTelefone(getString(row.getCell(14)));
+		dto.setCidConsulta(getString(row.getCell(14)));
+		dto.setTelefone(getString(row.getCell(15)));
 
-		dto.setTipoZona(getString(row.getCell(15)));
-		dto.setCodLogradouro(getString(row.getCell(16)));
-		dto.setEndereco(getString(row.getCell(17)));
-		dto.setCep(getString(row.getCell(18)));
-		dto.setNumero(getString(row.getCell(19)));
-		dto.setBairro(getString(row.getCell(20)));
-		dto.setComplemento(getString(row.getCell(21)));
-		dto.setSexoPaciente(getString(row.getCell(22)));
+		dto.setTipoZona(getString(row.getCell(16)));
+		dto.setCodLogradouro(getString(row.getCell(17)));
+		dto.setEndereco(getString(row.getCell(18)));
+		dto.setCep(getString(row.getCell(19)));
+		dto.setNumero(getString(row.getCell(20)));
+		dto.setBairro(getString(row.getCell(21)));
+		dto.setComplemento(getString(row.getCell(22)));
+		dto.setSexoPaciente(getString(row.getCell(23)));
 
 		return dto;
 	}

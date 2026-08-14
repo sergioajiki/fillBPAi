@@ -44,6 +44,7 @@ public class ValidacaoPlanilhaService {
 		"DATA DE AGENDAMENTO",
 		"HORA ATENDIMENTO",
 		"ESTABELECIMENTO",
+		"Especialidade",
 		"ESPECIALIDADE/MEDICO",
 		"CPF DO MEDICO",
 		"CBO DO MEDICO",
