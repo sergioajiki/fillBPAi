@@ -30,6 +30,7 @@ import java.util.Map;
 public class AtendimentoImportacaoService {
 
 	private final ExcelImportService excelService = new ExcelImportService();
+	private final PlanilhaColumnMapper columnMapper = new PlanilhaColumnMapper();
 	private final AtendimentoProcessor processor = new AtendimentoProcessor();
 	private final AtendimentoBPAiRepository atendimentoRepository;
 	private final PacienteRepository pacienteRepository;
@@ -60,6 +61,12 @@ public class AtendimentoImportacaoService {
 
 			Sheet sheet = workbook.getSheetAt(0);
 
+			// Mapeia os campos canônicos pelo nome do cabeçalho uma única vez
+			// por planilha — a estrutura já foi validada antes pelo fluxo de
+			// "Analisar Planilha" (ValidacaoPlanilhaService).
+			Map<String, Integer> colunas =
+					columnMapper.mapear(sheet.getRow(0)).indices();
+
 			// ==============================
 			// Pré-carrega cache IBGE do banco (CEPs já resolvidos em importações anteriores)
 			// ==============================
@@ -83,7 +90,7 @@ public class AtendimentoImportacaoService {
 
 					// 1. Converte linha Excel para DTO de importação
 					LinhaImportacaoDTO dto =
-							excelService.importarLinha(row);
+							excelService.importarLinha(row, colunas);
 
 					// 2. Processa regras de negócio (validação, normalização, conversão)
 					// Retorna lista de avisos — situações atípicas que não impedem a importação

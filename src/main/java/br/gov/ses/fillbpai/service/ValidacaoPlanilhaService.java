@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.TextoUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
@@ -11,11 +12,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Serviço responsável por validar uma planilha Excel antes da importação.
@@ -39,35 +40,11 @@ public class ValidacaoPlanilhaService {
 
 	private static final Logger log = LoggerFactory.getLogger(ValidacaoPlanilhaService.class);
 
-	private static final String[] COLUNAS_ESPERADAS = {
-		"Tipo de Serviço",
-		"DATA DE AGENDAMENTO",
-		"HORA ATENDIMENTO",
-		"ESTABELECIMENTO",
-		"Especialidade",
-		"ESPECIALIDADE/MEDICO",
-		"CPF DO MEDICO",
-		"CBO DO MEDICO",
-		"MUNICIPIOS",
-		"CPF DO PACIENTE",
-		"PACIENTE",
-		"CNS DO PACIENTE",
-		"RACA DO PACIENTE",
-		"DATA DE NASCIMENTO",
-		"CID DA CONSULTA",
-		"TELEFONE",
-		"TIPO_ZONA",
-		"Log",
-		"RUA",
-		"CEP",
-		"NUM. IMOVEL",
-		"BAIRRO",
-		"END. COMPLEMENTOS",
-		"SEXO"
-	};
-
 	/** Serviço de leitura de linhas Excel, reutilizado da importação. */
 	private final ExcelImportService excelService = new ExcelImportService();
+
+	/** Resolve os campos canônicos a partir do cabeçalho, por nome. */
+	private final PlanilhaColumnMapper columnMapper = new PlanilhaColumnMapper();
 
 	/**
 	 * Lê e valida todas as linhas da planilha Excel informada.
@@ -89,10 +66,24 @@ public class ValidacaoPlanilhaService {
 			// Considera sempre a primeira aba da planilha
 			Sheet sheet = workbook.getSheetAt(0);
 
-			// Valida estrutura antes de processar linhas — aborta se colunas incorretas
-			if (!validarEstrutura(sheet, erros)) {
+			Row cabecalho = sheet.getRow(0);
+
+			if (cabecalho == null) {
+				erros.add(new ErroValidacao(1, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.ESTRUTURA_INVALIDA,
+						"Planilha sem cabecalho — impossivel validar estrutura"));
 				return erros;
 			}
+
+			// Mapeia os campos canônicos pelo nome do cabeçalho — independente
+			// da ordem das colunas e ignorando colunas extras não reconhecidas.
+			PlanilhaColumnMapper.ResultadoMapeamento mapeamento = columnMapper.mapear(cabecalho);
+
+			if (!reportarEstrutura(mapeamento, erros)) {
+				return erros;
+			}
+
+			Map<String, Integer> colunas = mapeamento.indices();
 
 			for (Row row : sheet) {
 
@@ -105,7 +96,7 @@ public class ValidacaoPlanilhaService {
 				int numeroLinha = row.getRowNum() + 1;
 
 				try {
-					LinhaImportacaoDTO dto = excelService.importarLinha(row);
+					LinhaImportacaoDTO dto = excelService.importarLinha(row, colunas);
 					validarLinha(dto, numeroLinha, erros);
 				} catch (Exception e) {
 					log.warn("Erro ao ler linha {}: {} — linha ignorada.", numeroLinha, e.getMessage());
@@ -189,10 +180,7 @@ public class ValidacaoPlanilhaService {
 		String raca = dto.getRacaPaciente();
 
 		if (raca != null && !raca.trim().isEmpty()) {
-			String racaNorm = Normalizer
-					.normalize(raca.trim(), Normalizer.Form.NFD)
-					.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
-					.toUpperCase();
+			String racaNorm = TextoUtils.normalizar(raca);
 			if ("INDIGENA".equals(racaNorm)) {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 						ErroValidacao.RACA_INDIGENA,
@@ -202,50 +190,32 @@ public class ValidacaoPlanilhaService {
 	}
 
 	/**
-	 * Verifica se o cabeçalho da planilha contém as colunas obrigatórias na ordem correta.
-	 * A comparação ignora acentos e diferenças de capitalização.
+	 * Reporta problemas estruturais do cabeçalho a partir do mapeamento por
+	 * nome: campos obrigatórios não encontrados em nenhuma coluna, e campos
+	 * que casaram com mais de uma coluna (cabeçalho ambíguo). A ordem das
+	 * colunas não importa — só a presença e a unicidade de cada campo.
 	 *
-	 * @return true se a estrutura estiver correta; false se houver qualquer divergência
+	 * @return true se a estrutura estiver válida; false se houver qualquer problema
 	 */
-	private boolean validarEstrutura(Sheet sheet, List<ErroValidacao> erros) {
-
-		Row cabecalho = sheet.getRow(0);
-
-		if (cabecalho == null) {
-			erros.add(new ErroValidacao(1, ErroValidacao.Severidade.ERRO,
-					ErroValidacao.ESTRUTURA_INVALIDA,
-					"Planilha sem cabecalho — impossivel validar estrutura"));
-			return false;
-		}
+	private boolean reportarEstrutura(PlanilhaColumnMapper.ResultadoMapeamento mapeamento, List<ErroValidacao> erros) {
 
 		boolean valida = true;
 
-		for (int i = 0; i < COLUNAS_ESPERADAS.length; i++) {
+		for (String campo : mapeamento.camposFaltando()) {
+			erros.add(new ErroValidacao(1, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.ESTRUTURA_INVALIDA,
+					"Coluna obrigatória não encontrada no cabeçalho: " + campo));
+			valida = false;
+		}
 
-			Cell celula = cabecalho.getCell(i);
-			String valorAtual = (celula != null) ? celula.getStringCellValue() : null;
-
-			String esperadoNorm = normalizarTexto(COLUNAS_ESPERADAS[i]);
-			String atualNorm    = normalizarTexto(valorAtual);
-
-			if (!esperadoNorm.equals(atualNorm)) {
-				erros.add(new ErroValidacao(1, ErroValidacao.Severidade.ERRO,
-						ErroValidacao.ESTRUTURA_INVALIDA,
-						"Coluna " + (i + 1) + ": esperado \"" + COLUNAS_ESPERADAS[i]
-								+ "\", encontrado \"" + (valorAtual != null ? valorAtual : "(vazia)") + "\""));
-				valida = false;
-			}
+		for (String campo : mapeamento.camposDuplicados()) {
+			erros.add(new ErroValidacao(1, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.ESTRUTURA_INVALIDA,
+					"Mais de uma coluna do cabeçalho corresponde ao campo: " + campo));
+			valida = false;
 		}
 
 		return valida;
-	}
-
-	/** Remove acentos e converte para maiúsculas para comparação normalizada. */
-	private static String normalizarTexto(String texto) {
-		if (texto == null || texto.trim().isEmpty()) return "";
-		return Normalizer.normalize(texto.trim(), Normalizer.Form.NFD)
-				.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
-				.toUpperCase();
 	}
 
 	/**
