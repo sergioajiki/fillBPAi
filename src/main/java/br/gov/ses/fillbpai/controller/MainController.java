@@ -413,11 +413,6 @@ public class MainController {
 					blocoComTitulo("Colunas obrigatórias não encontradas:", mapeamento.camposFaltando()));
 		}
 
-		if (!mapeamento.camposDuplicados().isEmpty()) {
-			conteudo.getChildren().add(
-					blocoComTitulo("Colunas duplicadas:", mapeamento.camposDuplicados()));
-		}
-
 		if (!mapeamento.colunasNaoReconhecidas().isEmpty()) {
 			List<String> entreAspas = mapeamento.colunasNaoReconhecidas().stream()
 					.map(nome -> "\"" + nome + "\"")
@@ -426,12 +421,38 @@ public class MainController {
 					"Colunas do cabeçalho não reconhecidas (podem corresponder às acima):", entreAspas));
 		}
 
-		Label instrucao = new Label(
-				"Se uma dessas colunas corresponder a um campo obrigatório da lista: "
-						+ "cadastre-a como alias em Configurações → Colunas da Planilha, "
-						+ "ou renomeie-a na planilha para o nome esperado.");
-		instrucao.setWrapText(true);
-		conteudo.getChildren().add(instrucao);
+		if (!mapeamento.camposFaltando().isEmpty() || !mapeamento.colunasNaoReconhecidas().isEmpty()) {
+			Label instrucaoAusentes = new Label(
+					"Se uma dessas colunas corresponder a um campo obrigatório da lista: "
+							+ "cadastre-a como alias em Configurações → Colunas da Planilha, "
+							+ "ou renomeie-a na planilha para o nome esperado.");
+			instrucaoAusentes.setWrapText(true);
+			conteudo.getChildren().add(instrucaoAusentes);
+		}
+
+		if (!mapeamento.camposDuplicados().isEmpty()) {
+
+			List<String> itensDuplicados = mapeamento.camposDuplicados().stream()
+					.map(campo -> {
+						List<String> colunas = mapeamento.colunasPorCampoDuplicado()
+								.getOrDefault(campo, List.of());
+						String colunasFormatadas = colunas.stream()
+								.map(nome -> "\"" + nome + "\"")
+								.collect(java.util.stream.Collectors.joining(", "));
+						return campo + " — colunas do cabeçalho: " + colunasFormatadas;
+					})
+					.collect(java.util.stream.Collectors.toList());
+
+			conteudo.getChildren().add(blocoComTitulo("Colunas duplicadas:", itensDuplicados));
+
+			Label instrucaoDuplicadas = new Label(
+					"Duas colunas do cabeçalho apontam para o mesmo campo. Se for repetição "
+							+ "por engano, remova ou renomeie uma delas na planilha. Se as duas "
+							+ "forem nomes válidos, revise os aliases cadastrados em Configurações "
+							+ "→ Colunas da Planilha — pode ser necessário remover um deles.");
+			instrucaoDuplicadas.setWrapText(true);
+			conteudo.getChildren().add(instrucaoDuplicadas);
+		}
 
 		Button btnAbrirConfiguracoes = new Button("Abrir Configurações");
 		btnAbrirConfiguracoes.setOnAction(e -> {

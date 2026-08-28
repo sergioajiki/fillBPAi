@@ -22,19 +22,24 @@ public class PlanilhaColumnMapper {
 	/**
 	 * Resultado do mapeamento de um cabeçalho.
 	 *
-	 * @param indices               campo canônico → índice da coluna (0-based)
-	 * @param camposFaltando        campos obrigatórios não encontrados no cabeçalho
-	 * @param camposDuplicados      campos que casaram com mais de uma coluna do cabeçalho
-	 * @param colunasNaoReconhecidas texto original das colunas do cabeçalho que não
-	 *                               bateram com nenhum alias cadastrado — candidatas a
-	 *                               corresponder a um campo obrigatório ausente, se o
-	 *                               nome da coluna na planilha for diferente do esperado
+	 * @param indices                  campo canônico → índice da coluna (0-based)
+	 * @param camposFaltando           campos obrigatórios não encontrados no cabeçalho
+	 * @param camposDuplicados         campos que casaram com mais de uma coluna do cabeçalho
+	 * @param colunasNaoReconhecidas   texto original das colunas do cabeçalho que não
+	 *                                 bateram com nenhum alias cadastrado — candidatas a
+	 *                                 corresponder a um campo obrigatório ausente, se o
+	 *                                 nome da coluna na planilha for diferente do esperado
+	 * @param colunasPorCampoDuplicado para cada campo em {@code camposDuplicados}, o texto
+	 *                                 original de todas as colunas do cabeçalho que casaram
+	 *                                 com ele — útil para apontar exatamente qual par de
+	 *                                 colunas está em conflito
 	 */
 	public record ResultadoMapeamento(
 			Map<String, Integer> indices,
 			List<String> camposFaltando,
 			List<String> camposDuplicados,
-			List<String> colunasNaoReconhecidas) {
+			List<String> colunasNaoReconhecidas,
+			Map<String, List<String>> colunasPorCampoDuplicado) {
 
 		/** true se todos os campos obrigatórios foram encontrados, sem ambiguidade. */
 		public boolean estruturaValida() {
@@ -50,7 +55,7 @@ public class PlanilhaColumnMapper {
 	public ResultadoMapeamento mapear(Row cabecalho) {
 
 		Map<String, Integer> indices = new LinkedHashMap<>();
-		List<String> duplicados = new ArrayList<>();
+		Map<String, List<String>> colunasPorCampo = new LinkedHashMap<>();
 		List<String> naoReconhecidas = new ArrayList<>();
 
 		if (cabecalho != null) {
@@ -69,13 +74,24 @@ public class PlanilhaColumnMapper {
 					continue;
 				}
 
-				if (indices.containsKey(campo)) {
-					if (!duplicados.contains(campo)) {
-						duplicados.add(campo);
-					}
-				} else {
+				String textoOriginal = texto != null ? texto.trim() : "";
+				colunasPorCampo.computeIfAbsent(campo, k -> new ArrayList<>()).add(textoOriginal);
+
+				if (!indices.containsKey(campo)) {
 					indices.put(campo, celula.getColumnIndex());
 				}
+			}
+		}
+
+		// Um campo é duplicado quando mais de uma coluna do cabeçalho casou com ele —
+		// guardamos também os nomes originais dessas colunas para apontar o conflito.
+		List<String> duplicados = new ArrayList<>();
+		Map<String, List<String>> colunasPorCampoDuplicado = new LinkedHashMap<>();
+
+		for (Map.Entry<String, List<String>> entry : colunasPorCampo.entrySet()) {
+			if (entry.getValue().size() > 1) {
+				duplicados.add(entry.getKey());
+				colunasPorCampoDuplicado.put(entry.getKey(), entry.getValue());
 			}
 		}
 
@@ -87,7 +103,7 @@ public class PlanilhaColumnMapper {
 			}
 		}
 
-		return new ResultadoMapeamento(indices, faltando, duplicados, naoReconhecidas);
+		return new ResultadoMapeamento(indices, faltando, duplicados, naoReconhecidas, colunasPorCampoDuplicado);
 	}
 
 	/** Extrai o texto de uma célula de cabeçalho, qualquer que seja o tipo. */
