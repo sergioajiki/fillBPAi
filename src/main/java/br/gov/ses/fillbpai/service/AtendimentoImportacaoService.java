@@ -62,10 +62,20 @@ public class AtendimentoImportacaoService {
 			Sheet sheet = workbook.getSheetAt(0);
 
 			// Mapeia os campos canônicos pelo nome do cabeçalho uma única vez
-			// por planilha — a estrutura já foi validada antes pelo fluxo de
-			// "Analisar Planilha" (ValidacaoPlanilhaService).
-			Map<String, Integer> colunas =
-					columnMapper.mapear(sheet.getRow(0)).indices();
+			// por planilha. A estrutura normalmente já foi validada antes pelo
+			// fluxo de "Analisar Planilha" (ValidacaoPlanilhaService), mas a
+			// checagem é repetida aqui como proteção: importar com colunas
+			// ausentes produziria erros de linha enganosos (ex.: "CPF não
+			// informado" em toda linha) em vez de apontar a causa real.
+			PlanilhaColumnMapper.ResultadoMapeamento mapeamento =
+					columnMapper.mapear(sheet.getRow(0));
+
+			if (!mapeamento.estruturaValida()) {
+				throw new IllegalStateException(
+						"Estrutura da planilha inválida: " + descreverProblemaEstrutura(mapeamento));
+			}
+
+			Map<String, Integer> colunas = mapeamento.indices();
 
 			// ==============================
 			// Pré-carrega cache IBGE do banco (CEPs já resolvidos em importações anteriores)
@@ -390,6 +400,31 @@ public class AtendimentoImportacaoService {
 	private String resolverChaveFolha(String especialidade, Long medicoId) {
 		String esp = especialidade != null ? especialidade : "";
 		return esp + "|" + medicoId;
+	}
+
+	/**
+	 * Monta uma descrição legível dos problemas de estrutura do cabeçalho
+	 * (colunas obrigatórias ausentes e/ou duplicadas) para uso em mensagens
+	 * de erro voltadas ao usuário.
+	 */
+	private String descreverProblemaEstrutura(PlanilhaColumnMapper.ResultadoMapeamento mapeamento) {
+
+		StringBuilder sb = new StringBuilder();
+
+		if (!mapeamento.camposFaltando().isEmpty()) {
+			sb.append("colunas obrigatórias não encontradas no cabeçalho: ")
+					.append(String.join(", ", mapeamento.camposFaltando()));
+		}
+
+		if (!mapeamento.camposDuplicados().isEmpty()) {
+			if (sb.length() > 0) {
+				sb.append("; ");
+			}
+			sb.append("colunas duplicadas no cabeçalho: ")
+					.append(String.join(", ", mapeamento.camposDuplicados()));
+		}
+
+		return sb.toString();
 	}
 
 	/**

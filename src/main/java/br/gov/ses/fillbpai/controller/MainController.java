@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
 import br.gov.ses.fillbpai.service.ErroValidacao;
 import br.gov.ses.fillbpai.service.ImportacaoResultado;
 import br.gov.ses.fillbpai.service.ValidacaoPlanilhaService;
+import br.gov.ses.fillbpai.ui.ConfiguracoesDialog;
 import br.gov.ses.fillbpai.ui.FileChooserService;
 import br.gov.ses.fillbpai.ui.RelatorioController;
 import jakarta.persistence.EntityManager;
@@ -48,6 +49,7 @@ public class MainController {
 	private final EntityManager entityManager;
 	private final FileChooserService fileChooserService;
 	private final RelatorioController relatorioController;
+	private final ConfiguracoesDialog configuracoesDialog;
 	private final BorderPane rootLayout;
 
 	public MainController(EntityManager entityManager, BorderPane rootLayout) {
@@ -55,6 +57,7 @@ public class MainController {
 		this.entityManager = entityManager;
 		this.fileChooserService = new FileChooserService();
 		this.relatorioController = new RelatorioController(entityManager);
+		this.configuracoesDialog = new ConfiguracoesDialog();
 		this.rootLayout = rootLayout;
 
 		configurarLayout();
@@ -79,7 +82,11 @@ public class MainController {
 		Button btnAnalisarPlanilha = relatorioController.getBtnAnalisarPlanilha();
 		Button btnVerLog = relatorioController.getBtnVerLog();
 
-		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnVerLog, spacer, labelCompetencia);
+		Button btnConfiguracoes = new Button("Configurações");
+		btnConfiguracoes.setOnAction(e ->
+				configuracoesDialog.abrir(rootLayout.getScene().getWindow()));
+
+		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnVerLog, btnConfiguracoes, spacer, labelCompetencia);
 		topBar.setPadding(new Insets(10));
 
 		rootLayout.setTop(topBar);
@@ -106,7 +113,19 @@ public class MainController {
 		AtendimentoImportacaoService service =
 				new AtendimentoImportacaoService(entityManager);
 
-		ImportacaoResultado resultado = service.importar(caminho);
+		ImportacaoResultado resultado;
+
+		try {
+			resultado = service.importar(caminho);
+		} catch (RuntimeException e) {
+
+			Alert alert = new Alert(Alert.AlertType.ERROR);
+			alert.setTitle("Erro na Importação");
+			alert.setHeaderText("Não foi possível importar a planilha");
+			alert.setContentText(e.getMessage());
+			alert.showAndWait();
+			return;
+		}
 
 		String conteudoLog = montarConteudoLog(resultado);
 		salvarLogEmArquivo(conteudoLog, nomePlanilhaSemExtensao(caminho));
@@ -258,7 +277,16 @@ public class MainController {
 		String logErros = validacaoService.gerarLogTxt(errosValidacao, nomeArquivo);
 		salvarLogErrosEmArquivo(logErros, nomePlanilha);
 
-		if (temBloqueantes) {
+		List<ErroValidacao> errosEstrutura = errosValidacao.stream()
+				.filter(ErroValidacao::isEstrutural)
+				.collect(java.util.stream.Collectors.toList());
+
+		if (!errosEstrutura.isEmpty()) {
+			// Cabeçalho com coluna ausente ou duplicada — problema estrutural,
+			// não vale a pena mostrar os erros de linha (todos seriam causados
+			// pela mesma coluna faltando). Diálogo dedicado aponta a causa.
+			mostrarDialogoErroEstrutura(errosEstrutura, logErros, nomePlanilha, stage);
+		} else if (temBloqueantes) {
 			// Erros bloqueantes — sem botão de importação
 			mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage);
 		} else {
@@ -354,6 +382,69 @@ public class MainController {
 		} catch (IOException e) {
 			log.error("Erro ao salvar log de erros: {}", e.getMessage());
 		}
+	}
+
+	/**
+	 * Exibe diálogo dedicado para problemas de estrutura do cabeçalho (coluna
+	 * obrigatória ausente ou duplicada). Destaca exatamente qual(is) coluna(s)
+	 * causaram o problema — em vez da lista de erros de linha, que nesse caso
+	 * seria toda causada pela mesma coluna faltando — e oferece atalho para a
+	 * tela onde um alias de coluna pode ser cadastrado sem precisar editar a
+	 * planilha.
+	 */
+	private void mostrarDialogoErroEstrutura(List<ErroValidacao> errosEstrutura, String logErros, String nomePlanilha, Stage stage) {
+
+		Alert alert = new Alert(Alert.AlertType.ERROR);
+		alert.setTitle("Estrutura da Planilha Inválida");
+		alert.setHeaderText(errosEstrutura.size() == 1
+				? "1 problema encontrado no cabeçalho da planilha"
+				: errosEstrutura.size() + " problemas encontrados no cabeçalho da planilha");
+
+		VBox listaProblemas = new VBox(4);
+		for (ErroValidacao erro : errosEstrutura) {
+			listaProblemas.getChildren().add(new Label("•  " + erro.detalhe()));
+		}
+
+		Label instrucao = new Label(
+				"Verifique se o nome da coluna na planilha está correto, ou cadastre "
+						+ "um alias em Configurações → Colunas da Planilha para que este "
+						+ "nome passe a ser reconhecido automaticamente.");
+		instrucao.setWrapText(true);
+		instrucao.setStyle("-fx-font-style: italic;");
+
+		Button btnAbrirConfiguracoes = new Button("Abrir Configurações");
+		btnAbrirConfiguracoes.setOnAction(e -> {
+			alert.close();
+			configuracoesDialog.abrir(stage);
+		});
+
+		Button btnSalvarLog = new Button("Salvar Log TXT");
+		btnSalvarLog.setOnAction(e -> {
+
+			FileChooser fileChooser = new FileChooser();
+			fileChooser.setTitle("Salvar Log de Erros");
+			fileChooser.setInitialFileName("log_erros_validacao_" + nomePlanilha + ".txt");
+			fileChooser.getExtensionFilters().add(
+					new FileChooser.ExtensionFilter("Arquivo Texto", "*.txt"));
+
+			java.io.File arquivo = fileChooser.showSaveDialog(stage);
+
+			if (arquivo != null) {
+				try {
+					Files.writeString(arquivo.toPath(), logErros, StandardCharsets.UTF_8);
+					log.info("Log de erros exportado para: {}", arquivo.getAbsolutePath());
+				} catch (IOException ex) {
+					log.error("Erro ao exportar log: {}", ex.getMessage());
+				}
+			}
+		});
+
+		VBox layout = new VBox(12, listaProblemas, instrucao,
+				new javafx.scene.layout.HBox(10, btnAbrirConfiguracoes, btnSalvarLog));
+		layout.setPadding(new Insets(10));
+
+		alert.getDialogPane().setContent(layout);
+		alert.showAndWait();
 	}
 
 	/**

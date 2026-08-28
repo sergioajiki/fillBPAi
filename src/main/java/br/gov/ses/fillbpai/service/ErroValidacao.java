@@ -46,4 +46,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;
 	}
+
+	/** Retorna true se este registro é um problema de estrutura do cabeçalho (coluna ausente ou duplicada). */
+	public boolean isEstrutural() {
+		return ESTRUTURA_INVALIDA.equals(tipoErro);
+	}
 }
