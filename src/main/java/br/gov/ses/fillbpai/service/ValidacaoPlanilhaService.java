@@ -190,6 +190,31 @@ public class ValidacaoPlanilhaService {
 	}
 
 	/**
+	 * Lê apenas a linha de cabeçalho da planilha e retorna o mapeamento
+	 * estrutural completo (campos encontrados, ausentes, duplicados e
+	 * colunas do cabeçalho que não bateram com nenhum alias cadastrado).
+	 * <p>
+	 * Usado para montar um diagnóstico detalhado quando {@link #validar}
+	 * já indicou um problema de estrutura — evita carregar essa informação
+	 * em todo fluxo de validação, já que só é necessária nesse caso.
+	 *
+	 * @param caminhoArquivo caminho absoluto para o arquivo {@code .xlsx}
+	 */
+	public PlanilhaColumnMapper.ResultadoMapeamento obterMapeamentoEstrutura(String caminhoArquivo) {
+
+		try (FileInputStream fis = new FileInputStream(caminhoArquivo);
+			 Workbook workbook = new XSSFWorkbook(fis)) {
+
+			Sheet sheet = workbook.getSheetAt(0);
+			return columnMapper.mapear(sheet.getRow(0));
+
+		} catch (IOException e) {
+			log.error("Falha ao reler cabeçalho da planilha: {}", caminhoArquivo, e);
+			return columnMapper.mapear(null);
+		}
+	}
+
+	/**
 	 * Reporta problemas estruturais do cabeçalho a partir do mapeamento por
 	 * nome: campos obrigatórios não encontrados em nenhuma coluna, e campos
 	 * que casaram com mais de uma coluna (cabeçalho ambíguo). A ordem das

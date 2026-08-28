@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.controller;
 import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
 import br.gov.ses.fillbpai.service.ErroValidacao;
 import br.gov.ses.fillbpai.service.ImportacaoResultado;
+import br.gov.ses.fillbpai.service.PlanilhaColumnMapper;
 import br.gov.ses.fillbpai.service.ValidacaoPlanilhaService;
 import br.gov.ses.fillbpai.ui.ConfiguracoesDialog;
 import br.gov.ses.fillbpai.ui.FileChooserService;
@@ -277,15 +278,16 @@ public class MainController {
 		String logErros = validacaoService.gerarLogTxt(errosValidacao, nomeArquivo);
 		salvarLogErrosEmArquivo(logErros, nomePlanilha);
 
-		List<ErroValidacao> errosEstrutura = errosValidacao.stream()
-				.filter(ErroValidacao::isEstrutural)
-				.collect(java.util.stream.Collectors.toList());
+		boolean temEstrutural = errosValidacao.stream().anyMatch(ErroValidacao::isEstrutural);
 
-		if (!errosEstrutura.isEmpty()) {
+		if (temEstrutural) {
 			// Cabeçalho com coluna ausente ou duplicada — problema estrutural,
 			// não vale a pena mostrar os erros de linha (todos seriam causados
-			// pela mesma coluna faltando). Diálogo dedicado aponta a causa.
-			mostrarDialogoErroEstrutura(errosEstrutura, logErros, nomePlanilha, stage);
+			// pela mesma coluna faltando). Diálogo dedicado aponta a causa,
+			// incluindo as colunas do cabeçalho não reconhecidas como candidatas.
+			PlanilhaColumnMapper.ResultadoMapeamento mapeamento =
+					validacaoService.obterMapeamentoEstrutura(caminho);
+			mostrarDialogoErroEstrutura(mapeamento, logErros, nomePlanilha, stage);
 		} else if (temBloqueantes) {
 			// Erros bloqueantes — sem botão de importação
 			mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage);
@@ -386,31 +388,50 @@ public class MainController {
 
 	/**
 	 * Exibe diálogo dedicado para problemas de estrutura do cabeçalho (coluna
-	 * obrigatória ausente ou duplicada). Destaca exatamente qual(is) coluna(s)
-	 * causaram o problema — em vez da lista de erros de linha, que nesse caso
-	 * seria toda causada pela mesma coluna faltando — e oferece atalho para a
-	 * tela onde um alias de coluna pode ser cadastrado sem precisar editar a
-	 * planilha.
+	 * obrigatória ausente ou duplicada). Além de apontar exatamente qual(is)
+	 * coluna(s) causaram o problema — em vez da lista de erros de linha, que
+	 * nesse caso seria toda causada pela mesma coluna faltando — lista também
+	 * as colunas do cabeçalho que não bateram com nenhum alias cadastrado:
+	 * candidatas óbvias quando a planilha tem a informação, só que com um
+	 * nome diferente do esperado. Oferece atalho para a tela onde um alias
+	 * pode ser cadastrado sem precisar editar a planilha.
 	 */
-	private void mostrarDialogoErroEstrutura(List<ErroValidacao> errosEstrutura, String logErros, String nomePlanilha, Stage stage) {
+	private void mostrarDialogoErroEstrutura(PlanilhaColumnMapper.ResultadoMapeamento mapeamento, String logErros, String nomePlanilha, Stage stage) {
+
+		int totalProblemas = mapeamento.camposFaltando().size() + mapeamento.camposDuplicados().size();
 
 		Alert alert = new Alert(Alert.AlertType.ERROR);
 		alert.setTitle("Estrutura da Planilha Inválida");
-		alert.setHeaderText(errosEstrutura.size() == 1
+		alert.setHeaderText(totalProblemas == 1
 				? "1 problema encontrado no cabeçalho da planilha"
-				: errosEstrutura.size() + " problemas encontrados no cabeçalho da planilha");
+				: totalProblemas + " problemas encontrados no cabeçalho da planilha");
 
-		VBox listaProblemas = new VBox(4);
-		for (ErroValidacao erro : errosEstrutura) {
-			listaProblemas.getChildren().add(new Label("•  " + erro.detalhe()));
+		VBox conteudo = new VBox(14);
+
+		if (!mapeamento.camposFaltando().isEmpty()) {
+			conteudo.getChildren().add(
+					blocoComTitulo("Colunas obrigatórias não encontradas:", mapeamento.camposFaltando()));
+		}
+
+		if (!mapeamento.camposDuplicados().isEmpty()) {
+			conteudo.getChildren().add(
+					blocoComTitulo("Colunas duplicadas:", mapeamento.camposDuplicados()));
+		}
+
+		if (!mapeamento.colunasNaoReconhecidas().isEmpty()) {
+			List<String> entreAspas = mapeamento.colunasNaoReconhecidas().stream()
+					.map(nome -> "\"" + nome + "\"")
+					.collect(java.util.stream.Collectors.toList());
+			conteudo.getChildren().add(blocoComTitulo(
+					"Colunas do cabeçalho não reconhecidas (podem corresponder às acima):", entreAspas));
 		}
 
 		Label instrucao = new Label(
-				"Verifique se o nome da coluna na planilha está correto, ou cadastre "
-						+ "um alias em Configurações → Colunas da Planilha para que este "
-						+ "nome passe a ser reconhecido automaticamente.");
+				"Se uma dessas colunas corresponder a um campo obrigatório da lista: "
+						+ "cadastre-a como alias em Configurações → Colunas da Planilha, "
+						+ "ou renomeie-a na planilha para o nome esperado.");
 		instrucao.setWrapText(true);
-		instrucao.setStyle("-fx-font-style: italic;");
+		conteudo.getChildren().add(instrucao);
 
 		Button btnAbrirConfiguracoes = new Button("Abrir Configurações");
 		btnAbrirConfiguracoes.setOnAction(e -> {
@@ -439,12 +460,25 @@ public class MainController {
 			}
 		});
 
-		VBox layout = new VBox(12, listaProblemas, instrucao,
-				new javafx.scene.layout.HBox(10, btnAbrirConfiguracoes, btnSalvarLog));
-		layout.setPadding(new Insets(10));
+		conteudo.getChildren().add(new javafx.scene.layout.HBox(10, btnAbrirConfiguracoes, btnSalvarLog));
+		conteudo.setPadding(new Insets(10));
 
-		alert.getDialogPane().setContent(layout);
+		alert.getDialogPane().setContent(conteudo);
 		alert.showAndWait();
+	}
+
+	/** Monta um bloco com título em negrito seguido de uma lista de itens com marcador. */
+	private VBox blocoComTitulo(String titulo, List<String> itens) {
+
+		Label labelTitulo = new Label(titulo);
+		labelTitulo.setStyle("-fx-font-weight: bold;");
+
+		VBox bloco = new VBox(2, labelTitulo);
+		for (String item : itens) {
+			bloco.getChildren().add(new Label("•  " + item));
+		}
+
+		return bloco;
 	}
 
 	/**

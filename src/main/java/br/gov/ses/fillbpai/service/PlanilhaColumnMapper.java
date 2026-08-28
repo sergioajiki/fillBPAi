@@ -22,14 +22,19 @@ public class PlanilhaColumnMapper {
 	/**
 	 * Resultado do mapeamento de um cabeçalho.
 	 *
-	 * @param indices          campo canônico → índice da coluna (0-based)
-	 * @param camposFaltando   campos obrigatórios não encontrados no cabeçalho
-	 * @param camposDuplicados campos que casaram com mais de uma coluna do cabeçalho
+	 * @param indices               campo canônico → índice da coluna (0-based)
+	 * @param camposFaltando        campos obrigatórios não encontrados no cabeçalho
+	 * @param camposDuplicados      campos que casaram com mais de uma coluna do cabeçalho
+	 * @param colunasNaoReconhecidas texto original das colunas do cabeçalho que não
+	 *                               bateram com nenhum alias cadastrado — candidatas a
+	 *                               corresponder a um campo obrigatório ausente, se o
+	 *                               nome da coluna na planilha for diferente do esperado
 	 */
 	public record ResultadoMapeamento(
 			Map<String, Integer> indices,
 			List<String> camposFaltando,
-			List<String> camposDuplicados) {
+			List<String> camposDuplicados,
+			List<String> colunasNaoReconhecidas) {
 
 		/** true se todos os campos obrigatórios foram encontrados, sem ambiguidade. */
 		public boolean estruturaValida() {
@@ -46,6 +51,7 @@ public class PlanilhaColumnMapper {
 
 		Map<String, Integer> indices = new LinkedHashMap<>();
 		List<String> duplicados = new ArrayList<>();
+		List<String> naoReconhecidas = new ArrayList<>();
 
 		if (cabecalho != null) {
 
@@ -55,7 +61,11 @@ public class PlanilhaColumnMapper {
 				String campo = ColunaAliasUtils.resolverCampo(texto);
 
 				if (campo == null) {
-					// Coluna não reconhecida por nenhum alias — ignorada de propósito.
+					// Coluna não reconhecida por nenhum alias — ignorada da leitura,
+					// mas registrada como candidata para exibição em diagnósticos.
+					if (texto != null && !texto.isBlank()) {
+						naoReconhecidas.add(texto.trim());
+					}
 					continue;
 				}
 
@@ -77,7 +87,7 @@ public class PlanilhaColumnMapper {
 			}
 		}
 
-		return new ResultadoMapeamento(indices, faltando, duplicados);
+		return new ResultadoMapeamento(indices, faltando, duplicados, naoReconhecidas);
 	}
 
 	/** Extrai o texto de uma célula de cabeçalho, qualquer que seja o tipo. */
