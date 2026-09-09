@@ -67,8 +67,9 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 - Geração completa (atendimentos do mês de competência selecionado, folha auto-atribuída: especialidades em ordem alfabética → médicos em ordem alfabética → folha sequencial)
 - Competência para geração: selecionada via `[Selecionar Mês]`; auto-detectada da primeira carga de dados se não definida manualmente
 - `GeradorBPAiService.gerarArquivoCompletoComFileChooser(window, competenciaAtendimento)` recebe competência no formato `YYYYMM` do mês de atendimento e filtra por `YEAR/MONTH(dataAgendamento)`
-- Seq 10 (prd-cnspac): usa CPF do paciente zero-padded 15 chars (não CNS)
+- Seq 10 (prd-cnspac): sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
+- Seq 38 (prd-cpf-pcnte): CPF do paciente, 11 dígitos zero-padded — é aqui, não na seq 10, que o CPF do paciente entra no registro
 - **Pré-validação obrigatória**: `GeradorBPAiService.validarCnsProfissional()` bloqueia a geração se qualquer atendimento estiver sem CNS do profissional, exibindo relatório com médico/paciente/data de cada ocorrência
 
 ### Layout da UI
