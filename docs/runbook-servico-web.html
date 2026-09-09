@@ -1,0 +1,733 @@
+<title>Serviço Web fillBPAi</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F;
+      --paper-raised:#1A2018;
+      --ink:#E8ECE3;
+      --ink-muted:#A9B5A2;
+      --line:#2B332B;
+      --line-strong:#3C463C;
+      --accent:#7DD3B0;
+      --accent-soft:#1E3A30;
+      --sev-erro:#FF9686;
+      --sev-erro-soft:#3A1F1B;
+      --sev-aviso:#E8B15C;
+      --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F;
+    --paper-raised:#1A2018;
+    --ink:#E8ECE3;
+    --ink-muted:#A9B5A2;
+    --line:#2B332B;
+    --line-strong:#3C463C;
+    --accent:#7DD3B0;
+    --accent-soft:#1E3A30;
+    --sev-erro:#FF9686;
+    --sev-erro-soft:#3A1F1B;
+    --sev-aviso:#E8B15C;
+    --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:800px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:clamp(2.1rem, 4.4vw, 2.9rem);
+    line-height:1.08;
+    letter-spacing:-.01em;
+    margin:0 0 16px;
+    text-wrap:balance;
+  }
+  .lede{
+    font-size:1.1rem;
+    line-height:1.6;
+    color:var(--ink-muted);
+    max-width:64ch;
+    margin:0 0 22px;
+  }
+  .meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 18px;
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    color:var(--ink-muted);
+    padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin:26px 0 0;
+  }
+  nav.toc a{
+    font-family:var(--font-mono);
+    font-size:.74rem;
+    color:var(--ink-muted);
+    text-decoration:none;
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:100px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.5rem;
+    letter-spacing:-.005em;
+    margin:0 0 18px;
+    text-wrap:balance;
+  }
+  section > h3{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:1rem;
+    margin:28px 0 10px;
+  }
+  p{ line-height:1.7; font-size:1.02rem; max-width:66ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{
+    font-family:var(--font-mono);
+    font-size:.88em;
+    background:var(--accent-soft);
+    color:var(--ink);
+    padding:.12em .38em;
+    border-radius:4px;
+  }
+  pre{
+    font-family:var(--font-mono);
+    font-size:.84rem;
+    line-height:1.6;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+    overflow-x:auto;
+    box-shadow:var(--shadow);
+  }
+  pre code{ background:none; padding:0; }
+
+  /* ---- opcoes ---- */
+  .opcoes{ display:flex; flex-direction:column; gap:16px; margin-top:20px; }
+  .opcao{
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px 22px;
+    background:var(--paper-raised);
+  }
+  .opcao.recomendada{
+    border-color:var(--accent);
+    background:linear-gradient(180deg, var(--accent-soft), var(--paper-raised) 60%);
+  }
+  .opcao-head{ display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+  .badge{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.05rem;
+    width:32px; height:32px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    border:1.5px solid var(--line-strong);
+    color:var(--ink-muted);
+    flex-shrink:0;
+  }
+  .recomendada .badge{ border-color:var(--accent); color:var(--accent); background:var(--paper-raised); }
+  .opcao-titulo{ font-weight:600; font-size:1.05rem; }
+  .pill{
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:4px 10px;
+    border-radius:100px;
+    border:1px solid var(--line-strong);
+    color:var(--ink-muted);
+    white-space:nowrap;
+  }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.no{ color:var(--ink-muted); }
+  .pill.warn{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+  .opcao p{ margin:8px 0; font-size:.98rem; }
+  .opcao .tags{ display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+
+  /* ---- tabela ---- */
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:520px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-muted);
+    font-weight:600;
+  }
+  td.caso{ font-weight:500; width:34%; }
+  .ok-txt{ color:var(--accent); font-weight:600; }
+  .bad-txt{ color:var(--sev-erro); font-weight:600; }
+  .warn-txt{ color:var(--sev-aviso); font-weight:600; }
+
+  /* ---- plano numerado ---- */
+  ol.plano{ list-style:none; padding:0; margin:20px 0 0; counter-reset:passo; }
+  ol.plano li{
+    counter-increment:passo;
+    position:relative;
+    padding:2px 0 22px 46px;
+    border-left:1px solid var(--line);
+    margin-left:15px;
+  }
+  ol.plano li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  ol.plano li::before{
+    content: counter(passo);
+    position:absolute; left:-15px; top:0;
+    width:30px; height:30px;
+    background:var(--paper-raised);
+    border:1.5px solid var(--accent);
+    color:var(--accent);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:.82rem;
+  }
+  ol.plano li p{ margin:0; font-size:.98rem; }
+
+  /* ---- callout ---- */
+  .callout{
+    margin-top:18px;
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    background:var(--paper-raised);
+    border-radius:0 10px 10px 0;
+    padding:18px 22px;
+  }
+  .callout.risco{ border-left-color:var(--sev-erro); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout.risco .kicker{ color:var(--sev-erro); }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  /* ---- figuras ---- */
+  figure.fig{ margin:28px 0 8px; }
+  .fig-scroll{ overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--paper-raised); box-shadow:var(--shadow); }
+  .fig-scroll svg{ display:block; width:100%; height:auto; min-width:640px; }
+  figcaption{
+    margin-top:12px;
+    font-size:.9rem;
+    line-height:1.6;
+    color:var(--ink-muted);
+    max-width:66ch;
+  }
+  figcaption strong{ color:var(--ink); font-weight:600; }
+
+  .dgm text{ font-family:var(--font-mono); fill:var(--ink); }
+  .dgm .fig-title{ font-size:12px; font-weight:600; letter-spacing:.03em; fill:var(--ink-muted); text-transform:uppercase; }
+  .dgm .note{ font-size:9.5px; fill:var(--ink-muted); }
+  .dgm rect.box{ fill:var(--paper-raised); stroke:var(--line-strong); stroke-width:1.3; }
+  .dgm rect.box.accent{ stroke:var(--accent); }
+  .dgm rect.box.bad{ stroke:var(--sev-erro); }
+  .dgm .box-label{ font-size:11px; fill:var(--ink); }
+  .dgm .arrow-label{ font-size:9.5px; fill:var(--ink-muted); }
+  .dgm line.flow{ stroke:var(--line-strong); stroke-width:1.6; fill:none; }
+  .dgm line.flow.bad{ stroke:var(--sev-erro); }
+  .dgm line.flow.ok{ stroke:var(--accent); }
+  .mk-ok{ fill:var(--accent); }
+  .mk-bad{ fill:var(--sev-erro); }
+
+  footer.doc-foot{
+    margin-top:72px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-family:var(--font-mono);
+    font-size:.76rem;
+    color:var(--ink-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Do desktop ao serviço web</h1>
+    <p class="lede">
+      Com a demanda crescendo para outros pontos de atendimento, considerou-se
+      transformar o fillBPAi num serviço web — com upload da planilha e
+      download do BPA-I pelo navegador, em vez de instalação local. Este
+      documento levanta o que já é reaproveitável no código atual, o que
+      precisa mudar, e como organizar isso no(s) repositório(s).
+    </p>
+    <div class="meta">
+      <span>Área: <strong>Arquitetura / Infraestrutura</strong></span>
+      <span>Status: <strong>Estudo — nenhuma linha de código alterada</strong></span>
+      <span>Data: <strong>09/09/2026</strong></span>
+      <span>Módulos afetados: <strong>GeradorBPAiService · DatabaseInitializer · camada ui/controller (nova) · pom.xml</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#contexto">Contexto</a>
+      <a href="#achados">Achados</a>
+      <a href="#stack">Stack web</a>
+      <a href="#arquitetura">Arquitetura</a>
+      <a href="#seguranca">Segurança</a>
+      <a href="#repositorio">Repositório</a>
+      <a href="#plano">Plano</a>
+      <a href="#perguntas">Perguntas abertas</a>
+    </nav>
+  </header>
+
+  <section id="contexto">
+    <h2>Contexto</h2>
+    <p>
+      Hoje o fillBPAi é uma aplicação desktop JavaFX de instalação local,
+      usada pelo Núcleo de Telessaúde de MS: um usuário, uma máquina, um
+      arquivo H2 local. Com mais pontos de atendimento precisando importar
+      planilhas e gerar BPA-I, a instalação local para de escalar — cada
+      posto novo significa instalar Java, o app, e replicar o cadastro de
+      CNS de médicos e aliases de coluna manualmente.
+    </p>
+    <p>
+      A demanda mínima é: alguém abre uma página, envia a planilha
+      <code>.xlsx</code>, e baixa o <code>.txt</code> do BPA-I gerado — sem
+      instalar nada. O restante deste documento parte do código real do
+      projeto para avaliar o que isso custa.
+    </p>
+  </section>
+
+  <section id="achados">
+    <h2>Achados no código atual</h2>
+    <p>
+      A notícia boa: a camada de negócio não depende de JavaFX. A notícia
+      que exige trabalho: a camada de geração de arquivo e a camada de
+      persistência foram escritas assumindo um único usuário, um único
+      processo de UI.
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Camada</th><th>Estado atual</th><th>Reaproveitável no web?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">ExcelImportService · ValidacaoPlanilhaService · AtendimentoImportacaoService</td>
+            <td>Sem import de JavaFX; recebem <code>String caminhoArquivo</code>, leem via <code>FileInputStream</code></td>
+            <td><span class="ok-txt">Sim, sem alteração</span> — grava o upload num arquivo temporário e chama do mesmo jeito</td>
+          </tr>
+          <tr>
+            <td class="caso">model · repository · util (CnsProfissionalUtils, ColunaAliasUtils, CepUtils, etc.)</td>
+            <td>JPA puro / utilitários de arquivo, nenhuma dependência de UI</td>
+            <td><span class="ok-txt">Sim, sem alteração</span></td>
+          </tr>
+          <tr>
+            <td class="caso"><code>GeradorBPAiService</code></td>
+            <td><code>gerarArquivoComFileChooser(Window, ...)</code> e a versão completa recebem <code>javafx.stage.Window</code> e escrevem direto no arquivo escolhido pelo <code>FileChooser</code></td>
+            <td><span class="warn-txt">Precisa refatorar</span> — separar "montar o conteúdo BPA-I" (retorna bytes) de "escolher onde salvar" (é só a UI desktop que precisa disso)</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>DatabaseInitializer</code></td>
+            <td>Um único <code>EntityManager</code> criado na inicialização e reusado pela vida toda do app, acessado direto por <code>MainController</code>/<code>RelatorioController</code></td>
+            <td><span class="bad-txt">Precisa redesenhar</span> — <code>EntityManager</code> não é thread-safe; web com requisições concorrentes exige um por requisição</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>MainController</code> · <code>RelatorioController</code> · <code>ConfiguracoesDialog</code></td>
+            <td>Estado de tela (filtro, seleção, competência) e navegação amarrados ao ciclo de vida do <code>Stage</code> JavaFX</td>
+            <td><span class="bad-txt">Não reaproveitável</span> — é a própria UI, reescrita como frontend web</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout risco">
+      <p class="kicker">Achado de segurança, não só de arquitetura</p>
+      <p>
+        <code>DatabaseInitializer.iniciar()</code> sobe um console H2 com
+        <code>-web -webAllowOthers -webPort 8082</code> — um console
+        administrativo do banco, acessível por qualquer host, sem senha
+        configurada aqui. Aceitável numa máquina local isolada; se essa mesma
+        classe for reaproveitada num servidor web sem alteração, isso expõe
+        acesso direto ao banco (incluindo dados de paciente) na rede. Precisa
+        ser removido ou travado antes de qualquer deploy, não é um ajuste de
+        polimento.
+      </p>
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2>Escolha de stack web</h2>
+    <p>
+      A pergunta não é "dá pra fazer" — dá, com qualquer framework Java. A
+      pergunta é qual custa menos dado que a equipe já trabalha com
+      Maven + Hibernate/JPA puro, sem experiência prévia documentada em
+      nenhum framework web específico neste projeto.
+    </p>
+    <div class="opcoes">
+
+      <article class="opcao recomendada">
+        <div class="opcao-head">
+          <span class="badge">A</span>
+          <span class="opcao-titulo">Spring Boot</span>
+          <span class="pill ok">Recomendada</span>
+        </div>
+        <p>
+          Maior ecossistema Java para REST + upload multipart + serialização
+          JSON pronta. <code>spring-boot-starter-data-jpa</code> resolve de
+          fábrica o problema do <code>EntityManager</code> por requisição
+          (hoje o maior risco técnico da migração) via
+          <code>@Transactional</code>, sem reescrever a camada de persistência
+          na mão.
+        </p>
+        <div class="tags">
+          <span class="pill">Custo: médio</span>
+          <span class="pill">Tomcat embutido — não precisa de servidor externo</span>
+        </div>
+      </article>
+
+      <article class="opcao">
+        <div class="opcao-head">
+          <span class="badge">B</span>
+          <span class="opcao-titulo">Quarkus</span>
+          <span class="pill no">Não recomendada</span>
+        </div>
+        <p>
+          Startup mais rápido e menor footprint de memória — vantagem real
+          para microsserviços com autoscaling agressivo. Não é o gargalo aqui:
+          é um serviço interno de um núcleo estadual, não uma API pública de
+          alta escala. O ganho não paga a curva de aprendizado de um
+          framework novo para a equipe.
+        </p>
+        <div class="tags">
+          <span class="pill">Custo: médio-alto (curva de aprendizado)</span>
+        </div>
+      </article>
+
+      <article class="opcao">
+        <div class="opcao-head">
+          <span class="badge">C</span>
+          <span class="opcao-titulo">Servlet puro / Jakarta EE sem framework</span>
+          <span class="pill no">Não recomendada</span>
+        </div>
+        <p>
+          Zero dependência nova além do já existente. Só até você precisar de
+          upload multipart, roteamento e JSON — nesse ponto está
+          reimplementando, na mão, o que Spring Boot já resolve testado.
+        </p>
+        <div class="tags">
+          <span class="pill">Custo: baixo no início, alto depois</span>
+          <span class="pill">Mais superfície para bugs próprios</span>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="arquitetura">
+    <h2>Arquitetura proposta</h2>
+    <p>
+      Maven multi-módulo: o código de negócio atual (<code>model</code>,
+      <code>repository</code>, <code>service</code>, <code>util</code>) sai
+      para um módulo <code>fillbpai-core</code>, do qual tanto o desktop
+      atual quanto o novo módulo web passam a depender. O desktop continua
+      funcionando sem interrupção enquanto o web é construído em paralelo.
+    </p>
+
+    <figure class="fig">
+      <div class="fig-scroll">
+        <svg class="dgm" viewBox="0 0 1000 260" role="img"
+             aria-label="Diagrama de módulos: fillbpai-core no topo contém model, repository, service e util. Tanto fillbpai-desktop, o app JavaFX atual, quanto fillbpai-web, o novo módulo Spring Boot, dependem de fillbpai-core.">
+          <defs>
+            <marker id="arrow-mod" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 Z" fill="var(--line-strong)"></path>
+            </marker>
+          </defs>
+
+          <rect class="box accent" x="380" y="30" width="240" height="64" rx="8"></rect>
+          <text x="500" y="56" text-anchor="middle" class="box-label">fillbpai-core</text>
+          <text x="500" y="72" text-anchor="middle" class="box-label">model · repository · service · util</text>
+
+          <line class="flow" x1="250" y1="170" x2="410" y2="98" marker-end="url(#arrow-mod)"></line>
+          <text x="290" y="145" text-anchor="middle" class="arrow-label">depende de</text>
+
+          <line class="flow" x1="750" y1="170" x2="590" y2="98" marker-end="url(#arrow-mod)"></line>
+          <text x="720" y="145" text-anchor="middle" class="arrow-label">depende de</text>
+
+          <rect class="box" x="60" y="170" width="260" height="64" rx="8"></rect>
+          <text x="190" y="196" text-anchor="middle" class="box-label">fillbpai-desktop</text>
+          <text x="190" y="212" text-anchor="middle" class="box-label">JavaFX (atual, sem mudança de UI)</text>
+
+          <rect class="box" x="680" y="170" width="260" height="64" rx="8"></rect>
+          <text x="810" y="196" text-anchor="middle" class="box-label">fillbpai-web (novo)</text>
+          <text x="810" y="212" text-anchor="middle" class="box-label">Spring Boot + REST + frontend</text>
+        </svg>
+      </div>
+      <figcaption>
+        <strong>Um único repositório, três módulos.</strong> Uma correção de
+        regra de negócio — por exemplo o layout do BPA-I ou uma validação de
+        CNS — é feita uma vez em <code>fillbpai-core</code> e vale para os
+        dois clientes.
+      </figcaption>
+    </figure>
+
+    <h3>Fluxo de uma requisição de importação</h3>
+    <p>
+      <code>ExcelImportService</code>, <code>ValidacaoPlanilhaService</code> e
+      <code>AtendimentoImportacaoService</code> já recebem
+      <code>String caminhoArquivo</code> — o controller REST só precisa
+      gravar o multipart recebido num arquivo temporário antes de chamar o
+      mesmo código de sempre.
+    </p>
+
+    <figure class="fig">
+      <div class="fig-scroll">
+        <svg class="dgm" viewBox="0 0 1000 300" role="img"
+             aria-label="Fluxo de upload: o arquivo enviado por multipart é gravado num arquivo temporário, passado para ValidacaoPlanilhaService; se houver erros bloqueantes, a resposta é HTTP 400 com o relatório; caso contrário AtendimentoImportacaoService grava os atendimentos no banco H2.">
+          <defs>
+            <marker id="arrow-flow2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 Z" fill="var(--line-strong)"></path>
+            </marker>
+            <marker id="arrow-flow2-bad" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 Z" class="mk-bad"></path>
+            </marker>
+            <marker id="arrow-flow2-ok" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 Z" class="mk-ok"></path>
+            </marker>
+          </defs>
+
+          <rect class="box" x="20"  y="34" width="190" height="64" rx="8"></rect>
+          <text x="115" y="60" text-anchor="middle" class="box-label">Upload multipart</text>
+          <text x="115" y="76" text-anchor="middle" class="box-label">(.xlsx)</text>
+
+          <line class="flow" x1="210" y1="66" x2="248" y2="66" marker-end="url(#arrow-flow2)"></line>
+
+          <rect class="box" x="250" y="34" width="190" height="64" rx="8"></rect>
+          <text x="345" y="60" text-anchor="middle" class="box-label">grava em arquivo</text>
+          <text x="345" y="76" text-anchor="middle" class="box-label">temporário no servidor</text>
+
+          <line class="flow" x1="440" y1="66" x2="478" y2="66" marker-end="url(#arrow-flow2)"></line>
+
+          <rect class="box accent" x="480" y="34" width="190" height="64" rx="8"></rect>
+          <text x="575" y="70" text-anchor="middle" class="box-label">ValidacaoPlanilhaService</text>
+
+          <line class="flow" x1="670" y1="66" x2="708" y2="66" marker-end="url(#arrow-flow2)"></line>
+
+          <rect class="box" x="710" y="34" width="190" height="64" rx="8"></rect>
+          <text x="805" y="60" text-anchor="middle" class="box-label">erros</text>
+          <text x="805" y="76" text-anchor="middle" class="box-label">bloqueantes?</text>
+
+          <line class="flow bad" x1="770" y1="98" x2="580" y2="196" marker-end="url(#arrow-flow2-bad)"></line>
+          <text x="660" y="150" text-anchor="middle" class="arrow-label">sim</text>
+
+          <line class="flow ok" x1="840" y1="98" x2="855" y2="196" marker-end="url(#arrow-flow2-ok)"></line>
+          <text x="900" y="150" text-anchor="middle" class="arrow-label">não</text>
+
+          <rect class="box bad" x="430" y="198" width="230" height="64" rx="8"></rect>
+          <text x="545" y="224" text-anchor="middle" class="box-label">HTTP 400</text>
+          <text x="545" y="240" text-anchor="middle" class="box-label">+ relatório de erros (JSON)</text>
+
+          <rect class="box accent" x="720" y="198" width="260" height="64" rx="8"></rect>
+          <text x="850" y="220" text-anchor="middle" class="box-label">AtendimentoImportacaoService</text>
+          <text x="850" y="236" text-anchor="middle" class="box-label">.importar() → grava no H2</text>
+        </svg>
+      </div>
+      <figcaption>
+        Mesmo contrato de hoje: o caminho do arquivo é o único dado novo que o
+        controller precisa produzir antes de entrar no código já existente.
+      </figcaption>
+    </figure>
+
+    <h3>Endpoints típicos</h3>
+    <pre><code>POST /planilhas/analisar    (upload) → relatório de erros/avisos
+POST /planilhas/importar    (upload) → importa para o banco
+GET  /atendimentos?especialidade=&amp;medico=
+POST /bpa/gerar-completo    → download do .txt (Content-Disposition: attachment)
+POST /bpa/gerar             (parcial, por especialidade/médico) → idem</code></pre>
+    <p>
+      Para isso, <code>GeradorBPAiService</code> precisa de um método novo
+      que devolve os bytes do arquivo (<code>ByteArrayOutputStream</code> ou
+      <code>String</code>) em vez de escrever direto no disco escolhido pelo
+      <code>FileChooser</code> — os métodos atuais com <code>Window</code> continuam
+      existindo, só passam a chamar esse método novo por trás em vez de duplicar a lógica de montagem do BPA-I.
+    </p>
+  </section>
+
+  <section id="seguranca">
+    <h2>Segurança e LGPD</h2>
+    <p>
+      Isto não é um item de checklist a mais — é a diferença central entre
+      "roda numa máquina local" e "roda na rede". O fillBPAi manipula CPF,
+      CNS, nome, telefone e endereço de pacientes. Hoje isso nunca sai do
+      disco local de quem instalou o app. Num serviço web, esse dado passa a
+      trafegar pela rede e fica acessível de qualquer lugar que alcance o
+      servidor.
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Hoje (desktop)</th><th>Necessário no web</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">Autenticação</td>
+            <td>Nenhuma — quem abre o app já está na máquina autorizada</td>
+            <td>Login obrigatório antes de qualquer upload/download</td>
+          </tr>
+          <tr>
+            <td class="caso">Transporte</td>
+            <td>Não se aplica (sem rede)</td>
+            <td>HTTPS obrigatório, sem excessão</td>
+          </tr>
+          <tr>
+            <td class="caso">Console H2</td>
+            <td><code>-webAllowOthers</code>, porta 8082, sem senha</td>
+            <td>Removido do caminho de produção, ou preso a <code>localhost</code> com senha</td>
+          </tr>
+          <tr>
+            <td class="caso">Auditoria</td>
+            <td>Não existe (uso individual local)</td>
+            <td>Registro de quem importou/gerou o quê, e quando</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="repositorio">
+    <h2>Um repositório ou dois?</h2>
+    <div class="opcoes">
+
+      <article class="opcao recomendada">
+        <div class="opcao-head">
+          <span class="badge">A</span>
+          <span class="opcao-titulo">Monorepo Maven multi-módulo (mesmo repositório)</span>
+          <span class="pill ok">Recomendada</span>
+        </div>
+        <p>
+          <code>fillbpai-core</code> compartilhado por <code>fillbpai-desktop</code>
+          e <code>fillbpai-web</code>, todos no mesmo repositório git atual.
+        </p>
+        <p>
+          A lógica de negócio (layout BPA-I, validação de CNS/CEP/CPF,
+          resolução de IBGE) é grande e muda com frequência — em dois
+          repositórios, toda correção de regra precisaria ser replicada
+          manualmente nos dois lugares, com risco real de divergência (o
+          próprio bug de severidade do <code>CNS_INVALIDO</code>, corrigido
+          recentemente, é o tipo de correção que teria que ser lembrada duas
+          vezes). Um repo só resolve isso de graça, e o desktop continua
+          funcionando normalmente enquanto o web é construído ao lado.
+        </p>
+        <div class="tags">
+          <span class="pill">Histórico único por mudança de regra</span>
+          <span class="pill">CI pode buildar só o módulo que mudou</span>
+        </div>
+      </article>
+
+      <article class="opcao">
+        <div class="opcao-head">
+          <span class="badge">B</span>
+          <span class="opcao-titulo">Repositórios separados</span>
+          <span class="pill no">Só se houver motivo organizacional</span>
+        </div>
+        <p>
+          Faria sentido se o módulo web for construído por outra equipe (ex.:
+          um time de desenvolvimento web terceirizado) ou exigir pipeline de
+          deploy totalmente isolado do desktop. Nenhum desses cenários está
+          colocado hoje — a decisão pode ser revisitada se isso mudar.
+        </p>
+        <div class="tags">
+          <span class="pill">Custo: duplicação de regra de negócio</span>
+          <span class="pill">Publicar fillbpai-core num repositório de artefatos (Nexus/GitHub Packages) para o outro repo consumir</span>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <section id="plano">
+    <h2>Fases sugeridas</h2>
+    <ol class="plano">
+      <li><p><strong>Extrair <code>fillbpai-core</code>.</strong> Baixo risco —
+        mover os pacotes <code>model</code>, <code>repository</code>,
+        <code>service</code>, <code>util</code> para o módulo novo, ajustar
+        <code>pom.xml</code> em módulos. O desktop passa a depender dele; nada
+        de comportamento muda.</p></li>
+      <li><p><strong>Criar <code>fillbpai-web</code> com Spring Boot.</strong>
+        Maior item de risco desta fase: <code>EntityManager</code> por
+        requisição em vez do único compartilhado hoje. Segundo item: extrair
+        de <code>GeradorBPAiService</code> um método que devolve bytes, sem
+        depender de <code>Window</code>/<code>FileChooser</code>.</p></li>
+      <li><p><strong>Frontend web mínimo.</strong> Página de upload, relatório
+        de erros/avisos, tabela de atendimentos com os mesmos filtros de hoje
+        (especialidade, médico), botão de gerar e baixar o BPA-I. Maior
+        esforço de reescrita do projeto todo — não há UI reaproveitável da
+        versão desktop.</p></li>
+      <li><p><strong>Segurança antes de qualquer deploy real.</strong> Login,
+        HTTPS, remoção/trava do H2 Console público. Não é polimento de
+        fim de projeto — é pré-requisito para expor dado de saúde na rede.</p></li>
+    </ol>
+  </section>
+
+  <section id="perguntas">
+    <h2>Perguntas abertas</h2>
+    <p>Antes de detalhar a implementação de qualquer fase, três decisões só cabem ao time/gestão do Núcleo de Telessaúde:</p>
+    <ul class="plain">
+      <li><strong>Hospedagem</strong> — servidor da própria SES-MS (on-premise, mais alinhado a LGPD para dado de saúde) ou nuvem?</li>
+      <li><strong>Autenticação</strong> — usuários nominais próprios, ou integração com SSO/AD do governo estadual?</li>
+      <li><strong>Convivência com o desktop</strong> — o app atual continua em uso em paralelo ao web, ou a ideia é substituir e descontinuar?</li>
+    </ul>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-servico-web.html
+  </footer>
+
+</div>
