@@ -10,7 +10,8 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.text.Normalizer;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -20,10 +21,17 @@ import org.slf4j.LoggerFactory;
 /**
  * Utilitário para resolução do CNS (Cartão Nacional de Saúde) do profissional
  * a partir do nome, utilizando cache local (medicos_cns.csv).
- *
+ * <p>
+ * O CNS é a chave canônica de cada médico; os nomes são apelidos (aliases)
+ * dela — a mesma planilha pode grafar o nome de formas diferentes (com/sem
+ * sobrenome, com/sem acento) e todas devem resolver para o mesmo CNS. O
+ * arquivo continua no formato {@code nome;cns}: várias linhas com o mesmo
+ * CNS já significam, por definição, apelidos do mesmo médico — não há
+ * migração de formato, só de leitura.
+ * <p>
  * A busca por nome é normalizada: uppercase, sem acentos, trim.
  * Exemplo: "José da Silva" e "JOSE DA SILVA" são considerados iguais.
- *
+ * <p>
  * Profissionais não encontrados são reportados como avisos no log de importação.
  */
 public class CnsProfissionalUtils {
@@ -33,14 +41,14 @@ public class CnsProfissionalUtils {
 	/** Caminho do arquivo CSV cache local (para gravação) */
 	private static final String CAMINHO_CSV_FONTE = "src/main/resources/dados/medicos_cns.csv";
 
-	/** Mapa: nome normalizado → CNS do profissional. Lazy loading. */
-	private static Map<String, String> mapaCns = null;
+	/** Mapa: CNS → apelidos (nomes originais), em ordem de cadastro. Índice 0 = nome principal. Lazy loading. */
+	private static Map<String, List<String>> apelidosPorCns = null;
 
-	/** Mapa: nome normalizado → nome original (para exibição). Lazy loading. */
-	private static Map<String, String> mapaNomeOriginal = null;
+	/** Mapa: nome normalizado → CNS. Índice reverso para busca rápida. Lazy loading. */
+	private static Map<String, String> cnsPorNome = null;
 
 	/**
-	 * Busca o CNS do profissional pelo nome.
+	 * Busca o CNS do profissional pelo nome (ou qualquer apelido cadastrado).
 	 *
 	 * @param nome nome do profissional (com ou sem acentos, qualquer casing)
 	 * @return CnsResultado com o CNS encontrado (ou null) e aviso opcional
@@ -53,9 +61,7 @@ public class CnsProfissionalUtils {
 
 		carregarCsvSeNecessario();
 
-		String nomeNormalizado = normalizar(nome);
-
-		String cns = mapaCns.get(nomeNormalizado);
+		String cns = cnsPorNome.get(normalizar(nome));
 
 		if (cns != null) {
 			log.debug("CNS encontrado para profissional '{}': {}", nome, cns);
@@ -64,7 +70,7 @@ public class CnsProfissionalUtils {
 
 		// Nome não encontrado no cache — aviso para o log de importação
 		String aviso = "CNS do profissional não encontrado para: " + nome
-				+ ". Verifique o nome na planilha ou adicione o profissional ao medicos_cns.csv.";
+				+ ". Verifique o nome na planilha ou cadastre o profissional em Configurações → CNS de Médicos.";
 
 		log.debug(aviso);
 
@@ -72,58 +78,173 @@ public class CnsProfissionalUtils {
 	}
 
 	/**
-	 * Salva um novo profissional no arquivo CSV cache e atualiza o cache em memória.
-	 *
-	 * @param nome nome do profissional
-	 * @param cns  CNS do profissional
-	 * @throws RuntimeException se houver erro na gravação
+	 * Lista todos os médicos cadastrados, agrupados por CNS.
+	 * O primeiro apelido de cada médico (ordem de cadastro) é o nome principal.
 	 */
-	public static synchronized void salvar(String nome, String cns) {
+	public static List<MedicoInfo> obterTodosMedicos() {
 
 		carregarCsvSeNecessario();
 
-		String nomeNorm = normalizar(nome);
+		List<MedicoInfo> lista = new ArrayList<>();
 
-		// Verifica se já existe com o mesmo CNS
-		String cnsExistente = mapaCns.get(nomeNorm);
-
-		if (cnsExistente != null && cnsExistente.equals(cns)) {
-			log.info("Profissional já cadastrado: Nome='{}', CNS={}", nome, cns);
-			return;
-		}
-
-		// Atualiza cache em memória
-		mapaCns.put(nomeNorm, cns);
-		mapaNomeOriginal.put(nomeNorm, nome);
-
-		// Persiste no CSV
-		salvarNoCsv(nome, cns);
-
-		log.info("Profissional cadastrado: Nome='{}', CNS={}", nome, cns);
-	}
-
-	/**
-	 * Retorna todos os profissionais registrados no cache local.
-	 * Cada entrada é um array: [nome, cns].
-	 *
-	 * @return lista de arrays [nome, cns]
-	 */
-	public static List<String[]> obterTodosRegistrados() {
-
-		carregarCsvSeNecessario();
-
-		List<String[]> lista = new ArrayList<>();
-
-		for (Map.Entry<String, String> entry : mapaCns.entrySet()) {
-
-			String nomeNorm = entry.getKey();
-			String cns = entry.getValue();
-			String nomeOriginal = mapaNomeOriginal.getOrDefault(nomeNorm, nomeNorm);
-
-			lista.add(new String[] { nomeOriginal, cns });
+		for (Map.Entry<String, List<String>> entry : apelidosPorCns.entrySet()) {
+			lista.add(new MedicoInfo(entry.getKey(), List.copyOf(entry.getValue())));
 		}
 
 		return lista;
+	}
+
+	/**
+	 * Cadastra um médico novo.
+	 *
+	 * @throws IllegalArgumentException se o CNS já estiver cadastrado
+	 */
+	public static synchronized void cadastrar(String cns, String primeiroNome) {
+
+		carregarCsvSeNecessario();
+
+		if (apelidosPorCns.containsKey(cns)) {
+			throw new IllegalArgumentException(
+					"Já existe um médico com este CNS: " + nomePrincipal(cns));
+		}
+
+		String nomeNorm = normalizar(primeiroNome);
+		String cnsExistente = cnsPorNome.get(nomeNorm);
+
+		if (cnsExistente != null) {
+			throw new IllegalArgumentException(
+					"Este nome já está associado a outro CNS: " + cnsExistente);
+		}
+
+		List<String> apelidos = new ArrayList<>();
+		apelidos.add(primeiroNome);
+		apelidosPorCns.put(cns, apelidos);
+		cnsPorNome.put(nomeNorm, cns);
+
+		reescreverArquivoExterno();
+
+		log.info("Médico cadastrado: CNS={}, Nome='{}'", cns, primeiroNome);
+	}
+
+	/**
+	 * Adiciona um apelido (variação de nome) a um médico já cadastrado.
+	 *
+	 * @throws IllegalArgumentException se o CNS não existir ou o nome já pertencer a outro CNS
+	 */
+	public static synchronized void adicionarApelido(String cns, String novoNome) {
+
+		carregarCsvSeNecessario();
+
+		List<String> apelidos = apelidosPorCns.get(cns);
+
+		if (apelidos == null) {
+			throw new IllegalArgumentException("Médico não encontrado para o CNS: " + cns);
+		}
+
+		String nomeNorm = normalizar(novoNome);
+		String cnsExistente = cnsPorNome.get(nomeNorm);
+
+		if (cnsExistente != null && !cnsExistente.equals(cns)) {
+			throw new IllegalArgumentException(
+					"Este nome já está associado a outro CNS: " + cnsExistente);
+		}
+
+		if (cnsExistente != null) {
+			// Já é apelido deste mesmo médico — nada a fazer.
+			return;
+		}
+
+		apelidos.add(novoNome);
+		cnsPorNome.put(nomeNorm, cns);
+
+		reescreverArquivoExterno();
+
+		log.info("Apelido adicionado: CNS={}, Nome='{}'", cns, novoNome);
+	}
+
+	/**
+	 * Remove um apelido de um médico. Recusa remover o único apelido restante
+	 * (use {@link #removerMedico(String)} para excluir o médico inteiro).
+	 *
+	 * @throws IllegalArgumentException se for o único apelido do médico
+	 */
+	public static synchronized void removerApelido(String cns, String nome) {
+
+		carregarCsvSeNecessario();
+
+		List<String> apelidos = apelidosPorCns.get(cns);
+
+		if (apelidos == null) {
+			return;
+		}
+
+		if (apelidos.size() <= 1) {
+			throw new IllegalArgumentException(
+					"Este é o único apelido do médico — remova o médico em vez do apelido.");
+		}
+
+		String nomeNormAlvo = normalizar(nome);
+		apelidos.removeIf(a -> normalizar(a).equals(nomeNormAlvo));
+		cnsPorNome.remove(nomeNormAlvo);
+
+		reescreverArquivoExterno();
+
+		log.info("Apelido removido: CNS={}, Nome='{}'", cns, nome);
+	}
+
+	/**
+	 * Altera o CNS de um médico já cadastrado (corrige erro de digitação).
+	 *
+	 * @throws IllegalArgumentException se o CNS antigo não existir ou o novo já pertencer a outro médico
+	 */
+	public static synchronized void alterarCns(String cnsAntigo, String cnsNovo) {
+
+		carregarCsvSeNecessario();
+
+		List<String> apelidos = apelidosPorCns.get(cnsAntigo);
+
+		if (apelidos == null) {
+			throw new IllegalArgumentException("Médico não encontrado para o CNS: " + cnsAntigo);
+		}
+
+		if (cnsAntigo.equals(cnsNovo)) {
+			return;
+		}
+
+		if (apelidosPorCns.containsKey(cnsNovo)) {
+			throw new IllegalArgumentException(
+					"Este CNS já pertence a outro médico: " + nomePrincipal(cnsNovo)
+							+ " — adicione este nome como apelido daquele cadastro em vez de editar este.");
+		}
+
+		apelidosPorCns.remove(cnsAntigo);
+		apelidosPorCns.put(cnsNovo, apelidos);
+
+		for (String apelido : apelidos) {
+			cnsPorNome.put(normalizar(apelido), cnsNovo);
+		}
+
+		reescreverArquivoExterno();
+
+		log.info("CNS alterado: {} → {}", cnsAntigo, cnsNovo);
+	}
+
+	/** Remove um médico e todos os seus apelidos. */
+	public static synchronized void removerMedico(String cns) {
+
+		carregarCsvSeNecessario();
+
+		List<String> apelidos = apelidosPorCns.remove(cns);
+
+		if (apelidos != null) {
+			for (String apelido : apelidos) {
+				cnsPorNome.remove(normalizar(apelido));
+			}
+		}
+
+		reescreverArquivoExterno();
+
+		log.info("Médico removido: CNS={}", cns);
 	}
 
 	/**
@@ -131,13 +252,18 @@ public class CnsProfissionalUtils {
 	 * Útil para testes e recarregamento manual.
 	 */
 	public static synchronized void limparCache() {
-		mapaCns = null;
-		mapaNomeOriginal = null;
+		apelidosPorCns = null;
+		cnsPorNome = null;
 	}
 
 	// ======================================================
 	// MÉTODOS INTERNOS
 	// ======================================================
+
+	private static String nomePrincipal(String cns) {
+		List<String> apelidos = apelidosPorCns.get(cns);
+		return (apelidos == null || apelidos.isEmpty()) ? cns : apelidos.get(0);
+	}
 
 	/**
 	 * Carrega o arquivo CSV de profissionais do classpath e arquivo externo (lazy loading).
@@ -146,20 +272,20 @@ public class CnsProfissionalUtils {
 	 */
 	private static synchronized void carregarCsvSeNecessario() {
 
-		if (mapaCns != null) {
+		if (apelidosPorCns != null) {
 			return;
 		}
 
-		mapaCns = new HashMap<>();
-		mapaNomeOriginal = new HashMap<>();
+		apelidosPorCns = new LinkedHashMap<>();
+		cnsPorNome = new LinkedHashMap<>();
 
 		// Carrega do classpath (recurso embutido)
 		carregarDeClasspath();
 
-		// Carrega do arquivo externo (sobrescreve se houver duplicatas)
+		// Carrega do arquivo externo (mesma fonte, em desenvolvimento; complementa em produção)
 		carregarDeArquivoExterno();
 
-		log.info("Cache CNS profissional carregado: {} entradas", mapaCns.size());
+		log.info("Cache CNS profissional carregado: {} médicos", apelidosPorCns.size());
 	}
 
 	/**
@@ -185,7 +311,7 @@ public class CnsProfissionalUtils {
 
 	/**
 	 * Carrega entradas do arquivo externo (src/main/resources).
-	 * Usado para capturar entradas adicionadas pelo pré-cadastro
+	 * Usado para capturar entradas adicionadas pelo cadastro
 	 * que ainda não foram recompiladas no classpath.
 	 */
 	private static void carregarDeArquivoExterno() {
@@ -244,9 +370,16 @@ public class CnsProfissionalUtils {
 					}
 
 					if (!nome.isEmpty() && !cns.isEmpty()) {
+
 						String nomeNorm = normalizar(nome);
-						mapaCns.put(nomeNorm, cns);
-						mapaNomeOriginal.put(nomeNorm, nome);
+
+						// Mesmo apelido já lido (ex.: presente no classpath e no externo) — não duplica.
+						if (cnsPorNome.containsKey(nomeNorm)) {
+							continue;
+						}
+
+						apelidosPorCns.computeIfAbsent(cns, k -> new ArrayList<>()).add(nome);
+						cnsPorNome.put(nomeNorm, cns);
 					}
 				}
 			}
@@ -257,31 +390,45 @@ public class CnsProfissionalUtils {
 	}
 
 	/**
-	 * Persiste uma entrada no arquivo CSV (append).
+	 * Reescreve o arquivo externo inteiro a partir do estado atual em
+	 * memória — necessário porque atualização e remoção não são operações
+	 * de append. Uma linha por apelido, ordenadas por nome para diffs de
+	 * git legíveis. Nunca toca no CSV do classpath.
 	 */
-	private static void salvarNoCsv(String nome, String cns) {
+	private static void reescreverArquivoExterno() {
 
 		Path caminho = Path.of(CAMINHO_CSV_FONTE);
+
+		List<String[]> linhas = new ArrayList<>();
+
+		for (Map.Entry<String, List<String>> entry : apelidosPorCns.entrySet()) {
+			for (String apelido : entry.getValue()) {
+				linhas.add(new String[] { apelido, entry.getKey() });
+			}
+		}
+
+		linhas.sort(Comparator.comparing(l -> l[0], String.CASE_INSENSITIVE_ORDER));
 
 		try {
 
 			Files.createDirectories(caminho.getParent());
 
-			if (!Files.exists(caminho)) {
-				Files.writeString(caminho, "nome;cns\n", StandardCharsets.UTF_8);
-			}
-
 			try (BufferedWriter writer = Files.newBufferedWriter(
 					caminho, StandardCharsets.UTF_8,
-					StandardOpenOption.APPEND)) {
+					StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
 
-				writer.write(nome + ";" + cns);
+				writer.write("nome;cns");
 				writer.newLine();
+
+				for (String[] linha : linhas) {
+					writer.write(linha[0] + ";" + linha[1]);
+					writer.newLine();
+				}
 			}
 
 		} catch (Exception e) {
-			log.error("Erro ao salvar profissional no CSV: {}", e.getMessage());
-			throw new RuntimeException("Erro ao salvar no arquivo CSV: " + e.getMessage(), e);
+			log.error("Erro ao reescrever CSV de médicos: {}", e.getMessage());
+			throw new RuntimeException("Erro ao reescrever o arquivo CSV: " + e.getMessage(), e);
 		}
 	}
 
@@ -326,6 +473,14 @@ public class CnsProfissionalUtils {
 		/** Mensagem de aviso ou null se encontrado sem problemas. */
 		public String getAviso() {
 			return aviso;
+		}
+	}
+
+	/** Um médico cadastrado: CNS e seus apelidos (nomes), em ordem de cadastro — índice 0 é o nome principal. */
+	public record MedicoInfo(String cns, List<String> apelidos) {
+
+		public String nomePrincipal() {
+			return apelidos.isEmpty() ? "" : apelidos.get(0);
 		}
 	}
 }
