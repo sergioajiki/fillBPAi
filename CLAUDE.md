@@ -36,13 +36,16 @@ Antes de importar, a planilha é validada por `ValidacaoPlanilhaService`. Se hou
 `ErroValidacao` tem campo `severidade` (enum `ERRO`/`AVISO`) e método `isBloqueante()`.
 
 Tipos de ERRO (bloqueantes):
-- **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização
 - **CEP_AUSENTE** — CEP do endereço não informado
 - **CEP_INVALIDO** — CEP presente mas com tamanho incorreto (diferente de 8 dígitos após normalização)
 - **CPF_AUSENTE** — CPF do paciente não informado
+- **CPF_INVALIDO** — CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização)
+- **ESTRUTURA_INVALIDA** — coluna obrigatória ausente do cabeçalho ou nome de coluna ambíguo (casa com mais de um campo canônico)
 
 Tipos de AVISO (não bloqueantes):
+- **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização (não bloqueia a importação)
 - **CNS_INCOMUM** — CNS do paciente com mais de 15 dígitos (formato incomum)
+- **RACA_INDIGENA** — raça do paciente informada como Indígena
 
 O botão **"Analisar Planilha"** (topBar, à esquerda de "Importar Planilha") permite validar sem importar.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.

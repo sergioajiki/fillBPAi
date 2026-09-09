@@ -9,6 +9,7 @@ import br.gov.ses.fillbpai.ui.ConfiguracoesDialog;
 import br.gov.ses.fillbpai.ui.FileChooserService;
 import br.gov.ses.fillbpai.ui.RelatorioController;
 import jakarta.persistence.EntityManager;
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -457,7 +458,11 @@ public class MainController {
 		Button btnAbrirConfiguracoes = new Button("Abrir Configurações");
 		btnAbrirConfiguracoes.setOnAction(e -> {
 			alert.close();
-			configuracoesDialog.abrir(stage);
+			// alert.close() só agenda o fim do loop modal do showAndWait() deste Alert;
+			// abrir outro showAndWait() já no mesmo handler empilha um segundo loop modal
+			// antes do primeiro desmontar, e o diálogo novo renderiza mas não recebe cliques.
+			// Platform.runLater adia a abertura para o próximo pulso, já com o loop anterior encerrado.
+			Platform.runLater(() -> configuracoesDialog.abrir(stage));
 		});
 
 		Button btnSalvarLog = new Button("Salvar Log TXT");

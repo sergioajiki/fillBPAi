@@ -7,15 +7,15 @@ Aplicação desktop JavaFX utilizada pelo **Núcleo de Telessaúde de MS** para 
 ## Funcionalidades
 
 ### Importação
-- **Análise prévia da planilha** — valida erros bloqueantes (CNS, CEP, CPF) e avisos antes de importar; ao não encontrar erros, oferece importação direta na mesma janela
-- **Importação de planilha Excel (.xlsx)** — leitura automática com validação e normalização de todos os campos
+- **Análise prévia da planilha** (`[Analisar Planilha]`) — valida erros bloqueantes (CNS, CEP, CPF, estrutura de colunas) e avisos; ao não encontrar erros bloqueantes, o próprio diálogo de resultado oferece o botão **"Importar Planilha"** para concluir a importação, com leitura, validação e normalização de todos os campos
+- **Configuração de mapeamento de colunas** (`[Configurações]`) — permite cadastrar/remover aliases de nomes de cabeçalho aceitos para cada campo canônico da planilha, para acomodar variações de nomenclatura entre planilhas; acessível também diretamente a partir do erro de estrutura de planilha
 - **Detecção de tipo de logradouro** — identifica automaticamente o prefixo do endereço (Rua → 081, Avenida/Av./Av → 008, Travessa/Trav./TV → 100) e preenche o código do logradouro
 - **Resolução de CNS do profissional** — busca por nome no arquivo `dados/medicos_cns.csv` (escopo estadual)
 - **Resolução de código IBGE** — via CSV por nome do município, cache do banco ou API ViaCEP
 - **Log de importação persistido** — salvo em `database/log_importacao.txt` para consulta a qualquer momento
 
 ### Visualização e Edição
-- **Tabela com 29 colunas** — exibição completa dos registros importados
+- **Tabela com 28 colunas** — exibição completa dos registros importados
 - **Busca livre por nome do médico** — correspondência parcial, case-insensitive
 - **Filtro por especialidade e médico** — combo de especialidade revela combo de médico; mutuamente exclusivo com a busca livre
 - **Edição em lote** — atualiza CNS do profissional e define folha para todos os registros do médico/especialidade selecionados
@@ -82,18 +82,27 @@ fillBPAi/
     │   │   ├── ExcelImportService.java             # Leitura do Excel → DTO
     │   │   ├── GeradorBPAiService.java             # Geração do arquivo BPA-I
     │   │   ├── ImportacaoResultado.java            # Resultado agregado da importação
+    │   │   ├── PlanilhaColumnMapper.java           # Mapeia cabeçalhos → campos canônicos via aliases
     │   │   └── ValidacaoPlanilhaService.java       # Validação pré-importação
     │   ├── ui/
+    │   │   ├── ConfiguracoesDialog.java            # Diálogo de aliases de colunas da planilha
     │   │   ├── FileChooserService.java             # Diálogo de seleção de arquivo
     │   │   └── RelatorioController.java            # Tabela, filtros, ações de geração
     │   └── util/
     │       ├── CepUtils.java                       # Normalização de CEP
     │       ├── CnsProfissionalUtils.java           # Resolução de CNS por nome
     │       ├── CnsUtils.java                       # Validação/normalização CNS paciente
-    │       ├── IbgeUtils.java                      # Resolução de código IBGE
-    │       └── LogradouroUtils.java                # Detecção de tipo de logradouro
+    │       ├── ColunaAliasUtils.java                # Gerencia aliases de nomes de coluna de cabeçalho
+    │       ├── CpfUtils.java                        # Normalização/validação de CPF (11 dígitos)
+    │       ├── DateUtils.java                       # Parse de data em múltiplos formatos aceitos
+    │       ├── IbgeUtils.java                       # Resolução de código IBGE
+    │       ├── LogradouroUtils.java                 # Detecção de tipo de logradouro
+    │       ├── StringUtils.java                     # Truncamento e split de "código - nome"
+    │       ├── TextoUtils.java                      # Normalização de texto para comparação
+    │       └── TimeUtils.java                       # Parse de hora em múltiplos formatos aceitos
     └── resources/
         └── dados/
+            ├── colunas_aliases.csv                 # Aliases padrão de nomes de coluna de cabeçalho
             └── medicos_cns.csv                     # Cache local CNS dos profissionais
 ```
 
@@ -103,22 +112,22 @@ fillBPAi/
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
-│ [Analisar Planilha] [Importar Planilha] [Ver Log Importação]           │  ← Linha 1
-│                                         [Selecionar Mês] Comp: MM/AAAA│
+│ [Analisar Planilha] [Ver Log Importação] [Configurações]   Comp:MM/AAAA│  ← Linha 1 (topBar)
 ├────────────────────────────────────────────────────────────────────────┤
-│ [Selecionar Mês] [Gerar BPA-I Completo] [⚠ Pendências CNS]            │  ← Linha 2
-│                  [Gerar BPA-I] [⚠]                                     │
+│ [Selecionar Mês] [Gerar BPA-I Completo] [⚠ Pendências CNS]            │  ← Linha 2 (barra de ações)
 ├────────────────────────────────────────────────────────────────────────┤
-│ Buscar médico: [________] [Buscar]  Especialidade[▼]  (Médico[▼])     │  ← Linha 3
-│                                                         [Limpar]       │
+│ Buscar médico: [________] [Buscar]  Especialidade[▼]  (Médico[▼])     │  ← Linha 3 (barra de filtros)
+│                                        [Gerar BPA-I] [⚠] [Limpar]      │
 ├────────────────────────────────────────────────────────────────────────┤
-│ (aparece ao selecionar médico ou usar busca)                           │  ← Linha 4
+│ (aparece ao selecionar médico ou usar busca)                           │  ← Linha 4 (barra de edição)
 │ CNS: [___________] [Atualizar CNS] [Definir Folha]                    │
 ├────────────────────────────────────────────────────────────────────────┤
 │                         Tabela de Atendimentos                         │  ← Linha 5
 │                              Total: N                                  │
 └────────────────────────────────────────────────────────────────────────┘
 ```
+
+O botão **"Importar Planilha"** não fica fixo na barra superior — ele aparece dentro do diálogo de resultado exibido após `[Analisar Planilha]`, quando não há erros bloqueantes.
 
 ---
 
@@ -128,9 +137,10 @@ fillBPAi/
 Planilha .xlsx
       │
       ▼
-[Analisar Planilha] ──► sem erros ──► [Importar Planilha] (mesmo diálogo)
-      │                só avisos ──► [Importar Planilha] (mesmo diálogo)
+[Analisar Planilha] ──► sem erros ──► botão [Importar Planilha] no diálogo
+      │                só avisos ──► botão [Importar Planilha] no diálogo
       │                com erros ──► exibe log (sem importação)
+      │        erro de estrutura ──► oferece abrir [Configurações]
       │
 [Importar Planilha]
       │
@@ -166,10 +176,14 @@ Planilha .xlsx
 
 | Tipo | Código | Severidade | Efeito |
 |------|--------|-----------|--------|
-| CNS ausente ou < 15 dígitos | `CNS_INVALIDO` | ERRO | Bloqueia importação |
-| CEP não informado | `CEP_AUSENTE` | ERRO | Bloqueia importação |
-| CPF não informado | `CPF_AUSENTE` | ERRO | Bloqueia importação |
+| CNS ausente ou < 15 dígitos | `CNS_INVALIDO` | AVISO | Importa com aviso no log (não bloqueia) |
 | CNS com > 15 dígitos | `CNS_INCOMUM` | AVISO | Importa com aviso no log |
+| CEP não informado | `CEP_AUSENTE` | ERRO | Bloqueia importação |
+| CEP com tamanho inválido (≠ 8 dígitos) | `CEP_INVALIDO` | ERRO | Bloqueia importação |
+| CPF não informado | `CPF_AUSENTE` | ERRO | Bloqueia importação |
+| CPF com tamanho inválido (≠ 11 dígitos) | `CPF_INVALIDO` | ERRO | Bloqueia importação |
+| Raça do paciente = Indígena | `RACA_INDIGENA` | AVISO | Importa com aviso no log |
+| Coluna obrigatória ausente/ambígua no cabeçalho | `ESTRUTURA_INVALIDA` | ERRO | Bloqueia importação (oferece abrir Configurações) |
 
 ---
 
@@ -215,24 +229,36 @@ O arquivo gerado segue o layout oficial de interface texto do BPA:
 | 2 | Data Agendamento | Data do atendimento |
 | 3 | Hora Atendimento | Horário do atendimento |
 | 4 | Estabelecimento | Código + nome do estabelecimento |
-| 5 | Especialidade/Médico | Especialidade e nome do profissional |
-| 6 | CPF Médico | CPF do profissional |
-| 7 | CBO Médico | Código CBO do profissional |
-| 8 | Município | Município do atendimento |
-| 9 | CPF Paciente | CPF do paciente |
-| 10 | Paciente | Nome do paciente |
-| 11 | CNS Paciente | Cartão Nacional de Saúde do paciente |
-| 12 | Raça Paciente | Raça/cor do paciente |
-| 13 | Data Nascimento | Data de nascimento do paciente |
-| 14 | CID Consulta | Código CID da consulta |
-| 15 | Telefone | Telefone do paciente |
-| 16 | Tipo Zona | Zona (urbana/rural) |
-| 17 | CEP | CEP do paciente |
-| 18 | Código Logradouro | Preenchido automaticamente pelo sistema |
-| 19 | Endereço | Endereço do paciente (com ou sem prefixo de tipo) |
-| 20 | Complemento | Complemento do endereço |
-| 21 | Número | Número do endereço |
-| 22 | Bairro | Bairro do paciente |
+| 5 | Especialidade | Especialidade do profissional |
+| 6 | Médico | Nome do profissional |
+| 7 | CPF Médico | CPF do profissional |
+| 8 | CBO Médico | Código CBO do profissional |
+| 9 | Município | Município do atendimento |
+| 10 | CPF Paciente | CPF do paciente |
+| 11 | Paciente | Nome do paciente |
+| 12 | CNS Paciente | Cartão Nacional de Saúde do paciente |
+| 13 | Sexo Paciente | Sexo do paciente |
+| 14 | Raça Paciente | Raça/cor do paciente |
+| 15 | Data Nascimento | Data de nascimento do paciente |
+| 16 | CID Consulta | Código CID da consulta |
+| 17 | Telefone | Telefone do paciente |
+| 18 | Tipo Zona | Zona (urbana/rural) |
+| 19 | CEP | CEP do paciente |
+| 20 | Código Logradouro | Preenchido automaticamente pelo sistema |
+| 21 | Endereço | Endereço do paciente (com ou sem prefixo de tipo) |
+| 22 | Complemento | Complemento do endereço |
+| 23 | Número | Número do endereço |
+| 24 | Bairro | Bairro do paciente |
+
+---
+
+## Configuração de Mapeamento de Colunas
+
+Acessível pelo botão `[Configurações]` na barra superior, ou diretamente a partir do diálogo de erro quando `[Analisar Planilha]` detecta colunas obrigatórias ausentes/ambíguas no cabeçalho (`ESTRUTURA_INVALIDA`).
+
+O diálogo tem duas abas:
+- **Colunas da Planilha** — para cada campo canônico do sistema (ex.: `CPF_PACIENTE`, `MEDICO`), permite cadastrar aliases adicionais de nome de cabeçalho aceitos na planilha, remover aliases customizados e restaurar os aliases padrão de uma coluna. Aliases padrão vêm de `src/main/resources/dados/colunas_aliases.csv`; os customizados são persistidos separadamente.
+- **CNS de Médicos** — reservada para gerenciar `medicos_cns.csv` pela interface; ainda não implementada (placeholder "Em breve").
 
 ---
 
