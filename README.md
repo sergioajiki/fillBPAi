@@ -207,9 +207,10 @@ O arquivo gerado segue o layout oficial de interface texto do BPA:
 
 | Campo | Regra |
 |-------|-------|
-| `prd-cnspac` (seq 10) | CPF do paciente zero-padded para 15 chars |
+| `prd-cnspac` (seq 10) | Sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo |
 | `prd-ibge` (seq 12) | Código IBGE de 7 dígitos truncado para 6 (sem dígito verificador) |
 | `prd-cmp` (seq 3) | Competência = mês de atendimento + 1 (mês de faturamento) |
+| `prd-cpf-pcnte` (seq 38) | CPF do paciente, 11 dígitos zero-padded — é aqui, não na seq 10, que o CPF do paciente entra no registro |
 
 ### Códigos de logradouro
 
