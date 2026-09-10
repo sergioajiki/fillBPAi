@@ -21,10 +21,10 @@
 
 Estes pontos não são o objetivo desta documentação, mas apareceram durante a leitura linha a linha do código e valem registro:
 
-- **Divergência entre `CLAUDE.md` e o código real do layout BPA-I.** `CLAUDE.md` descreve a seq 10 (`prd-cnspac`) como "CPF do paciente zero-padded 15 chars". O código real de `GeradorBPAiService.montarRegistro` grava a seq 10 como **15 espaços em branco** (comentário no código: "CNS não utilizado") — o CPF do paciente é gravado na seq 38 (`prd_cpf_pcnte`, 11 dígitos, zero-padded), não na seq 10. Ver seção [`GeradorBPAiService`](#brgovsesfillbpaiservicegeradorbpaiservice).
-- **Dois métodos mortos, não referenciados em nenhum lugar do projeto:**
-  - `util/HibernateUtil.java` — abordagem alternativa de acesso ao banco via Hibernate puro (`SessionFactory`), substituída por `DatabaseInitializer` (JPA).
-  - `GeradorBPAiService.formatarCpfParaBpa(String)` — método privado nunca chamado; possível resquício de uma versão anterior do layout de seq 10.
+- **Divergência entre `CLAUDE.md` e o código real do layout BPA-I** (já corrigida no README/CLAUDE.md). `GeradorBPAiService.montarRegistro` grava a seq 10 (`prd-cnspac`) como **15 espaços em branco** ("CNS não utilizado") — o CPF do paciente é gravado na seq 38 (`prd_cpf_pcnte`, 11 dígitos, zero-padded), não na seq 10. Ver seção [`GeradorBPAiService`](#brgovsesfillbpaiservicegeradorbpaiservice).
+- ~~Dois métodos mortos, não referenciados em nenhum lugar do projeto: `util/HibernateUtil.java` e `GeradorBPAiService.formatarCpfParaBpa(String)`~~ — **removidos** do código. Esta documentação já não os lista.
+
+> **Nota de desatualização parcial:** esta documentação foi gerada antes das sprints de testes (ver `docs/runbook-testes-sprint-0-2.html`). `ColunaAliasUtils` e `CnsProfissionalUtils` ganharam um seam de caminho configurável (`usarCaminhoParaTeste`) para testes, e `GeradorBPAiService` foi refatorado para extrair `gerarConteudoParcial`/`gerarConteudoCompleto` — nenhum dos três reflete essas mudanças nas seções abaixo ainda.
 
 ---
 
@@ -299,21 +299,10 @@ Gera o arquivo magnético BPA-I: header de 132 caracteres + um registro por aten
 - `formatarClassificacao(String sigtap): String` (privado) — mesma lógica, usando `MAP_CLASSIFICACAO` (`0301010307`→`"006"`, `0804010064`→`"009"`, `0301010315`→`"006"`).
 - `calcularCompetencia(LocalDate dataAtendimento): String` (privado) — formata a data como `yyyyMM`; lança `RuntimeException` se a data for `null`.
 - `padNumObrigatorio(String valor, int tamanho): String` (privado) — como `padNumOpcional`, mas nunca produz branco: `valor` nulo vira `"081"` antes de limpar, e se ficar vazio após remover não-dígitos vira `"0"`; sempre zero-padded. Usado só no código de logradouro (seq 30).
-- `formatarCpfParaBpa(String cpf): String` (privado, **código morto — nunca chamado**) — remove não-dígitos, limita a 11, preenche com espaços à direita até 15.
 
 ---
 
 ## Pacote `util`
-
-### `br.gov.ses.fillbpai.util.HibernateUtil`
-`src/main/java/br/gov/ses/fillbpai/util/HibernateUtil.java`
-
-⚠️ **Código morto, não utilizado** — nenhuma outra classe do projeto referencia `HibernateUtil`. A inicialização real do banco é feita por `DatabaseInitializer` (JPA/`Persistence`). Esta classe é uma abordagem alternativa via Hibernate puro (`SessionFactory` + `hibernate.cfg.xml`), aparentemente um resquício de uma versão anterior do projeto.
-
-**Métodos:**
-- `buildSessionFactory(): SessionFactory` *(privado, estático)* — cria o `SessionFactory` do Hibernate a partir de `hibernate.cfg.xml`; se falhar, lança `ExceptionInInitializerError`. Executado uma única vez, na inicialização estática da classe (`SESSION_FACTORY` é um campo `static final`).
-- `getSessionFactory(): SessionFactory` — retorna a instância única do `SessionFactory` criada estaticamente.
-- `shutdown(): void` — fecha o `SessionFactory` (`getSessionFactory().close()`).
 
 ### `br.gov.ses.fillbpai.util.DateUtils`
 `src/main/java/br/gov/ses/fillbpai/util/DateUtils.java`
