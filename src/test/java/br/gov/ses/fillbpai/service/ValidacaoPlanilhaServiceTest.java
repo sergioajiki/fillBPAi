@@ -220,8 +220,9 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
-	void validarComEtniaPreenchidaNaoReconhecidaGeraAvisoEtniaNaoEncontrada() throws IOException {
+	void validarComEtniaPreenchidaNaoReconhecidaERacaIndigenaGeraAvisoEtniaNaoEncontrada() throws IOException {
 		String[] linha = linhaValida();
+		linha[COL_RACA_PACIENTE] = "Indígena";
 		linha[COL_ETNIA_PACIENTE] = "ETNIA QUE NAO EXISTE XYZ";
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
 
@@ -232,6 +233,18 @@ class ValidacaoPlanilhaServiceTest {
 			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ETNIA_NAO_ENCONTRADA);
 			assertThat(erro.detalhe()).contains("ETNIA QUE NAO EXISTE XYZ");
 		});
+	}
+
+	@Test
+	void validarComEtniaPreenchidaNaoReconhecidaMasRacaNaoIndigenaNaoGeraAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_RACA_PACIENTE] = "PARDA";
+		linha[COL_ETNIA_PACIENTE] = "ETNIA QUE NAO EXISTE XYZ";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.ETNIA_NAO_ENCONTRADA));
 	}
 
 	@Test

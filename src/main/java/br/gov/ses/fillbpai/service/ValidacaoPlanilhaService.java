@@ -194,28 +194,26 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
-		// Regra 4: Raça Indígena sem etnia informada — AVISO, não bloqueia
-		// (etnia preenchida mas não reconhecida é a Regra 5, independente)
+		// Regra 4: Etnia do paciente — só é considerada quando a raça é
+		// Indígena (código 5 do BPA-I); para as demais raças o conteúdo da
+		// coluna Etnia é ignorado, mesmo que preenchido. AVISO, não bloqueia.
 		// -------------------------------------------------------
 		String raca = dto.getRacaPaciente();
 		String etnia = dto.getEtniaPaciente();
 
 		if (raca != null && !raca.trim().isEmpty()) {
 			String racaNorm = TextoUtils.normalizar(raca);
-			if ("INDIGENA".equals(racaNorm) && (etnia == null || etnia.trim().isEmpty())) {
-				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-						ErroValidacao.RACA_INDIGENA,
-						"Raca informada como Indigena - e necessario preencher a etnia do paciente"));
+			if ("INDIGENA".equals(racaNorm)) {
+				if (etnia == null || etnia.trim().isEmpty()) {
+					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+							ErroValidacao.RACA_INDIGENA,
+							"Raca informada como Indigena - e necessario preencher a etnia do paciente"));
+				} else if (EtniaUtils.resolver(etnia) == null) {
+					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+							ErroValidacao.ETNIA_NAO_ENCONTRADA,
+							"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado"));
+				}
 			}
-		}
-
-		// -------------------------------------------------------
-		// Regra 5: Etnia preenchida mas não reconhecida — AVISO, não bloqueia
-		// -------------------------------------------------------
-		if (etnia != null && !etnia.trim().isEmpty() && EtniaUtils.resolver(etnia) == null) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-					ErroValidacao.ETNIA_NAO_ENCONTRADA,
-					"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado"));
 		}
 	}
 

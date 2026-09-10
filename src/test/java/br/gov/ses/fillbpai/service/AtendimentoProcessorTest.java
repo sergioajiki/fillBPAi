@@ -290,18 +290,29 @@ class AtendimentoProcessorTest {
 		assertThat(avisos).noneSatisfy(a -> assertThat(a).contains("necessario preencher"));
 	}
 
-	// ===== ETNIA NÃO ENCONTRADA (aviso, não bloqueia, independente de raça) =====
+	// ===== ETNIA NÃO ENCONTRADA (aviso, não bloqueia, só considerada com raça Indígena) =====
 
 	@Test
-	void processarComEtniaPreenchidaNaoReconhecidaGeraAvisoIndependenteDaRaca() {
+	void processarComEtniaPreenchidaNaoReconhecidaERacaIndigenaGeraAviso() {
 		LinhaImportacaoDTO dto = dtoValido();
-		dto.setRacaPaciente("PARDA");
+		dto.setRacaPaciente("INDIGENA");
 		dto.setEtniaPaciente("ETNIA QUE NAO EXISTE XYZ");
 
 		List<String> avisos = processor.processar(dto);
 
 		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("ETNIA QUE NAO EXISTE XYZ")
 				.contains("nao encontrada"));
+	}
+
+	@Test
+	void processarComEtniaPreenchidaNaoReconhecidaMasRacaNaoIndigenaNaoGeraAviso() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setRacaPaciente("PARDA");
+		dto.setEtniaPaciente("ETNIA QUE NAO EXISTE XYZ");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).noneSatisfy(a -> assertThat(a).contains("nao encontrada"));
 	}
 
 	@Test

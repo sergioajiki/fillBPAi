@@ -83,8 +83,7 @@ public class AtendimentoProcessor {
 		validarCep(dto);
 		validarCpf(dto);
 		avisos.addAll(validarCns(dto));
-		avisos.addAll(verificarRacaIndigena(dto));
-		avisos.addAll(verificarEtniaNaoEncontrada(dto));
+		avisos.addAll(verificarEtniaDoIndigena(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -230,14 +229,19 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Verifica se a raça do paciente é Indígena (com ou sem acento, qualquer capitalização).
-	 * Quando detectado e a etnia não foi informada, gera aviso pedindo o preenchimento.
-	 * Etnia preenchida é responsabilidade de {@link #verificarEtniaNaoEncontrada}, para
-	 * não duplicar aviso quando o texto não bate com a tabela oficial.
+	 * Verifica a etnia do paciente — regra de negócio só considera a coluna
+	 * Etnia quando a raça é Indígena (código 5 do BPA-I); para as demais
+	 * raças o conteúdo da coluna é ignorado, mesmo que preenchido com algo
+	 * que não bata com a tabela oficial (a coluna normalmente nem se aplica
+	 * fora desse caso).
+	 * <p>
+	 * Com raça Indígena: etnia em branco → aviso pedindo pra preencher;
+	 * etnia preenchida mas não reconhecida por {@link EtniaUtils#resolver}
+	 * → aviso de etnia não encontrada; etnia reconhecida → sem aviso.
 	 *
-	 * @return lista com aviso, ou lista vazia
+	 * @return lista com o aviso aplicável, ou lista vazia
 	 */
-	private List<String> verificarRacaIndigena(LinhaImportacaoDTO dto) {
+	private List<String> verificarEtniaDoIndigena(LinhaImportacaoDTO dto) {
 
 		List<String> avisos = new ArrayList<>();
 
@@ -252,31 +256,15 @@ public class AtendimentoProcessor {
 				.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
 				.toUpperCase();
 
-		if ("INDIGENA".equals(racaNorm) && isNullOrEmpty(dto.getEtniaPaciente())) {
-			avisos.add("Raca informada como Indigena - e necessario preencher a etnia do paciente");
+		if (!"INDIGENA".equals(racaNorm)) {
+			return avisos;
 		}
-
-		return avisos;
-	}
-
-	/**
-	 * Verifica se a etnia informada (quando preenchida) corresponde a algum
-	 * nome da tabela oficial. Independente da raça — dispara sempre que o
-	 * texto não é reconhecido por {@link EtniaUtils#resolver}.
-	 *
-	 * @return lista com aviso, ou lista vazia
-	 */
-	private List<String> verificarEtniaNaoEncontrada(LinhaImportacaoDTO dto) {
-
-		List<String> avisos = new ArrayList<>();
 
 		String etnia = dto.getEtniaPaciente();
 
 		if (isNullOrEmpty(etnia)) {
-			return avisos;
-		}
-
-		if (EtniaUtils.resolver(etnia) == null) {
+			avisos.add("Raca informada como Indigena - e necessario preencher a etnia do paciente");
+		} else if (EtniaUtils.resolver(etnia) == null) {
 			avisos.add("Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado");
 		}
 
