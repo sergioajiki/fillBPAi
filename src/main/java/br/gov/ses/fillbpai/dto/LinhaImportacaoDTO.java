@@ -49,6 +49,7 @@ public class LinhaImportacaoDTO {
 	private String cnsPaciente;
 	private String sexoPaciente;
 	private String racaPaciente;
+	private String etniaPaciente;
 	private LocalDate dataNascimento;
 	private String telefone;
 
@@ -211,6 +212,14 @@ public class LinhaImportacaoDTO {
 
 	public void setRacaPaciente(String racaPaciente) {
 		this.racaPaciente = racaPaciente;
+	}
+
+	public String getEtniaPaciente() {
+		return etniaPaciente;
+	}
+
+	public void setEtniaPaciente(String etniaPaciente) {
+		this.etniaPaciente = etniaPaciente;
 	}
 
 	public LocalDate getDataNascimento() {

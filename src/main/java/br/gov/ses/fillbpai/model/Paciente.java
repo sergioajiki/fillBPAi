@@ -32,6 +32,9 @@ public class Paciente {
 	@Column(name = "raca", length = 50)
 	private String raca;
 
+	@Column(name = "etnia", length = 100)
+	private String etnia;
+
 	@Column(name = "data_nascimento")
 	private LocalDate dataNascimento;
 
@@ -91,6 +94,14 @@ public class Paciente {
 
 	public void setRaca(String raca) {
 		this.raca = raca;
+	}
+
+	public String getEtnia() {
+		return etnia;
+	}
+
+	public void setEtnia(String etnia) {
+		this.etnia = etnia;
 	}
 
 	public LocalDate getDataNascimento() {

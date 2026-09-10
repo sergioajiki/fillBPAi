@@ -286,6 +286,7 @@ public class AtendimentoImportacaoService {
 					paciente.setCns(dto.getCnsPaciente());
 					paciente.setSexo(dto.getSexoPaciente());
 					paciente.setRaca(dto.getRacaPaciente());
+					paciente.setEtnia(dto.getEtniaPaciente());
 					paciente.setDataNascimento(dto.getDataNascimento());
 					paciente.setTelefone(dto.getTelefone());
 					return paciente;
@@ -297,6 +298,7 @@ public class AtendimentoImportacaoService {
 					novo.setCns(dto.getCnsPaciente());
 					novo.setSexo(dto.getSexoPaciente());
 					novo.setRaca(dto.getRacaPaciente());
+					novo.setEtnia(dto.getEtniaPaciente());
 					novo.setDataNascimento(dto.getDataNascimento());
 					novo.setTelefone(dto.getTelefone());
 					pacienteRepository.salvar(novo);

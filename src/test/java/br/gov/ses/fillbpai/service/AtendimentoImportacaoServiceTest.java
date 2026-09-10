@@ -44,7 +44,7 @@ class AtendimentoImportacaoServiceTest {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"Especialidade", "ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
-			"RACA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
+			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
 			"END. COMPLEMENTOS", "SEXO"
 	};
@@ -54,7 +54,7 @@ class AtendimentoImportacaoServiceTest {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
-			"RACA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
+			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
 			"END. COMPLEMENTOS", "SEXO"
 	};
@@ -83,11 +83,16 @@ class AtendimentoImportacaoServiceTest {
 
 	private String[] linhaValida(String cpfPaciente, String nomePaciente, String cpfMedico, String nomeMedico,
 			String especialidade) {
+		return linhaValida(cpfPaciente, nomePaciente, cpfMedico, nomeMedico, especialidade, "BRANCA", null);
+	}
+
+	private String[] linhaValida(String cpfPaciente, String nomePaciente, String cpfMedico, String nomeMedico,
+			String especialidade, String raca, String etnia) {
 		return new String[] {
 				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
 				especialidade, nomeMedico, cpfMedico, "225125",
 				"CAMPO GRANDE", cpfPaciente, nomePaciente, "700207960618529",
-				"BRANCA", "01/01/1990", "I10", "67999999999",
+				raca, etnia, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
 				"APTO 1", "F"
 		};
@@ -100,7 +105,7 @@ class AtendimentoImportacaoServiceTest {
 				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
 				especialidadeMedicoCombinado, cpfMedico, "225125",
 				"CAMPO GRANDE", cpfPaciente, nomePaciente, "700207960618529",
-				"BRANCA", "01/01/1990", "I10", "67999999999",
+				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
 				"APTO 1", "F"
 		};
@@ -155,6 +160,19 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(atendimento.getEstabelecimento()).isNotNull();
 		assertThat(atendimento.getEstabelecimento().getNome()).isEqualTo("HOSPITAL CENTRAL");
 		assertThat(atendimento.getDataAgendamento()).isEqualTo(LocalDate.of(2024, 12, 25));
+	}
+
+	@Test
+	void importarPersisteTextoDaEtniaNoPaciente() throws IOException {
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA",
+						"INDIGENA", "BANIWA"));
+
+		service.importar(caminho);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getPaciente().getEtnia()).isEqualTo("BANIWA");
 	}
 
 	@Test

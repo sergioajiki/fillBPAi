@@ -17,12 +17,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ValidacaoPlanilhaServiceTest {
 
-	/** Cabeçalho com os 24 campos obrigatórios, usando aliases reais de {@code dados/colunas_aliases.csv}. */
+	/** Cabeçalho com os 25 campos obrigatórios, usando aliases reais de {@code dados/colunas_aliases.csv}. */
 	private static final String[] CABECALHO_COMPLETO = {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"Especialidade", "ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
-			"RACA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
+			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
 			"END. COMPLEMENTOS", "SEXO"
 	};
@@ -32,7 +32,7 @@ class ValidacaoPlanilhaServiceTest {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
-			"RACA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
+			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
 			"END. COMPLEMENTOS", "SEXO"
 	};
@@ -40,7 +40,8 @@ class ValidacaoPlanilhaServiceTest {
 	private static final int COL_CPF_PACIENTE = 9;
 	private static final int COL_CNS_PACIENTE = 11;
 	private static final int COL_RACA_PACIENTE = 12;
-	private static final int COL_CEP = 19;
+	private static final int COL_ETNIA_PACIENTE = 13;
+	private static final int COL_CEP = 20;
 
 	private final ValidacaoPlanilhaService service = new ValidacaoPlanilhaService();
 
@@ -52,7 +53,7 @@ class ValidacaoPlanilhaServiceTest {
 				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
 				"CARDIOLOGIA", "JOAO DA SILVA", "98765432100", "225125",
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
-				"BRANCA", "01/01/1990", "I10", "67999999999",
+				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
 				"APTO 1", "F"
 		};
@@ -64,7 +65,7 @@ class ValidacaoPlanilhaServiceTest {
 				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
 				"CARDIOLOGIA - RODRIGO SILVA GRILO", "98765432100", "225125",
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
-				"BRANCA", "01/01/1990", "I10", "67999999999",
+				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
 				"APTO 1", "F"
 		};
@@ -203,6 +204,33 @@ class ValidacaoPlanilhaServiceTest {
 		assertThat(erros).singleElement().satisfies(erro -> {
 			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
 			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.RACA_INDIGENA);
+		});
+	}
+
+	@Test
+	void validarComRacaIndigenaEEtniaReconhecidaNaoGeraAvisoDeRaca() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_RACA_PACIENTE] = "Indígena";
+		linha[COL_ETNIA_PACIENTE] = "BANIWA";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.RACA_INDIGENA));
+	}
+
+	@Test
+	void validarComEtniaPreenchidaNaoReconhecidaGeraAvisoEtniaNaoEncontrada() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_ETNIA_PACIENTE] = "ETNIA QUE NAO EXISTE XYZ";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ETNIA_NAO_ENCONTRADA);
+			assertThat(erro.detalhe()).contains("ETNIA QUE NAO EXISTE XYZ");
 		});
 	}
 

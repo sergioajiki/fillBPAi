@@ -203,6 +203,32 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(162, 165)).isEqualTo("006");      // seq 25 prd-clf segue o código forçado
 	}
 
+	// ===== ETNIA (seq 22) =====
+
+	@Test
+	void seq22PrdEtniaComEtniaReconhecidaGeraCodigoDeQuatroCaracteres() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setRaca("INDIGENA");
+		atendimento.getPaciente().setEtnia("BANIWA");
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(152, 156)).isEqualTo("0032");
+	}
+
+	@Test
+	void seq22PrdEtniaComEtniaNaoReconhecidaGeraQuatroEspacos() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setRaca("INDIGENA");
+		atendimento.getPaciente().setEtnia("ETNIA QUE NAO EXISTE XYZ");
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(152, 156)).isEqualTo(" ".repeat(4));
+	}
+
 	// ===== SEQUENCIAL E FOLHA =====
 
 	@Test

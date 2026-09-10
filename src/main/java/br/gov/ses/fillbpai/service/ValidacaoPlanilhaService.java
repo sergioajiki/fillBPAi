@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
 import org.apache.poi.ss.usermodel.*;
@@ -193,17 +194,28 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
-		// Regra 4: Raça Indígena — AVISO, não bloqueia
+		// Regra 4: Raça Indígena sem etnia informada — AVISO, não bloqueia
+		// (etnia preenchida mas não reconhecida é a Regra 5, independente)
 		// -------------------------------------------------------
 		String raca = dto.getRacaPaciente();
+		String etnia = dto.getEtniaPaciente();
 
 		if (raca != null && !raca.trim().isEmpty()) {
 			String racaNorm = TextoUtils.normalizar(raca);
-			if ("INDIGENA".equals(racaNorm)) {
+			if ("INDIGENA".equals(racaNorm) && (etnia == null || etnia.trim().isEmpty())) {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 						ErroValidacao.RACA_INDIGENA,
-						"Raca informada como Indigena - e necessario verificar a etnia do paciente"));
+						"Raca informada como Indigena - e necessario preencher a etnia do paciente"));
 			}
+		}
+
+		// -------------------------------------------------------
+		// Regra 5: Etnia preenchida mas não reconhecida — AVISO, não bloqueia
+		// -------------------------------------------------------
+		if (etnia != null && !etnia.trim().isEmpty() && EtniaUtils.resolver(etnia) == null) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.ETNIA_NAO_ENCONTRADA,
+					"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado"));
 		}
 	}
 

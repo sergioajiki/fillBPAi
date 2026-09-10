@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.service;
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
+import br.gov.ses.fillbpai.util.EtniaUtils;
 import jakarta.persistence.EntityManager;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -658,7 +659,7 @@ public class GeradorBPAiService {
 		/**
 		 * seq 22 - prd-etnia
 		 */
-		sb.append(padRightSpaces("", 4));  // etnia
+		sb.append(formatarEtnia(paciente != null ? paciente.getEtnia() : null));
 
 		/**
 		 * seq 23 - prd-nac
@@ -936,6 +937,22 @@ public class GeradorBPAiService {
 		if (raca.contains("IND")) return "05";
 
 		return "99";
+	}
+
+	/**
+	 * Formata a etnia do paciente (código de 4 caracteres, seq 22 do BPA-I).
+	 * Etnia ausente ou não encontrada na tabela oficial (ver {@link EtniaUtils})
+	 * é gerada em branco — mesmo padrão do código IBGE não resolvido.
+	 */
+	private String formatarEtnia(String etnia) {
+
+		if (etnia == null || etnia.isBlank()) {
+			return padRightSpaces("", 4);
+		}
+
+		String codigo = EtniaUtils.resolver(etnia);
+
+		return codigo != null ? codigo : padRightSpaces("", 4);
 	}
 
 	/**

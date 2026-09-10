@@ -55,6 +55,7 @@ public class ExcelImportService {
 		dto.setPaciente(getString(row, colunas, "PACIENTE"));
 		dto.setCnsPaciente(getString(row, colunas, "CNS_PACIENTE"));
 		dto.setRacaPaciente(getString(row, colunas, "RACA_PACIENTE"));
+		dto.setEtniaPaciente(getString(row, colunas, "ETNIA_PACIENTE"));
 
 		// Data de nascimento armazenada como String (conversão posterior)
 		dto.setDataNascimentoString(getString(row, colunas, "DATA_NASCIMENTO"));

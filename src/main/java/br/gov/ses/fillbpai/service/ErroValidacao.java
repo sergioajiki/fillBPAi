@@ -45,6 +45,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Coluna "Especialidade/Médico" combinada — formato legado, separado automaticamente na importação. AVISO, não bloqueia. */
 	public static final String FORMATO_LEGADO_ESPECIALIDADE_MEDICO = "FORMATO_LEGADO_ESPECIALIDADE_MEDICO";
 
+	/** Etnia do paciente preenchida mas não encontrada na tabela oficial — AVISO, não bloqueia. */
+	public static final String ETNIA_NAO_ENCONTRADA = "ETNIA_NAO_ENCONTRADA";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

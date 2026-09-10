@@ -7,6 +7,7 @@ import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.EtniaUtils;
 
 import java.text.Normalizer;
 import java.time.LocalDate;
@@ -83,6 +84,7 @@ public class AtendimentoProcessor {
 		validarCpf(dto);
 		avisos.addAll(validarCns(dto));
 		avisos.addAll(verificarRacaIndigena(dto));
+		avisos.addAll(verificarEtniaNaoEncontrada(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -229,7 +231,9 @@ public class AtendimentoProcessor {
 
 	/**
 	 * Verifica se a raça do paciente é Indígena (com ou sem acento, qualquer capitalização).
-	 * Quando detectado, gera aviso para verificação manual da etnia.
+	 * Quando detectado e a etnia não foi informada, gera aviso pedindo o preenchimento.
+	 * Etnia preenchida é responsabilidade de {@link #verificarEtniaNaoEncontrada}, para
+	 * não duplicar aviso quando o texto não bate com a tabela oficial.
 	 *
 	 * @return lista com aviso, ou lista vazia
 	 */
@@ -248,8 +252,32 @@ public class AtendimentoProcessor {
 				.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
 				.toUpperCase();
 
-		if ("INDIGENA".equals(racaNorm)) {
-			avisos.add("Raca informada como Indigena - e necessario verificar a etnia do paciente");
+		if ("INDIGENA".equals(racaNorm) && isNullOrEmpty(dto.getEtniaPaciente())) {
+			avisos.add("Raca informada como Indigena - e necessario preencher a etnia do paciente");
+		}
+
+		return avisos;
+	}
+
+	/**
+	 * Verifica se a etnia informada (quando preenchida) corresponde a algum
+	 * nome da tabela oficial. Independente da raça — dispara sempre que o
+	 * texto não é reconhecido por {@link EtniaUtils#resolver}.
+	 *
+	 * @return lista com aviso, ou lista vazia
+	 */
+	private List<String> verificarEtniaNaoEncontrada(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+
+		String etnia = dto.getEtniaPaciente();
+
+		if (isNullOrEmpty(etnia)) {
+			return avisos;
+		}
+
+		if (EtniaUtils.resolver(etnia) == null) {
+			avisos.add("Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado");
 		}
 
 		return avisos;

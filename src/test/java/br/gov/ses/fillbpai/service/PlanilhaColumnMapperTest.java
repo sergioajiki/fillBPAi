@@ -14,12 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PlanilhaColumnMapperTest {
 
-	/** Cabeçalho com os 24 campos obrigatórios, usando aliases reais de {@code dados/colunas_aliases.csv}. */
+	/** Cabeçalho com os 25 campos obrigatórios, usando aliases reais de {@code dados/colunas_aliases.csv}. */
 	private static final String[] CABECALHO_COMPLETO = {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"Especialidade", "ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
-			"RACA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
+			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
 			"END. COMPLEMENTOS", "SEXO"
 	};
@@ -45,8 +45,8 @@ class PlanilhaColumnMapperTest {
 		assertThat(resultado.estruturaValida()).isTrue();
 		assertThat(resultado.camposFaltando()).isEmpty();
 		assertThat(resultado.camposDuplicados()).isEmpty();
-		assertThat(resultado.indices()).hasSize(24);
-		assertThat(resultado.indices()).containsEntry("CEP", 19);
+		assertThat(resultado.indices()).hasSize(25);
+		assertThat(resultado.indices()).containsEntry("CEP", 20);
 		assertThat(resultado.especialidadeMedicoCombinados()).isFalse();
 	}
 
@@ -77,7 +77,7 @@ class PlanilhaColumnMapperTest {
 
 		assertThat(resultado.estruturaValida()).isTrue();
 		assertThat(resultado.indices()).containsEntry("CEP", 4);
-		assertThat(resultado.indices()).containsEntry("TIPO_SERVICO", 23);
+		assertThat(resultado.indices()).containsEntry("TIPO_SERVICO", 24);
 	}
 
 	@Test
@@ -90,7 +90,7 @@ class PlanilhaColumnMapperTest {
 		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(cabecalho);
 
 		assertThat(resultado.estruturaValida()).isTrue();
-		assertThat(resultado.indices()).hasSize(24);
+		assertThat(resultado.indices()).hasSize(25);
 		assertThat(resultado.colunasNaoReconhecidas()).containsExactly("Observações");
 	}
 
@@ -124,6 +124,6 @@ class PlanilhaColumnMapperTest {
 
 		assertThat(resultado.estruturaValida()).isFalse();
 		assertThat(resultado.indices()).isEmpty();
-		assertThat(resultado.camposFaltando()).hasSize(24);
+		assertThat(resultado.camposFaltando()).hasSize(25);
 	}
 }
