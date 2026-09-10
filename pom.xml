@@ -38,6 +38,11 @@
         <log4j.version>2.25.1</log4j.version>
         <logback.version>1.5.6</logback.version>
         <commons-compress.version>1.26.1</commons-compress.version>
+
+        <!-- Versões das dependências de teste -->
+        <junit-jupiter.version>5.10.2</junit-jupiter.version>
+        <assertj.version>3.25.3</assertj.version>
+        <mockito.version>5.11.0</mockito.version>
     </properties>
 
     <!-- =========================
@@ -105,6 +110,28 @@
             <version>${logback.version}</version>
         </dependency>
 
+        <!-- ===== Testes ===== -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <version>${assertj.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>${mockito.version}</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <!-- =========================
@@ -133,6 +160,13 @@
                     <!-- Classe principal JavaFX (vamos criar depois) -->
                     <mainClass>br.gov.ses.fillbpai.app.MainApp</mainClass>
                 </configuration>
+            </plugin>
+
+            <!-- Executa os testes JUnit 5 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
             </plugin>
 
         </plugins>

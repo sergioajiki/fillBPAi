@@ -38,8 +38,8 @@ public class CnsProfissionalUtils {
 
 	private static final Logger log = LoggerFactory.getLogger(CnsProfissionalUtils.class);
 
-	/** Caminho do arquivo CSV cache local (para gravação) */
-	private static final String CAMINHO_CSV_FONTE = "src/main/resources/dados/medicos_cns.csv";
+	/** Caminho do arquivo CSV cache local (para gravação). Sobrescrito nos testes via {@link #usarCaminhoParaTeste}. */
+	private static String caminhoCsvFonte = "src/main/resources/dados/medicos_cns.csv";
 
 	/** Mapa: CNS → apelidos (nomes originais), em ordem de cadastro. Índice 0 = nome principal. Lazy loading. */
 	private static Map<String, List<String>> apelidosPorCns = null;
@@ -256,6 +256,16 @@ public class CnsProfissionalUtils {
 		cnsPorNome = null;
 	}
 
+	/**
+	 * Só para testes: aponta o armazenamento local para outro arquivo (ex.: um
+	 * arquivo temporário) e força recarga, para não gravar no CSV real do
+	 * projeto durante a suíte de testes.
+	 */
+	static synchronized void usarCaminhoParaTeste(String caminho) {
+		caminhoCsvFonte = caminho;
+		limparCache();
+	}
+
 	// ======================================================
 	// MÉTODOS INTERNOS
 	// ======================================================
@@ -316,7 +326,7 @@ public class CnsProfissionalUtils {
 	 */
 	private static void carregarDeArquivoExterno() {
 
-		Path caminho = Path.of(CAMINHO_CSV_FONTE);
+		Path caminho = Path.of(caminhoCsvFonte);
 
 		if (!Files.exists(caminho)) {
 			return;
@@ -397,7 +407,7 @@ public class CnsProfissionalUtils {
 	 */
 	private static void reescreverArquivoExterno() {
 
-		Path caminho = Path.of(CAMINHO_CSV_FONTE);
+		Path caminho = Path.of(caminhoCsvFonte);
 
 		List<String[]> linhas = new ArrayList<>();
 

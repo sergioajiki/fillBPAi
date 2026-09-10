@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence xmlns="https://jakarta.ee/xml/ns/persistence"
+             version="3.0">
+
+    <persistence-unit name="bpaPU-test">
+
+        <!-- Provider Hibernate -->
+        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+
+        <!-- Entidades mapeadas -->
+        <class>br.gov.ses.fillbpai.model.Paciente</class>
+        <class>br.gov.ses.fillbpai.model.Endereco</class>
+        <class>br.gov.ses.fillbpai.model.Medico</class>
+        <class>br.gov.ses.fillbpai.model.Estabelecimento</class>
+        <class>br.gov.ses.fillbpai.model.AtendimentoBPAi</class>
+
+        <properties>
+
+            <!-- Driver -->
+            <property name="jakarta.persistence.jdbc.driver"
+                      value="org.h2.Driver"/>
+
+            <!-- Banco H2 em memória, isolado do banco real usado pela aplicação -->
+            <property name="jakarta.persistence.jdbc.url"
+                      value="jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1"/>
+
+            <property name="jakarta.persistence.jdbc.user" value="sa"/>
+            <property name="jakarta.persistence.jdbc.password" value=""/>
+
+            <!-- Recria o schema do zero a cada EntityManagerFactory aberta, isolando cada teste -->
+            <property name="hibernate.hbm2ddl.auto" value="create-drop"/>
+
+            <property name="hibernate.show_sql" value="false"/>
+
+        </properties>
+
+    </persistence-unit>
+
+</persistence>

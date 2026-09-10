@@ -1,0 +1,639 @@
+<title>Testes Automatizados</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F;
+      --paper-raised:#1A2018;
+      --ink:#E8ECE3;
+      --ink-muted:#A9B5A2;
+      --line:#2B332B;
+      --line-strong:#3C463C;
+      --accent:#7DD3B0;
+      --accent-soft:#1E3A30;
+      --sev-erro:#FF9686;
+      --sev-erro-soft:#3A1F1B;
+      --sev-aviso:#E8B15C;
+      --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F;
+    --paper-raised:#1A2018;
+    --ink:#E8ECE3;
+    --ink-muted:#A9B5A2;
+    --line:#2B332B;
+    --line-strong:#3C463C;
+    --accent:#7DD3B0;
+    --accent-soft:#1E3A30;
+    --sev-erro:#FF9686;
+    --sev-erro-soft:#3A1F1B;
+    --sev-aviso:#E8B15C;
+    --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:800px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:clamp(2.1rem, 4.4vw, 2.9rem);
+    line-height:1.08;
+    letter-spacing:-.01em;
+    margin:0 0 16px;
+    text-wrap:balance;
+  }
+  .lede{
+    font-size:1.1rem;
+    line-height:1.6;
+    color:var(--ink-muted);
+    max-width:64ch;
+    margin:0 0 22px;
+  }
+  .meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 18px;
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    color:var(--ink-muted);
+    padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin:26px 0 0;
+  }
+  nav.toc a{
+    font-family:var(--font-mono);
+    font-size:.74rem;
+    color:var(--ink-muted);
+    text-decoration:none;
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:100px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.5rem;
+    letter-spacing:-.005em;
+    margin:0 0 18px;
+    text-wrap:balance;
+  }
+  section > h3{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:1rem;
+    margin:28px 0 10px;
+  }
+  p{ line-height:1.7; font-size:1.02rem; max-width:66ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{
+    font-family:var(--font-mono);
+    font-size:.88em;
+    background:var(--accent-soft);
+    color:var(--ink);
+    padding:.12em .38em;
+    border-radius:4px;
+  }
+  pre{
+    font-family:var(--font-mono);
+    font-size:.84rem;
+    line-height:1.6;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+    overflow-x:auto;
+    box-shadow:var(--shadow);
+  }
+  pre code{ background:none; padding:0; }
+
+  /* ---- resumo em números ---- */
+  .stats{ display:flex; flex-wrap:wrap; gap:14px; margin-top:20px; }
+  .stat{
+    flex:1 1 140px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:18px 20px;
+    background:var(--paper-raised);
+  }
+  .stat.ok{ border-color:var(--accent); background:linear-gradient(180deg, var(--accent-soft), var(--paper-raised) 60%); }
+  .stat-valor{ font-family:var(--font-display); font-weight:600; font-size:2rem; color:var(--ink); }
+  .stat-label{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); margin-top:4px; }
+
+  /* ---- tabela ---- */
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:520px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-muted);
+    font-weight:600;
+  }
+  td.caso{ font-weight:500; }
+  td.num{ font-family:var(--font-mono); text-align:right; }
+  .pill{
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:4px 10px;
+    border-radius:100px;
+    border:1px solid var(--line-strong);
+    color:var(--ink-muted);
+    white-space:nowrap;
+  }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+
+  /* ---- plano numerado ---- */
+  ol.plano{ list-style:none; padding:0; margin:20px 0 0; counter-reset:passo; }
+  ol.plano li{
+    counter-increment:passo;
+    position:relative;
+    padding:2px 0 22px 46px;
+    border-left:1px solid var(--line);
+    margin-left:15px;
+  }
+  ol.plano li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  ol.plano li::before{
+    content: counter(passo);
+    position:absolute; left:-15px; top:0;
+    width:30px; height:30px;
+    background:var(--paper-raised);
+    border:1.5px solid var(--accent);
+    color:var(--accent);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:.82rem;
+  }
+  ol.plano li p{ margin:0; font-size:.98rem; }
+
+  /* ---- callout ---- */
+  .callout{
+    margin-top:18px;
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    background:var(--paper-raised);
+    border-radius:0 10px 10px 0;
+    padding:18px 22px;
+  }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  footer.doc-foot{
+    margin-top:72px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-family:var(--font-mono);
+    font-size:.76rem;
+    color:var(--ink-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook de registro · fillBPAi</p>
+    <h1>Testes automatizados</h1>
+    <p class="lede">
+      Registro contínuo da implantação de testes automatizados no fillBPAi,
+      atualizado a cada sprint concluído. Cobre infraestrutura, utilitários
+      puros, leitura/validação de planilha, persistência e a geração do BPA-I
+      — o cronograma original de 5 sprints, completo.
+    </p>
+    <div class="meta">
+      <span>Área: <strong>Qualidade / Testes automatizados</strong></span>
+      <span>Status: <strong>Sprint 0-5 concluídos (cronograma completo) — 189 testes, 0 falhas</strong></span>
+      <span>Última atualização: <strong>10/09/2026</strong></span>
+      <span>Módulos afetados: <strong>pom.xml · ColunaAliasUtils · GeradorBPAiService · CnsProfissionalUtils · src/test/ (novo)</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#contexto">Contexto</a>
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#decisoes">Decisões</a>
+      <a href="#sprint1">Sprint 1</a>
+      <a href="#sprint2">Sprint 2</a>
+      <a href="#sprint3">Sprint 3</a>
+      <a href="#sprint4">Sprint 4</a>
+      <a href="#sprint5">Sprint 5</a>
+      <a href="#resultados">Resultados</a>
+    </nav>
+  </header>
+
+  <section id="contexto">
+    <h2>Contexto</h2>
+    <p>
+      O fillBPAi não tinha nenhum teste automatizado — <code>pom.xml</code> sem
+      JUnit/AssertJ/Mockito, <code>src/test/</code> inexistente. Uma varredura
+      completa do código (<code>docs/DOCUMENTACAO_TECNICA.md</code>) mapeou as 37
+      classes atuais e serviu de base para montar um cronograma em 5 sprints,
+      priorizando o que é testável sem infraestrutura pesada primeiro (utilitários
+      puros, planilha) e deixando banco e JavaFX para depois. Este runbook é
+      atualizado a cada sprint — cobre, até aqui, infraestrutura, utilitários
+      puros, leitura/validação de planilha Excel, persistência em H2 e a
+      geração do arquivo BPA-I.
+    </p>
+  </section>
+
+  <section id="como-funciona">
+    <h2>Como funciona a automação</h2>
+    <p>
+      "Automatizado" cobre três coisas diferentes que vale separar: o
+      framework que roda os testes sozinho, quem dispara essa execução, e o
+      que ainda não existe (pipeline de CI).
+    </p>
+
+    <h3>O framework</h3>
+    <p>
+      JUnit 5 (com AssertJ para as verificações) é o framework de teste. Um
+      teste é um método Java anotado com <code>@Test</code>; o JUnit descobre
+      esses métodos sozinho, via reflexão, e executa cada um isoladamente, sem
+      intervenção manual. Uma vez escritos, os 189 testes rodam sempre da
+      mesma forma e cada um termina em passou/falhou sozinho.
+    </p>
+
+    <h3>Quem dispara a execução</h3>
+    <p>
+      O Maven Surefire (plugin adicionado ao <code>pom.xml</code> no Sprint 0)
+      é quem efetivamente roda o JUnit e recolhe o resultado, acionado por
+      <code>mvn test</code>. Dentro de uma sessão do Claude Code neste projeto,
+      existe também um hook (<code>PostToolUse</code>, documentado no
+      <code>CLAUDE.md</code>) que dispara <code>mvn test</code> sozinho a cada
+      arquivo editado — foi assim que os testes foram validados incrementalmente
+      durante a implementação de cada sprint.
+    </p>
+
+    <div class="callout">
+      <p class="kicker">O que ainda não existe</p>
+      <p>
+        Não há pipeline de CI no repositório (sem <code>.github/workflows/</code>)
+        — hoje os testes <strong>não</strong> rodam sozinhos a cada
+        <code>git push</code>. Eles rodam quando alguém chama
+        <code>mvn test</code> manualmente, ou dentro de uma sessão do Claude
+        Code via o hook. Um GitHub Actions workflow rodando a suíte a cada
+        push/PR é uma opção futura, não implementada até aqui.
+      </p>
+    </div>
+
+    <h3>Organização</h3>
+    <p>
+      <code>src/test/java/br/gov/ses/fillbpai/</code> espelha exatamente a
+      estrutura de <code>src/main/java/</code> — cada classe testada tem sua
+      <code>*Test.java</code> no mesmo pacote. 21 classes de teste, 189
+      métodos <code>@Test</code>.
+    </p>
+
+    <h3>As estratégias, conforme a camada testada</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Camada</th><th>Como o teste monta o cenário</th><th>Exemplo</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="caso">Utilitários puros</td><td>Chama o método estático direto, sem preparar nada</td><td><code>CepUtilsTest</code></td></tr>
+          <tr><td class="caso">Planilha/Excel</td><td>Monta um <code>.xlsx</code> em memória via Apache POI dentro do próprio teste — nenhum arquivo fixo versionado</td><td><code>ValidacaoPlanilhaServiceTest</code></td></tr>
+          <tr><td class="caso">Persistência (banco)</td><td>H2 em memória, isolado do banco real (<code>bpaPU-test</code>), schema recriado do zero a cada teste</td><td><code>AtendimentoImportacaoServiceTest</code></td></tr>
+          <tr><td class="caso">CSVs reais do projeto</td><td>Seam de teste (<code>usarCaminhoParaTeste</code>) redireciona a gravação para um arquivo temporário — nunca toca no CSV real</td><td><code>CnsProfissionalUtilsTest</code></td></tr>
+          <tr><td class="caso">Chamada de rede (ViaCEP)</td><td>Deliberadamente evitada — só os caminhos que resolvem por CSV/cache são exercitados, nunca a chamada HTTP real</td><td><code>IbgeUtilsTest</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      A suíte inteira roda sem internet e sem mexer nos dados reais do
+      projeto — confirmado a cada sprint conferindo que <code>git status</code>
+      continuava limpo para os CSVs e que o timestamp do banco real
+      (<code>database/fillbpai.mv.db</code>) não mudava.
+    </p>
+
+    <h3>Como rodar manualmente</h3>
+    <pre><code>mvnw.cmd test                              # roda tudo
+mvnw.cmd test -Dtest=CepUtilsTest          # roda só uma classe</code></pre>
+  </section>
+
+  <section id="decisoes">
+    <h2>Decisões de arquitetura aprovadas antes da implementação</h2>
+
+    <div class="callout">
+      <p class="kicker">1 · Seam de caminho configurável em ColunaAliasUtils</p>
+      <p>
+        <code>ColunaAliasUtils</code> grava direto num caminho de arquivo fixo no
+        código (<code>src/main/resources/dados/colunas_aliases.csv</code>) — o CSV
+        real do projeto. Um teste que chamasse <code>salvar</code>/<code>remover</code>
+        sem cuidado teria corrompido esse arquivo. A constante
+        <code>CAMINHO_CSV_FONTE</code> virou um campo <code>caminhoCsvFonte</code>
+        configurável, com um método pacote-privado
+        <code>usarCaminhoParaTeste(String)</code> usado só pelos testes — o
+        comportamento em produção não muda (continua apontando para o caminho real
+        por padrão). <code>ColunaAliasUtilsTest</code> aponta para um arquivo em
+        <code>@TempDir</code> antes de cada teste e restaura o caminho real depois.
+      </p>
+    </div>
+
+    <div class="callout">
+      <p class="kicker">2 · Refactor de GeradorBPAiService — adiado para o Sprint 4</p>
+      <p>
+        O mesmo problema existe em <code>GeradorBPAiService</code> (acoplado a
+        <code>FileChooser</code>) e em <code>CnsProfissionalUtils</code> (mesmo
+        padrão de caminho fixo do <code>ColunaAliasUtils</code>) — os dois refactors
+        já foram aprovados, mas nenhuma das duas classes entra no Sprint 0-2 (a
+        primeira é testada no <a href="#sprint4">Sprint 4</a>, a segunda no
+        <a href="#sprint5">Sprint 5</a>).
+      </p>
+    </div>
+  </section>
+
+  <section id="sprint1">
+    <h2>Sprint 1 — Utilitários puros</h2>
+    <p>Zero dependência externa (sem arquivo, sem banco, sem rede). 74 testes.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Classe de teste</th><th>Cobre</th><th>Casos</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="caso"><code>CepUtilsTest</code></td><td>normalização e validação de CEP (8 dígitos)</td><td class="num">10</td></tr>
+          <tr><td class="caso"><code>CpfUtilsTest</code></td><td>normalização e validação de CPF (11 dígitos)</td><td class="num">10</td></tr>
+          <tr><td class="caso"><code>CnsUtilsTest</code></td><td>CNS do paciente: 15 dígitos, curto (aviso), longo (aviso legado)</td><td class="num">7</td></tr>
+          <tr><td class="caso"><code>TextoUtilsTest</code></td><td>normalização de texto (acento, caixa, trim)</td><td class="num">5</td></tr>
+          <tr><td class="caso"><code>LogradouroUtilsTest</code></td><td>prefixos RUA/AVENIDA/AV./AV/TRAVESSA/TRAV./TV, sem prefixo, nulo/vazio</td><td class="num">11</td></tr>
+          <tr><td class="caso"><code>StringUtilsTest</code></td><td>truncamento de campo e split "código - nome" / "especialidade - médico"</td><td class="num">13</td></tr>
+          <tr><td class="caso"><code>DateUtilsTest</code></td><td>parse de data em 3 formatos aceitos + inválido/nulo</td><td class="num">9</td></tr>
+          <tr><td class="caso"><code>TimeUtilsTest</code></td><td>parse de hora em 4 formatos aceitos (incl. substituição de ponto) + inválido/nulo</td><td class="num">9</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="sprint2">
+    <h2>Sprint 2 — Planilha / Excel, sem banco</h2>
+    <p>Arquivos <code>.xlsx</code> de teste gerados em memória via Apache POI, sem fixtures binárias versionadas. 62 testes.</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Classe de teste</th><th>Cobre</th><th>Casos</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="caso"><code>ColunaAliasUtilsTest</code></td><td>resolução de alias, cadastro/remoção/restauração de aliases locais (via seam)</td><td class="num">10</td></tr>
+          <tr><td class="caso"><code>PlanilhaColumnMapperTest</code></td><td>cabeçalho em ordem, fora de ordem, coluna extra, faltando, duplicada, nulo</td><td class="num">6</td></tr>
+          <tr><td class="caso"><code>ExcelImportServiceTest</code></td><td>leitura de célula por tipo: texto, número, data, hora (base 1899), booleano, fórmula, em branco, campo não mapeado</td><td class="num">8</td></tr>
+          <tr><td class="caso"><code>ValidacaoPlanilhaServiceTest</code></td><td>planilha válida; CNS/CEP/CPF/raça — cada tipo de erro e aviso; estrutura inválida; <code>gerarLogTxt</code></td><td class="num">11</td></tr>
+          <tr><td class="caso"><code>AtendimentoProcessorTest</code></td><td>SIGTAP, separação de estabelecimento, normalização de sexo/CPF/CEP, campos obrigatórios, CNS, raça indígena, conversão de data/hora, truncamento</td><td class="num">27</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="sprint3">
+    <h2>Sprint 3 — Persistência (H2 em memória)</h2>
+    <p>
+      Nova persistence unit de teste, <code>bpaPU-test</code>
+      (<code>src/test/resources/META-INF/persistence.xml</code>), apontando para
+      <code>jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1</code> com
+      <code>hibernate.hbm2ddl.auto=create-drop</code> — cada teste abre e fecha sua
+      própria <code>EntityManagerFactory</code>, recriando o schema do zero e
+      isolando testes entre si sem precisar limpar tabelas manualmente. Nenhum
+      arquivo de produção precisou mudar neste sprint. 17 testes.
+    </p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Classe de teste</th><th>Cobre</th><th>Casos</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="caso"><code>PacienteRepositoryTest</code></td><td>busca por CPF com endereço junto (<code>JOIN FETCH</code>), CPF inexistente</td><td class="num">2</td></tr>
+          <tr><td class="caso"><code>MedicoRepositoryTest</code></td><td>busca por CPF, CPF inexistente</td><td class="num">2</td></tr>
+          <tr><td class="caso"><code>EstabelecimentoRepositoryTest</code></td><td>busca por código, código inexistente</td><td class="num">2</td></tr>
+          <tr><td class="caso"><code>AtendimentoBPAiRepositoryTest</code></td><td><code>buscarTodos</code>, <code>buscarMapaFolhaPorEspecialidadeMedico</code> (agrupa e ignora folha nula), <code>buscarDuplicata</code> (encontra/não encontra pela chave natural)</td><td class="num">4</td></tr>
+          <tr><td class="caso"><code>AtendimentoImportacaoServiceTest</code></td><td>cria paciente/médico/estabelecimento/atendimento; reimportação atualiza em vez de duplicar; herda folha do médico/especialidade; resolve CNS por nome (conhecido e desconhecido); estrutura inválida; linha inválida não interrompe as demais</td><td class="num">7</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p class="kicker">Achado — tipo de exceção perdido no wrapping</p>
+      <p>
+        <code>AtendimentoImportacaoService.importar()</code> lança
+        <code>IllegalStateException</code> internamente para estrutura de
+        planilha inválida, mas o próprio método tem um <code>catch (Exception e)</code>
+        genérico que recaptura e reembala qualquer exceção como
+        <code>RuntimeException("Erro na importação: " + e.getMessage())</code> antes
+        de propagar. Quem chama <code>importar()</code> nunca recebe o tipo original
+        — só a mensagem, aninhada dentro da nova. O teste foi ajustado para verificar
+        o comportamento real (<code>RuntimeException</code> com a mensagem esperada
+        dentro), não o que o código interno sugere à primeira leitura. Nenhuma
+        mudança de código foi feita — é só um registro do comportamento observado.
+      </p>
+    </div>
+  </section>
+
+  <section id="sprint4">
+    <h2>Sprint 4 — Geração do BPA-I</h2>
+    <p>
+      Refactor aprovado executado: extraídos <code>gerarConteudoParcial</code> e
+      <code>gerarConteudoCompleto</code> de <code>GeradorBPAiService</code> — dois
+      métodos pacote-privados que recebem a lista de atendimentos já pronta e
+      devolvem o conteúdo do arquivo como <code>String</code>, sem tocar
+      <code>EntityManager</code> nem <code>FileChooser</code>. Os dois métodos
+      públicos existentes viraram wrappers finos: montam a lista, validam,
+      chamam o método novo e gravam o resultado com
+      <code>Files.writeString(..., StandardCharsets.ISO_8859_1)</code> — mesmo
+      comportamento observável no app desktop de antes. 12 testes, nenhum
+      precisa de banco de dados (confirmado lendo o código:
+      <code>montarRegistro</code> nunca acessa <code>a.getMedico()</code>, só
+      campos do próprio atendimento e de paciente/endereço).
+    </p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Classe de teste</th><th>Cobre</th><th>Casos</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="caso"><code>GeradorBPAiServiceTest</code></td><td>tamanho exato de header (130) e registro (350) + CRLF sempre presente; checksum do header; <code>totalFolhas</code> por parâmetro; todos os 39 campos do registro posição por posição (incl. seq 10 em branco / seq 38 = CPF do paciente); regra NUTRICIONISTA/PSICÓLOGO; sequencial reiniciando &gt;99 e a cada troca de folha; sanitização de texto para ISO-8859-1; truncamento/normalização de CID</td><td class="num">12</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p class="kicker">Achados — três divergências reais entre documentação e código, corrigidas</p>
+      <p>
+        Somando os 39 campos de <code>montarRegistro</code> à mão: 350 caracteres
+        de conteúdo, batendo com o comentário da própria classe
+        (<code>REGISTRO: 352 caracteres</code> com CRLF) — README/CLAUDE.md
+        diziam 340 e "38 campos". Também corrigido: a competência do BPA-I
+        (<code>calcularCompetencia</code>) é o <strong>mesmo mês</strong> do
+        atendimento — a doc dizia "+1 mês (mês de faturamento)", mas não há
+        nenhuma soma no código, em nenhum dos pontos onde a competência é
+        calculada. E o sequencial dentro da folha reinicia ao passar de
+        <strong>99</strong> registros (mais a troca de folha) — a doc dizia "a
+        cada 20 registros". As três foram corrigidas no README.md e no
+        CLAUDE.md nesta rodada, com o código como fonte da verdade.
+      </p>
+    </div>
+
+    <div class="callout">
+      <p class="kicker">Achado — checksum do header pode estourar overflow de int</p>
+      <p>
+        <code>calcularSomaVerificacao</code> chama <code>Integer.parseInt</code>
+        no SIGTAP de cada atendimento sem proteção contra overflow. Um SIGTAP de
+        10 dígitos que comece com um valor alto (acima de ~2.147.483.647)
+        lançaria <code>NumberFormatException</code> e quebraria a geração do
+        header inteiro. Não é um problema introduzido pelo refactor — já existia
+        antes — e não foi corrigido nesta rodada (fora do escopo pedido), só
+        registrado.
+      </p>
+    </div>
+  </section>
+
+  <section id="sprint5">
+    <h2>Sprint 5 — Utilitários com dependência externa</h2>
+    <p>
+      Último sprint do cronograma original. Mesmo seam de caminho configurável
+      já usado em <code>ColunaAliasUtils</code> (Sprint 2), agora também em
+      <code>CnsProfissionalUtils</code>. Em <code>IbgeUtils</code>,
+      <code>buscarPorNome</code>/<code>buscarPorCep</code>/<code>normalizar</code>
+      já eram pacote-privados — testáveis direto, sem precisar de seam. 24 testes,
+      nenhuma chamada de rede em nenhum deles (confirmado pelos logs da execução:
+      só menções a CSV/cache, nunca a ViaCEP).
+    </p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Classe de teste</th><th>Cobre</th><th>Casos</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="caso"><code>CnsProfissionalUtilsTest</code></td><td>busca por nome (conhecido/desconhecido), cadastro, colisão de CNS/nome, apelidos (adicionar/remover/idempotência), alterar CNS, remover médico, limpar cache — usando o médico real <code>RODRIGO SILVA GRILO</code> só nos casos de leitura</td><td class="num">15</td></tr>
+          <tr><td class="caso"><code>IbgeUtilsTest</code></td><td>normalização de texto; busca por nome de município (CSV real); <code>resolver</code> por nome sem tentar CEP; <code>resolver</code> por CEP pré-carregado no cache (sem rede); <code>resolver</code> sem nome nem CEP conhecido; <code>preCarregarCacheDb</code> com mapa nulo/vazio</td><td class="num">9</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <p class="kicker">Detalhe de isolamento — cache de CEP sem reset</p>
+      <p>
+        <code>IbgeUtils</code> não tem um <code>limparCache()</code> equivalente
+        ao das outras classes de utilitário — <code>cacheViaCep</code> é estático
+        e persiste entre todos os testes da suíte (mesma JVM). Os testes que
+        gravam no cache usam um CEP fake exclusivo (<code>"00000001"</code>),
+        nunca reaproveitado, para não colidir com nada mais na suíte.
+      </p>
+    </div>
+  </section>
+
+  <section id="resultados">
+    <h2>Resultados</h2>
+    <p>Execução real de <code>mvn test</code> após o Sprint 5 — cronograma original completo:</p>
+
+    <div class="stats">
+      <div class="stat ok">
+        <div class="stat-valor">189</div>
+        <div class="stat-label">Testes executados</div>
+      </div>
+      <div class="stat ok">
+        <div class="stat-valor">0</div>
+        <div class="stat-label">Falhas</div>
+      </div>
+      <div class="stat ok">
+        <div class="stat-valor">0</div>
+        <div class="stat-label">Erros</div>
+      </div>
+      <div class="stat">
+        <div class="stat-valor">21</div>
+        <div class="stat-label">Classes de teste</div>
+      </div>
+    </div>
+
+    <pre><code>[INFO] Tests run: 189, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS</code></pre>
+
+    <p>
+      Confirmado também que a suíte não alterou nenhum dos arquivos reais do
+      projeto — <code>git status</code> segue limpo para
+      <code>src/main/resources/dados/colunas_aliases.csv</code> e
+      <code>medicos_cns.csv</code>, e o timestamp de
+      <code>database/fillbpai.mv.db</code> (o banco real usado pela aplicação
+      desktop) é idêntico antes e depois da execução completa — a PU de teste em
+      memória nunca chega perto dele.
+    </p>
+
+    <div class="callout">
+      <p class="kicker">Cronograma original concluído</p>
+      <p>
+        As 5 sprints planejadas (infraestrutura, utilitários puros, planilha,
+        persistência, geração do BPA-I e utilitários externos) estão todas
+        implementadas. Próximos passos possíveis, se surgir necessidade:
+        cobertura de <code>ConfiguracoesDialog</code>/<code>RelatorioController</code>
+        (exigiria TestFX, fora do escopo original por acoplamento a JavaFX), ou
+        mock do cliente HTTP do fallback ViaCEP em <code>IbgeUtils</code> — nenhum
+        dos dois foi pedido até aqui.
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-testes-sprint-0-2.html
+  </footer>
+
+</div>

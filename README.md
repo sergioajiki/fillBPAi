@@ -167,7 +167,7 @@ Planilha .xlsx
     └─────────┬──────────┘
               ▼
     Arquivo .txt BPA-I
-    (ISO-8859-1, 340 chars/linha)
+    (ISO-8859-1, 352 chars/linha)
 ```
 
 ---
@@ -192,7 +192,7 @@ Planilha .xlsx
 O arquivo gerado segue o layout oficial de interface texto do BPA:
 
 - **Cabeçalho** — 132 caracteres (competência, totais, checksum, órgão emissor)
-- **Registros** — 340 caracteres cada, 38 campos posicionais
+- **Registros** — 352 caracteres cada (350 de conteúdo + CRLF), 39 campos posicionais
 - **Codificação** — ISO-8859-1
 - **Quebra de linha** — CRLF
 
@@ -209,7 +209,7 @@ O arquivo gerado segue o layout oficial de interface texto do BPA:
 |-------|-------|
 | `prd-cnspac` (seq 10) | Sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo |
 | `prd-ibge` (seq 12) | Código IBGE de 7 dígitos truncado para 6 (sem dígito verificador) |
-| `prd-cmp` (seq 3) | Competência = mês de atendimento + 1 (mês de faturamento) |
+| `prd-cmp` (seq 3) | Competência = mesmo mês do atendimento (AAAAMM da própria `dataAgendamento`) |
 | `prd-cpf-pcnte` (seq 38) | CPF do paciente, 11 dígitos zero-padded — é aqui, não na seq 10, que o CPF do paciente entra no registro |
 
 ### Códigos de logradouro
@@ -305,8 +305,8 @@ O banco H2 é criado automaticamente em `database/` e persiste dados entre reini
 - CNS do paciente deve ter 15 dígitos; CNS com mais de 15 dígitos é aceito com aviso (`CNS_INCOMUM`)
 - CPF é normalizado (remove pontos e traços)
 - Idade do paciente é calculada em relação à data de geração do arquivo
-- A sequência dentro da folha reinicia a cada 20 registros (regra do layout BPA-I)
-- Competência no arquivo = mês de atendimento + 1 mês
+- A sequência dentro da folha reinicia ao passar de 99 registros, e também a cada troca de folha (regra do layout BPA-I)
+- Competência no arquivo = mesmo mês do atendimento (sem deslocamento)
 - Checksum do cabeçalho = (soma dos SIGTAP numéricos + contagem de registros) % 1111 + 1111
 - Folhas na geração completa: especialidades em ordem alfabética → médicos em ordem alfabética → numeração sequencial por competência
 

@@ -7,7 +7,6 @@ import jakarta.persistence.EntityManager;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.nio.file.Files;
 import java.time.LocalDate;
@@ -112,39 +111,44 @@ public class GeradorBPAiService {
 
 			file = garantirExtensaoTxt(file);
 
-			try (BufferedWriter writer =
-						 Files.newBufferedWriter(
-								 file.toPath(),
-								 StandardCharsets.ISO_8859_1)) {
+			String conteudo = gerarConteudoParcial(lista, competencia);
 
-				/**
-				 * HEADER — linha 1
-				 */
-				writer.write(montarHeader(lista, competencia));
-				writer.write("\r\n"); // seq 13 cbc-fim: CR+LF obrigatório conforme layout BPA
-
-				/**
-				 * REGISTROS — linhas seguintes
-				 */
-				int sequencial = 1;
-
-				for (AtendimentoBPAi a : lista) {
-
-					writer.write(montarRegistro(a, competencia, sequencial));
-
-					writer.write("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
-
-					sequencial++;
-
-					if (sequencial > 99)
-						sequencial = 1;
-				}
-			}
+			Files.writeString(file.toPath(), conteudo, StandardCharsets.ISO_8859_1);
 
 		} catch (Exception ex) {
 
 			throw new RuntimeException(ex);
 		}
+	}
+
+	/**
+	 * Monta o conteúdo completo do arquivo BPA-I (header + registros) para a
+	 * geração parcial — filtrada por especialidade/médico. Não acessa banco,
+	 * arquivo nem JavaFX: recebe a lista já consultada e validada, devolve a
+	 * String pronta para gravação. Extraído de {@link #gerarArquivoComFileChooser}
+	 * para permitir testar o layout do BPA-I sem depender de FileChooser.
+	 */
+	String gerarConteudoParcial(List<AtendimentoBPAi> lista, String competencia) {
+
+		StringBuilder sb = new StringBuilder();
+
+		sb.append(montarHeader(lista, competencia));
+		sb.append("\r\n"); // seq 13 cbc-fim: CR+LF obrigatório conforme layout BPA
+
+		int sequencial = 1;
+
+		for (AtendimentoBPAi a : lista) {
+
+			sb.append(montarRegistro(a, competencia, sequencial));
+			sb.append("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
+
+			sequencial++;
+
+			if (sequencial > 99)
+				sequencial = 1;
+		}
+
+		return sb.toString();
 	}
 
 	/**
@@ -237,41 +241,54 @@ public class GeradorBPAiService {
 			file = garantirExtensaoTxt(file);
 
 			// 6. Escreve o arquivo no formato BPA-I (ISO-8859-1)
-			try (BufferedWriter writer =
-						 Files.newBufferedWriter(
-								 file.toPath(),
-								 StandardCharsets.ISO_8859_1)) {
+			String conteudo = gerarConteudoCompleto(lista, competencia, totalFolhas);
 
-				// HEADER com totalFolhas correto (quantidade de médicos distintos)
-				writer.write(montarHeaderCompleto(lista, competencia, totalFolhas));
-				writer.newLine();
-
-				// REGISTROS — sequencial reinicia a cada troca de folha
-				int sequencial = 1;
-				String folhaAtual = null;
-
-				for (AtendimentoBPAi a : lista) {
-
-					// Detecta troca de folha → reinicia sequencial
-					if (!a.getFolha().equals(folhaAtual)) {
-						folhaAtual = a.getFolha();
-						sequencial = 1;
-					}
-
-					writer.write(montarRegistro(a, competencia, sequencial));
-					writer.write("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
-
-					sequencial++;
-
-					if (sequencial > 99)
-						sequencial = 1;
-				}
-			}
+			Files.writeString(file.toPath(), conteudo, StandardCharsets.ISO_8859_1);
 
 		} catch (Exception ex) {
 
 			throw new RuntimeException(ex);
 		}
+	}
+
+	/**
+	 * Monta o conteúdo completo do arquivo BPA-I (header + registros) para a
+	 * geração completa — todos os médicos da competência. Não acessa banco,
+	 * arquivo nem JavaFX: recebe a lista já consultada, validada, ordenada e
+	 * com folha atribuída, devolve a String pronta para gravação. Extraído de
+	 * {@link #gerarArquivoCompletoComFileChooser} para permitir testar o
+	 * layout do BPA-I sem depender de FileChooser.
+	 */
+	String gerarConteudoCompleto(List<AtendimentoBPAi> lista, String competencia, int totalFolhas) {
+
+		StringBuilder sb = new StringBuilder();
+
+		// HEADER com totalFolhas correto (quantidade de médicos distintos)
+		sb.append(montarHeaderCompleto(lista, competencia, totalFolhas));
+		sb.append("\r\n");
+
+		// REGISTROS — sequencial reinicia a cada troca de folha
+		int sequencial = 1;
+		String folhaAtual = null;
+
+		for (AtendimentoBPAi a : lista) {
+
+			// Detecta troca de folha → reinicia sequencial
+			if (!a.getFolha().equals(folhaAtual)) {
+				folhaAtual = a.getFolha();
+				sequencial = 1;
+			}
+
+			sb.append(montarRegistro(a, competencia, sequencial));
+			sb.append("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
+
+			sequencial++;
+
+			if (sequencial > 99)
+				sequencial = 1;
+		}
+
+		return sb.toString();
 	}
 
 	/**

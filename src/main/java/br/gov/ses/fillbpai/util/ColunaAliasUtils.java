@@ -37,8 +37,8 @@ public class ColunaAliasUtils {
 
 	private static final Logger log = LoggerFactory.getLogger(ColunaAliasUtils.class);
 
-	/** Caminho do arquivo CSV local (para leitura e gravação). */
-	private static final String CAMINHO_CSV_FONTE = "src/main/resources/dados/colunas_aliases.csv";
+	/** Caminho do arquivo CSV local (para leitura e gravação). Sobrescrito nos testes via {@link #usarCaminhoParaTeste}. */
+	private static String caminhoCsvFonte = "src/main/resources/dados/colunas_aliases.csv";
 
 	public enum Origem { PADRAO, LOCAL }
 
@@ -187,6 +187,16 @@ public class ColunaAliasUtils {
 		campoPorAlias = null;
 	}
 
+	/**
+	 * Só para testes: aponta o armazenamento local para outro arquivo (ex.: um
+	 * arquivo temporário) e força recarga, para não gravar no CSV real do
+	 * projeto durante a suíte de testes.
+	 */
+	static synchronized void usarCaminhoParaTeste(String caminho) {
+		caminhoCsvFonte = caminho;
+		limparCache();
+	}
+
 	// ======================================================
 	// MÉTODOS INTERNOS
 	// ======================================================
@@ -228,7 +238,7 @@ public class ColunaAliasUtils {
 
 	private static void carregarDeArquivoExterno() {
 
-		Path caminho = Path.of(CAMINHO_CSV_FONTE);
+		Path caminho = Path.of(caminhoCsvFonte);
 
 		if (!Files.exists(caminho)) {
 			return;
@@ -288,7 +298,7 @@ public class ColunaAliasUtils {
 
 	private static void salvarNoCsv(String campoCanonico, String alias) {
 
-		Path caminho = Path.of(CAMINHO_CSV_FONTE);
+		Path caminho = Path.of(caminhoCsvFonte);
 
 		try {
 
@@ -318,7 +328,7 @@ public class ColunaAliasUtils {
 	 */
 	private static void reescreverArquivoExterno() {
 
-		Path caminho = Path.of(CAMINHO_CSV_FONTE);
+		Path caminho = Path.of(caminhoCsvFonte);
 
 		try {
 

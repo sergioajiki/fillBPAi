@@ -3,7 +3,7 @@
 ## Sobre o Projeto
 Aplicação desktop JavaFX que importa dados de atendimentos de saúde de planilhas Excel e gera arquivos magnéticos BPA-I (Boletim de Produção Ambulatorial Individualizada) no formato exigido pelo DATASUS/Ministério da Saúde.
 
-O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de atendimentos no sistema SIA/SUS. O formato BPA-I tem layout posicional rígido (340 chars por registro).
+O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de atendimentos no sistema SIA/SUS. O formato BPA-I tem layout posicional rígido (352 chars por registro, incluindo CRLF).
 
 ## Stack
 - Java 21, JavaFX, JPA/Hibernate (sem Spring Boot)
@@ -102,7 +102,7 @@ A tela principal tem 5 linhas:
 - Tarefas independentes devem rodar em paralelo quando possível
 
 ## Regras de Negócio Principais
-- Layout BPA-I: campos posicionais com tamanho fixo (340 chars por registro + CRLF)
+- Layout BPA-I: campos posicionais com tamanho fixo (350 chars de conteúdo por registro + CRLF = 352)
 - Header: 132 chars
 - Campos NUM opcionais: brancos quando vazio, zeros à esquerda quando preenchido
 - Campos ALFA: espaços à direita até completar tamanho
