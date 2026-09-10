@@ -49,6 +49,16 @@ class AtendimentoImportacaoServiceTest {
 			"END. COMPLEMENTOS", "SEXO"
 	};
 
+	/** Cabeçalho legado: igual ao completo, mas sem a coluna própria "Especialidade". */
+	private static final String[] CABECALHO_LEGADO = {
+			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
+			"ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
+			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
+			"RACA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
+			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
+			"END. COMPLEMENTOS", "SEXO"
+	};
+
 	private EntityManagerFactory emf;
 	private EntityManager entityManager;
 	private AtendimentoImportacaoService service;
@@ -76,6 +86,19 @@ class AtendimentoImportacaoServiceTest {
 		return new String[] {
 				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
 				especialidade, nomeMedico, cpfMedico, "225125",
+				"CAMPO GRANDE", cpfPaciente, nomePaciente, "700207960618529",
+				"BRANCA", "01/01/1990", "I10", "67999999999",
+				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
+				"APTO 1", "F"
+		};
+	}
+
+	/** Linha de dados no formato legado — especialidade e médico combinados numa célula só. */
+	private String[] linhaLegado(String cpfPaciente, String nomePaciente, String cpfMedico,
+			String especialidadeMedicoCombinado) {
+		return new String[] {
+				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
+				especialidadeMedicoCombinado, cpfMedico, "225125",
 				"CAMPO GRANDE", cpfPaciente, nomePaciente, "700207960618529",
 				"BRANCA", "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
@@ -132,6 +155,22 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(atendimento.getEstabelecimento()).isNotNull();
 		assertThat(atendimento.getEstabelecimento().getNome()).isEqualTo("HOSPITAL CENTRAL");
 		assertThat(atendimento.getDataAgendamento()).isEqualTo(LocalDate.of(2024, 12, 25));
+	}
+
+	@Test
+	void importarPlanilhaLegadoSeparaEspecialidadeEMedicoAoPersistir() throws IOException {
+
+		String caminho = salvarPlanilha(CABECALHO_LEGADO,
+				linhaLegado("12345678900", "MARIA SILVA", "98765432100", "CARDIOLOGIA - JOAO DA SILVA"));
+
+		ImportacaoResultado resultado = service.importar(caminho);
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+		assertThat(resultado.getTotalErro()).isEqualTo(0);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getEspecialidadeMedico()).isEqualTo("CARDIOLOGIA");
+		assertThat(atendimento.getMedico().getNome()).isEqualTo("JOAO DA SILVA");
 	}
 
 	@Test

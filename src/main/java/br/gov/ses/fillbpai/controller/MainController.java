@@ -267,19 +267,34 @@ public class MainController {
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
 
-		boolean temBloqueantes = errosValidacao.stream().anyMatch(ErroValidacao::isBloqueante);
+		// O aviso de formato legado é tratado à parte: não entra na lista usada
+		// para gerarLogTxt/log salvo em arquivo nem nas decisões de roteamento
+		// abaixo — ele aparece só no banner dedicado (ver criarBannerFormatoLegado),
+		// nunca duplicado como linha genérica de aviso.
+		ErroValidacao avisoLegado = errosValidacao.stream()
+				.filter(e -> ErroValidacao.FORMATO_LEGADO_ESPECIALIDADE_MEDICO.equals(e.tipoErro()))
+				.findFirst()
+				.orElse(null);
 
-		if (errosValidacao.isEmpty()) {
+		List<ErroValidacao> demaisErros = avisoLegado == null
+				? errosValidacao
+				: errosValidacao.stream()
+						.filter(e -> e != avisoLegado)
+						.collect(java.util.stream.Collectors.toList());
+
+		boolean temBloqueantes = demaisErros.stream().anyMatch(ErroValidacao::isBloqueante);
+
+		if (demaisErros.isEmpty()) {
 			// Sem erros — exibe resultado com botão de importação direta
-			mostrarDialogoAnaliseOk(caminho, stage);
+			mostrarDialogoAnaliseOk(caminho, stage, avisoLegado);
 			return;
 		}
 
 		String nomeArquivo = Path.of(caminho).getFileName().toString();
-		String logErros = validacaoService.gerarLogTxt(errosValidacao, nomeArquivo);
+		String logErros = validacaoService.gerarLogTxt(demaisErros, nomeArquivo);
 		salvarLogErrosEmArquivo(logErros, nomePlanilha);
 
-		boolean temEstrutural = errosValidacao.stream().anyMatch(ErroValidacao::isEstrutural);
+		boolean temEstrutural = demaisErros.stream().anyMatch(ErroValidacao::isEstrutural);
 
 		if (temEstrutural) {
 			// Cabeçalho com coluna ausente ou duplicada — problema estrutural,
@@ -294,18 +309,50 @@ public class MainController {
 			mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage);
 		} else {
 			// Apenas avisos — exibe com botão de importação direta
-			mostrarDialogoAvisosAnalise(logErros, nomePlanilha, caminho, stage);
+			mostrarDialogoAvisosAnalise(logErros, nomePlanilha, caminho, stage, avisoLegado);
 		}
+	}
+
+	/**
+	 * Monta o banner de aviso de "formato de planilha legado" (coluna
+	 * "Especialidade/Médico" combinada) — mesmas cores usadas nos runbooks do
+	 * projeto (accent verde), conforme mockup validado antes da implementação.
+	 */
+	private VBox criarBannerFormatoLegado(ErroValidacao aviso) {
+
+		Label kicker = new Label("⚠ Formato de planilha legado detectado");
+		kicker.setStyle("-fx-font-weight: bold; -fx-text-fill: #2F6F5E;");
+
+		Label texto = new Label(aviso.detalhe());
+		texto.setWrapText(true);
+		// setWrapText só quebra linha se a largura for limitada — sem isto o
+		// Label cresce para caber o texto inteiro numa linha só, e o diálogo
+		// (que se ajusta ao conteúdo) ultrapassa a tela.
+		texto.setMaxWidth(440);
+
+		VBox banner = new VBox(6, kicker, texto);
+		banner.setMaxWidth(468);
+		banner.setPadding(new Insets(12, 14, 12, 14));
+		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
+				+ "-fx-border-width: 0 0 0 3;");
+
+		return banner;
 	}
 
 	/**
 	 * Exibe resultado positivo da análise com botão para importar diretamente.
 	 */
-	private void mostrarDialogoAnaliseOk(String caminho, Stage stage) {
+	private void mostrarDialogoAnaliseOk(String caminho, Stage stage, ErroValidacao avisoLegado) {
 
 		Alert alert = new Alert(Alert.AlertType.INFORMATION);
 		alert.setTitle("Validação da Planilha");
 		alert.setHeaderText("Nenhum erro encontrado");
+
+		VBox layout = new VBox(10);
+
+		if (avisoLegado != null) {
+			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
+		}
 
 		Label msg = new Label("A planilha está pronta para importação.");
 
@@ -315,7 +362,7 @@ public class MainController {
 			processarImportacao(caminho, stage);
 		});
 
-		VBox layout = new VBox(10, msg, btnImportar);
+		layout.getChildren().addAll(msg, btnImportar);
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);
@@ -327,7 +374,8 @@ public class MainController {
 	 * Usado apenas no fluxo de análise — no fluxo de importação os avisos são exibidos
 	 * sem botão, pois a importação prossegue automaticamente.
 	 */
-	private void mostrarDialogoAvisosAnalise(String logAvisos, String nomePlanilha, String caminho, Stage stage) {
+	private void mostrarDialogoAvisosAnalise(String logAvisos, String nomePlanilha, String caminho, Stage stage,
+			ErroValidacao avisoLegado) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Avisos de Validação");
@@ -361,7 +409,13 @@ public class MainController {
 			processarImportacao(caminho, stage);
 		});
 
-		VBox layout = new VBox(10, areaLog, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
+		VBox layout = new VBox(10);
+
+		if (avisoLegado != null) {
+			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
+		}
+
+		layout.getChildren().addAll(areaLog, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);

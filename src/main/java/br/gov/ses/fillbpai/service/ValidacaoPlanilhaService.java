@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -85,6 +86,11 @@ public class ValidacaoPlanilhaService {
 
 			Map<String, Integer> colunas = mapeamento.indices();
 
+			// Planilha legado: captura o primeiro valor bruto (ainda combinado,
+			// "ESPECIALIDADE - NOME") encontrado na coluna compartilhada, para
+			// exibir como exemplo no aviso de formato legado.
+			String exemploLegado = null;
+
 			for (Row row : sheet) {
 
 				// Pula o cabeçalho (linha de índice 0)
@@ -97,10 +103,22 @@ public class ValidacaoPlanilhaService {
 
 				try {
 					LinhaImportacaoDTO dto = excelService.importarLinha(row, colunas);
+
+					if (mapeamento.especialidadeMedicoCombinados() && exemploLegado == null
+							&& dto.getMedico() != null && !dto.getMedico().isBlank()) {
+						exemploLegado = dto.getMedico();
+					}
+
 					validarLinha(dto, numeroLinha, erros);
 				} catch (Exception e) {
 					log.warn("Erro ao ler linha {}: {} — linha ignorada.", numeroLinha, e.getMessage());
 				}
+			}
+
+			if (mapeamento.especialidadeMedicoCombinados()) {
+				erros.add(new ErroValidacao(1, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.FORMATO_LEGADO_ESPECIALIDADE_MEDICO,
+						construirDetalheFormatoLegado(exemploLegado)));
 			}
 
 		} catch (IOException e) {
@@ -241,6 +259,28 @@ public class ValidacaoPlanilhaService {
 		}
 
 		return valida;
+	}
+
+	/**
+	 * Monta a mensagem do aviso de formato legado (coluna "Especialidade/Médico"
+	 * combinada). Quando há um exemplo real da planilha, anexa o valor bruto
+	 * encontrado já separado nos dois campos — mesmo texto validado no mockup
+	 * de "Analisar Planilha".
+	 */
+	private String construirDetalheFormatoLegado(String exemploBruto) {
+
+		String mensagem = "A coluna \"Especialidade/Médico\" veio com especialidade e nome "
+				+ "do profissional combinados numa única célula — um formato antigo de "
+				+ "planilha. O sistema irá separar os dois campos automaticamente ao importar.";
+
+		if (exemploBruto == null) {
+			return mensagem;
+		}
+
+		String[] partes = StringUtils.separarEspecialidadeEMedico(exemploBruto);
+
+		return mensagem + " Exemplo encontrado: \"" + exemploBruto + "\" → Especialidade: "
+				+ partes[0] + " · Médico: " + partes[1];
 	}
 
 	/**

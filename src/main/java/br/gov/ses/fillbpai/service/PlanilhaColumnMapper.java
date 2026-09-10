@@ -33,13 +33,20 @@ public class PlanilhaColumnMapper {
 	 *                                 original de todas as colunas do cabeçalho que casaram
 	 *                                 com ele — útil para apontar exatamente qual par de
 	 *                                 colunas está em conflito
+	 * @param especialidadeMedicoCombinados true quando a planilha não tem coluna própria
+	 *                                 para ESPECIALIDADE_MEDICO mas tem uma para MEDICO —
+	 *                                 sinal de planilha legado, onde uma única coluna
+	 *                                 "Especialidade/Médico" traz os dois valores
+	 *                                 combinados ("ESPECIALIDADE - NOME"). Nesse caso os
+	 *                                 dois campos apontam para o mesmo índice de coluna.
 	 */
 	public record ResultadoMapeamento(
 			Map<String, Integer> indices,
 			List<String> camposFaltando,
 			List<String> camposDuplicados,
 			List<String> colunasNaoReconhecidas,
-			Map<String, List<String>> colunasPorCampoDuplicado) {
+			Map<String, List<String>> colunasPorCampoDuplicado,
+			boolean especialidadeMedicoCombinados) {
 
 		/** true se todos os campos obrigatórios foram encontrados, sem ambiguidade. */
 		public boolean estruturaValida() {
@@ -95,6 +102,18 @@ public class PlanilhaColumnMapper {
 			}
 		}
 
+		// Planilha legado: uma única coluna cobre especialidade + nome do médico
+		// (valor "ESPECIALIDADE - NOME" combinado numa célula só). Se não há
+		// coluna própria para ESPECIALIDADE_MEDICO mas MEDICO foi resolvido,
+		// reaproveita o mesmo índice para os dois — o split do valor combinado
+		// acontece em AtendimentoProcessor.
+		boolean especialidadeMedicoCombinados = false;
+
+		if (!indices.containsKey("ESPECIALIDADE_MEDICO") && indices.containsKey("MEDICO")) {
+			indices.put("ESPECIALIDADE_MEDICO", indices.get("MEDICO"));
+			especialidadeMedicoCombinados = true;
+		}
+
 		List<String> faltando = new ArrayList<>();
 
 		for (String campo : ColunaAliasUtils.obterCamposCanonicos()) {
@@ -103,7 +122,8 @@ public class PlanilhaColumnMapper {
 			}
 		}
 
-		return new ResultadoMapeamento(indices, faltando, duplicados, naoReconhecidas, colunasPorCampoDuplicado);
+		return new ResultadoMapeamento(indices, faltando, duplicados, naoReconhecidas, colunasPorCampoDuplicado,
+				especialidadeMedicoCombinados);
 	}
 
 	/** Extrai o texto de uma célula de cabeçalho, qualquer que seja o tipo. */

@@ -27,6 +27,16 @@ class ValidacaoPlanilhaServiceTest {
 			"END. COMPLEMENTOS", "SEXO"
 	};
 
+	/** Cabeçalho legado: igual ao completo, mas sem a coluna própria "Especialidade". */
+	private static final String[] CABECALHO_LEGADO = {
+			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
+			"ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
+			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
+			"RACA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
+			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
+			"END. COMPLEMENTOS", "SEXO"
+	};
+
 	private static final int COL_CPF_PACIENTE = 9;
 	private static final int COL_CNS_PACIENTE = 11;
 	private static final int COL_RACA_PACIENTE = 12;
@@ -41,6 +51,18 @@ class ValidacaoPlanilhaServiceTest {
 		return new String[] {
 				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
 				"CARDIOLOGIA", "JOAO DA SILVA", "98765432100", "225125",
+				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
+				"BRANCA", "01/01/1990", "I10", "67999999999",
+				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
+				"APTO 1", "F"
+		};
+	}
+
+	/** Linha de dados no formato legado — combinado no lugar de "Especialidade" + "ESPECIALIDADE/MEDICO". */
+	private String[] linhaLegado() {
+		return new String[] {
+				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
+				"CARDIOLOGIA - RODRIGO SILVA GRILO", "98765432100", "225125",
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
 				"BRANCA", "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
@@ -196,6 +218,23 @@ class ValidacaoPlanilhaServiceTest {
 
 		assertThat(erros).singleElement().satisfies(erro ->
 				assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ESTRUTURA_INVALIDA));
+	}
+
+	@Test
+	void validarComPlanilhaLegadoNaoReportaEstruturaInvalidaEGeraAvisoComExemploReal() throws IOException {
+		String caminho = salvarPlanilha(CABECALHO_LEGADO, linhaLegado());
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(ErroValidacao::isEstrutural);
+
+		assertThat(erros).anySatisfy(erro -> {
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.FORMATO_LEGADO_ESPECIALIDADE_MEDICO);
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.detalhe()).contains("CARDIOLOGIA - RODRIGO SILVA GRILO");
+			assertThat(erro.detalhe()).contains("Especialidade: CARDIOLOGIA");
+			assertThat(erro.detalhe()).contains("Médico: RODRIGO SILVA GRILO");
+		});
 	}
 
 	@Test

@@ -42,6 +42,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Estrutura da planilha inválida: coluna ausente, incorreta ou fora de ordem — ERRO bloqueante */
 	public static final String ESTRUTURA_INVALIDA = "ESTRUTURA_INVALIDA";
 
+	/** Coluna "Especialidade/Médico" combinada — formato legado, separado automaticamente na importação. AVISO, não bloqueia. */
+	public static final String FORMATO_LEGADO_ESPECIALIDADE_MEDICO = "FORMATO_LEGADO_ESPECIALIDADE_MEDICO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

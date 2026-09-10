@@ -51,10 +51,7 @@ public class AtendimentoProcessor {
 		// ===============================
 
 		separarEstabelecimento(dto);
-		// separarEspecialidadeEMedico(dto);
-		// Desativado: a planilha atual já traz especialidade (coluna E) e
-		// nome do médico (coluna F) em campos separados — ver ExcelImportService.
-		// Mantido comentado como referência enquanto o novo layout é validado em produção.
+		separarEspecialidadeEMedico(dto);
 
 		// ===============================
 		// 2. Definir SIGTAP
@@ -169,30 +166,30 @@ public class AtendimentoProcessor {
 		dto.setEstabelecimento(partes[1]);
 	}
 
-	// Desativado: a planilha atual já traz especialidade e nome do médico em
-	// colunas separadas (ver ExcelImportService). Mantido comentado como
-	// referência enquanto o novo layout é validado em produção.
-	//
-	// /**
-	//  * Separa o campo combinado "ESPECIALIDADE - NOME DO MÉDICO"
-	//  * em dois campos distintos: especialidadeMedico e medico (nome).
-	//  *
-	//  * Exemplo: "CARDIOLOGIA - DR. SILVA" → especialidade="CARDIOLOGIA", médico="DR. SILVA"
-	//  */
-	// private void separarEspecialidadeEMedico(LinhaImportacaoDTO dto) {
-	//
-	// 	String valorOriginal = dto.getEspecialidadeMedico();
-	//
-	// 	if (isNullOrEmpty(valorOriginal)) {
-	// 		return;
-	// 	}
-	//
-	// 	String[] partes =
-	// 			StringUtils.separarEspecialidadeEMedico(valorOriginal);
-	//
-	// 	dto.setEspecialidadeMedico(partes[0]);
-	// 	dto.setMedico(partes[1]);
-	// }
+	/**
+	 * Separa o campo combinado legado "ESPECIALIDADE - NOME DO MÉDICO" em dois
+	 * campos distintos. Planilhas no formato atual trazem especialidade (coluna
+	 * própria) e nome do médico em colunas diferentes, então os dois valores
+	 * nunca chegam idênticos — só dispara quando {@link PlanilhaColumnMapper}
+	 * reaproveitou o mesmo índice de coluna para os dois campos (planilha
+	 * legado, uma única coluna "Especialidade/Médico" com valor combinado).
+	 *
+	 * Exemplo: "CARDIOLOGIA - DR. SILVA" → especialidade="CARDIOLOGIA", médico="DR. SILVA"
+	 */
+	private void separarEspecialidadeEMedico(LinhaImportacaoDTO dto) {
+
+		String especialidade = dto.getEspecialidadeMedico();
+		String medico = dto.getMedico();
+
+		if (isNullOrEmpty(especialidade) || !especialidade.equals(medico)) {
+			return;
+		}
+
+		String[] partes = StringUtils.separarEspecialidadeEMedico(especialidade);
+
+		dto.setEspecialidadeMedico(partes[0]);
+		dto.setMedico(partes[1]);
+	}
 
 	// ===============================
 	// VALIDAÇÕES

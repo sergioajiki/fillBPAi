@@ -100,6 +100,32 @@ class AtendimentoProcessorTest {
 		assertThat(dto.getEstabelecimento()).isEqualTo("HOSPITAL CENTRAL");
 	}
 
+	// ===== ESPECIALIDADE/MÉDICO (formato legado) =====
+
+	@Test
+	void processarComEspecialidadeEMedicoCombinadosLegadoSeparaOsDoisCampos() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEspecialidadeMedico("CARDIOLOGIA - JOAO DA SILVA");
+		dto.setMedico("CARDIOLOGIA - JOAO DA SILVA");
+
+		processor.processar(dto);
+
+		assertThat(dto.getEspecialidadeMedico()).isEqualTo("CARDIOLOGIA");
+		assertThat(dto.getMedico()).isEqualTo("JOAO DA SILVA");
+	}
+
+	@Test
+	void processarComEspecialidadeEMedicoDiferentesNaoAlteraNadaMesmoComHifenNoNome() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEspecialidadeMedico("CARDIOLOGIA");
+		dto.setMedico("JOAO DA SILVA - FILHO");
+
+		processor.processar(dto);
+
+		assertThat(dto.getEspecialidadeMedico()).isEqualTo("CARDIOLOGIA");
+		assertThat(dto.getMedico()).isEqualTo("JOAO DA SILVA - FILHO");
+	}
+
 	// ===== SEXO =====
 
 	@Test

@@ -1,6 +1,8 @@
 package br.gov.ses.fillbpai.service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -45,6 +47,22 @@ class PlanilhaColumnMapperTest {
 		assertThat(resultado.camposDuplicados()).isEmpty();
 		assertThat(resultado.indices()).hasSize(24);
 		assertThat(resultado.indices()).containsEntry("CEP", 19);
+		assertThat(resultado.especialidadeMedicoCombinados()).isFalse();
+	}
+
+	@Test
+	void mapearComApenasColunaCombinadaLegadaBackfillaEspecialidadeMedico() {
+		List<String> semEspecialidade = new ArrayList<>(Arrays.asList(CABECALHO_COMPLETO));
+		semEspecialidade.remove("Especialidade");
+		Row cabecalho = criarLinhaCabecalho(semEspecialidade.toArray(new String[0]));
+
+		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(cabecalho);
+
+		assertThat(resultado.estruturaValida()).isTrue();
+		assertThat(resultado.camposFaltando()).isEmpty();
+		assertThat(resultado.especialidadeMedicoCombinados()).isTrue();
+		assertThat(resultado.indices().get("ESPECIALIDADE_MEDICO"))
+				.isEqualTo(resultado.indices().get("MEDICO"));
 	}
 
 	@Test
