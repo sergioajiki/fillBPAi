@@ -1,0 +1,554 @@
+<title>Coluna de Logradouro Opcional</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F;
+      --paper-raised:#1A2018;
+      --ink:#E8ECE3;
+      --ink-muted:#A9B5A2;
+      --line:#2B332B;
+      --line-strong:#3C463C;
+      --accent:#7DD3B0;
+      --accent-soft:#1E3A30;
+      --sev-erro:#FF9686;
+      --sev-erro-soft:#3A1F1B;
+      --sev-aviso:#E8B15C;
+      --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F;
+    --paper-raised:#1A2018;
+    --ink:#E8ECE3;
+    --ink-muted:#A9B5A2;
+    --line:#2B332B;
+    --line-strong:#3C463C;
+    --accent:#7DD3B0;
+    --accent-soft:#1E3A30;
+    --sev-erro:#FF9686;
+    --sev-erro-soft:#3A1F1B;
+    --sev-aviso:#E8B15C;
+    --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:800px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:clamp(2.1rem, 4.4vw, 2.9rem);
+    line-height:1.08;
+    letter-spacing:-.01em;
+    margin:0 0 16px;
+    text-wrap:balance;
+  }
+  .lede{
+    font-size:1.1rem;
+    line-height:1.6;
+    color:var(--ink-muted);
+    max-width:64ch;
+    margin:0 0 22px;
+  }
+  .meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 18px;
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    color:var(--ink-muted);
+    padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin:26px 0 0;
+  }
+  nav.toc a{
+    font-family:var(--font-mono);
+    font-size:.74rem;
+    color:var(--ink-muted);
+    text-decoration:none;
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:100px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.5rem;
+    letter-spacing:-.005em;
+    margin:0 0 18px;
+    text-wrap:balance;
+  }
+  section > h3{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:1rem;
+    margin:28px 0 10px;
+  }
+  p{ line-height:1.7; font-size:1.02rem; max-width:66ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{
+    font-family:var(--font-mono);
+    font-size:.88em;
+    background:var(--accent-soft);
+    color:var(--ink);
+    padding:.12em .38em;
+    border-radius:4px;
+  }
+  pre{
+    font-family:var(--font-mono);
+    font-size:.84rem;
+    line-height:1.6;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px 18px;
+    overflow-x:auto;
+    box-shadow:var(--shadow);
+  }
+  pre code{ background:none; padding:0; }
+
+  /* ---- tabela ---- */
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:480px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-muted);
+    font-weight:600;
+  }
+  td.caso{ font-weight:500; }
+
+  /* ---- plano numerado ---- */
+  ol.plano{ list-style:none; padding:0; margin:20px 0 0; counter-reset:passo; }
+  ol.plano li{
+    counter-increment:passo;
+    position:relative;
+    padding:2px 0 22px 46px;
+    border-left:1px solid var(--line);
+    margin-left:15px;
+  }
+  ol.plano li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  ol.plano li::before{
+    content: counter(passo);
+    position:absolute; left:-15px; top:0;
+    width:30px; height:30px;
+    background:var(--paper-raised);
+    border:1.5px solid var(--accent);
+    color:var(--accent);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:.82rem;
+  }
+  ol.plano li p{ margin:0; font-size:.98rem; }
+  ol.plano li h4{ margin:0 0 6px; font-family:var(--font-body); font-weight:600; font-size:.98rem; }
+
+  /* ---- callout ---- */
+  .callout{
+    margin-top:18px;
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    background:var(--paper-raised);
+    border-radius:0 10px 10px 0;
+    padding:18px 22px;
+  }
+  .callout.resolvido{ border-left-color:var(--accent); }
+  .callout.aberto{ border-left-color:var(--sev-aviso); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  .pill{
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:4px 10px;
+    border-radius:100px;
+    border:1px solid var(--line-strong);
+    color:var(--ink-muted);
+    white-space:nowrap;
+    display:inline-block;
+    margin-bottom:8px;
+  }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.aberto{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+  .pill.erro{ border-color:var(--sev-erro); color:var(--sev-erro); }
+
+  footer.doc-foot{
+    margin-top:72px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-family:var(--font-mono);
+    font-size:.76rem;
+    color:var(--ink-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Coluna de código de logradouro opcional</h1>
+    <p class="lede">
+      Na maioria das planilhas reais a coluna <code>COD_LOGRADOURO</code> não
+      existe; quando existe, quase sempre vem vazia. Hoje isso bloqueia a
+      importação (ESTRUTURA_INVALIDA), forçando o usuário a adicionar a coluna
+      manualmente só para destravar — mesmo o dado nunca sendo realmente
+      necessário. Este documento registra o estudo de impacto da proposta:
+      tornar a coluna opcional, avisar sem bloquear quando ausente, e manter
+      o fluxo normal de importação.
+    </p>
+    <div class="meta">
+      <span>Área: <strong>Validação estrutural da planilha (Analisar/Importar)</strong></span>
+      <span>Status: <strong>Estudo de impacto — aguardando aprovação para implementar</strong></span>
+      <span>Data: <strong>11/09/2026</strong></span>
+      <span>Módulos afetados: <strong>PlanilhaColumnMapper · ValidacaoPlanilhaService · ErroValidacao</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#contexto">Contexto</a>
+      <a href="#achado">Achado-chave</a>
+      <a href="#porque">Por que o dado não é necessário</a>
+      <a href="#proposta">Proposta</a>
+      <a href="#impacto">Estudo de impacto</a>
+      <a href="#plano">Plano técnico</a>
+      <a href="#bordas">Casos de borda</a>
+      <a href="#testes">Testes</a>
+      <a href="#abertas">Decisões em aberto</a>
+    </nav>
+  </header>
+
+  <section id="contexto">
+    <h2>Contexto</h2>
+    <p>
+      Relato do usuário: na maioria das planilhas recebidas, a coluna
+      <code>COD_LOGRADOURO</code> (aliases cadastrados: <code>Log</code>,
+      <code>LOGRADOURO</code>, <code>Cod_Logradouro</code>) simplesmente não
+      existe no cabeçalho. Nos casos em que existe, a célula quase sempre vem
+      vazia. Pedir para quem gera a planilha preencher o código manualmente
+      não resolve — na prática a coluna aparece só para "existir", vazia,
+      porque ninguém no processo de origem sabe (ou precisa saber) qual é o
+      código numérico do tipo de logradouro.
+    </p>
+  </section>
+
+  <section id="achado">
+    <h2>Achado-chave: a coluna já é tratada como obrigatória, sem necessidade</h2>
+    <p>
+      <code>PlanilhaColumnMapper.obterCamposCanonicos()</code> devolve todo
+      campo cadastrado em <code>colunas_aliases.csv</code> — sem distinguir
+      obrigatório de opcional. <code>mapear()</code> usa essa lista completa
+      para calcular <code>camposFaltando</code>
+      (<code>PlanilhaColumnMapper.java:117-123</code>), e
+      <code>ValidacaoPlanilhaService.reportarEstrutura</code>
+      (<code>ValidacaoPlanilhaService.java:257-262</code>) transforma
+      <strong>qualquer</strong> campo faltando em <code>ESTRUTURA_INVALIDA</code>
+      — ERRO bloqueante, que impede a importação inteira até a coluna ser
+      adicionada ao cabeçalho.
+    </p>
+    <p>
+      A própria suíte de testes confirma esse comportamento hoje:
+      <code>PlanilhaColumnMapperTest</code> chama o cabeçalho completo de "25
+      campos obrigatórios" e inclui <code>"Log"</code> (alias de
+      <code>COD_LOGRADOURO</code>) nessa lista — removê-lo do cabeçalho de
+      teste faria <code>estruturaValida()</code> retornar <code>false</code>,
+      do mesmo jeito que remover <code>SEXO</code> faz no teste
+      <code>mapearComColunaObrigatoriaAusenteReportaCampoFaltando</code>.
+    </p>
+    <div class="callout">
+      <p class="kicker">Por isso a coluna vazia "resolve"</p>
+      <p>
+        Adicionar a coluna manualmente (mesmo vazia) já é suficiente para
+        passar da checagem estrutural — porque a checagem só olha para a
+        <strong>presença</strong> do cabeçalho, nunca para o conteúdo da
+        célula. O valor em si nunca foi, de fato, obrigatório.
+      </p>
+    </div>
+  </section>
+
+  <section id="porque">
+    <h2>Por que o dado da coluna não é realmente necessário</h2>
+    <p>
+      <code>AtendimentoImportacaoService.atualizarEndereco</code>
+      (linhas 327-331) já resolve o código de logradouro majoritariamente por
+      outra via: <code>LogradouroUtils.resolver(dto.getEndereco())</code>
+      analisa o texto do endereço e reconhece prefixos
+      <code>RUA</code> → <code>081</code>, <code>AVENIDA</code>/<code>AV.</code>/<code>AV</code>
+      → <code>008</code>, <code>TRAVESSA</code>/<code>TRAV.</code>/<code>TV</code>
+      → <code>100</code>. A coluna <code>COD_LOGRADOURO</code> da planilha só
+      entra como <strong>fallback</strong>, usado apenas quando nenhum
+      prefixo é reconhecido no texto do endereço:
+    </p>
+    <pre><code>LogradouroUtils.LogradouroResultado logr = LogradouroUtils.resolver(dto.getEndereco());
+endereco.setCodLogradouro(
+        logr.getCodLogradouro() != null ? logr.getCodLogradouro() : dto.getCodLogradouro());</code></pre>
+    <p>
+      Ou seja: mesmo com a coluna sempre vazia (ou ausente), a maior parte
+      dos endereços já tem o código resolvido pelo prefixo do texto. A coluna
+      só faria diferença para tipos de logradouro fora da lista reconhecida
+      (Alameda, Estrada, Rodovia, Quadra etc.) — casos em que hoje, de
+      qualquer forma, ela também está vazia na prática, então nada muda.
+    </p>
+    <div class="callout resolvido">
+      <p class="kicker">O default "081" fecha o circuito</p>
+      <p>
+        Mesmo quando nem o prefixo do endereço nem a coluna da planilha
+        resolvem um código, <code>GeradorBPAiService.padNumObrigatorio</code>
+        aplica <code>"081"</code> (Rua) como default — decisão deliberada,
+        já que o campo é obrigatório no layout do BPA-I, a coluna da planilha
+        quase sempre chega vazia, e "Rua" é o tipo mais comum. Na prática,
+        isso significa que a <strong>presença ou ausência da coluna
+        <code>COD_LOGRADOURO</code> nunca interfere no resultado da geração
+        do BPA-I</strong> — o arquivo final sempre sai com um código válido
+        de 3 dígitos, com ou sem a coluna no cabeçalho. Essa é a base que
+        sustenta tornar a checagem estrutural não bloqueante: não há nenhum
+        caminho em que a ausência da coluna produza um BPA-I inválido ou
+        incompleto.
+      </p>
+    </div>
+  </section>
+
+  <section id="proposta">
+    <h2>Proposta do usuário</h2>
+    <ol class="plain">
+      <li>Na leitura do cabeçalho, verificar se a coluna <code>COD_LOGRADOURO</code> foi encontrada.</li>
+      <li>Se não foi encontrada, não bloquear — exibir um aviso informando que a coluna será considerada vazia.</li>
+      <li>O sistema segue o procedimento normal de importação (a extração do código de logradouro não depende da presença dessa coluna).</li>
+    </ol>
+  </section>
+
+  <section id="impacto">
+    <h2>Estudo de impacto</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Módulo</th><th>Mudança necessária</th><th>Risco</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso"><code>PlanilhaColumnMapper</code></td>
+            <td>Precisa distinguir campos obrigatórios de opcionais — hoje todo campo canônico é tratado igual. <code>ResultadoMapeamento</code> ganha um novo componente para campos opcionais ausentes, separado de <code>camposFaltando</code>.</td>
+            <td>Baixo. Mudança aditiva no record; <code>estruturaValida()</code> continua olhando só obrigatórios+duplicados.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>ValidacaoPlanilhaService</code></td>
+            <td><code>reportarEstrutura</code> passa a gerar AVISO (não ERRO) para cada campo opcional ausente, com mensagem explicando o fallback automático.</td>
+            <td>Baixo. Mesmo padrão já usado para os outros avisos não bloqueantes (CNS, raça indígena).</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>ErroValidacao</code></td>
+            <td>Nova constante de tipo (ex.: <code>COLUNA_OPCIONAL_AUSENTE</code>), severidade AVISO.</td>
+            <td>Nenhum — aditivo.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>ExcelImportService</code> / <code>AtendimentoImportacaoService</code></td>
+            <td>Nenhuma mudança. <code>getString()</code> já devolve <code>null</code> quando o campo não está no mapa de índices; <code>atualizarEndereco</code> já trata <code>codLogradouro</code> nulo via o fallback do prefixo do endereço.</td>
+            <td>Nenhum — comportamento de runtime já é tolerante, só a validação estrutural bloqueia hoje.</td>
+          </tr>
+          <tr>
+            <td class="caso">UI (Analisar/Importar Planilha)</td>
+            <td>Nenhuma tela nova — o aviso aparece na lista de avisos já existente (diálogo de avisos não bloqueantes / relatório TXT).</td>
+            <td>Nenhum.</td>
+          </tr>
+          <tr>
+            <td class="caso">Testes existentes</td>
+            <td><code>PlanilhaColumnMapperTest</code>: o cabeçalho "completo" usado nos testes passa a ter 24 campos obrigatórios reais + <code>COD_LOGRADOURO</code> tratado à parte; o teste que remove <code>"Log"</code> do cabeçalho passa a esperar <code>estruturaValida() == true</code> com um aviso, não mais <code>camposFaltando</code>.</td>
+            <td>Médio — requer atualizar/reescrever casos de teste existentes, não só adicionar novos.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout resolvido">
+      <p class="kicker">Nenhum dado histórico é afetado</p>
+      <p>
+        Atendimentos já importados não são reprocessados. A mudança afeta
+        apenas a checagem feita no momento da leitura do cabeçalho, antes da
+        importação — não há migração de banco nem reprocessamento necessário.
+      </p>
+    </div>
+  </section>
+
+  <section id="plano">
+    <h2>Plano técnico</h2>
+    <ol class="plano">
+      <li>
+        <h4>PlanilhaColumnMapper: separar obrigatório de opcional</h4>
+        <p>
+          Introduzir um conjunto <code>CAMPOS_OPCIONAIS</code> (inicialmente
+          <code>Set.of("COD_LOGRADOURO")</code>) dentro de
+          <code>PlanilhaColumnMapper</code>. Ao montar o resultado,
+          <code>faltando</code> continua só com obrigatórios (os que não
+          estão em <code>CAMPOS_OPCIONAIS</code>); um novo componente do
+          record — por exemplo <code>camposOpcionaisFaltando</code> — recebe
+          os opcionais ausentes. <code>estruturaValida()</code> não muda de
+          assinatura, só passa a ignorar os opcionais no cálculo.
+        </p>
+      </li>
+      <li>
+        <h4>ValidacaoPlanilhaService: aviso em vez de erro</h4>
+        <p>
+          Em <code>reportarEstrutura</code>, para cada campo em
+          <code>mapeamento.camposOpcionaisFaltando()</code>, adicionar um
+          <code>ErroValidacao</code> de severidade AVISO (tipo
+          <code>COLUNA_OPCIONAL_AUSENTE</code>), com mensagem no formato:
+          <em>"Coluna 'COD_LOGRADOURO' não encontrada no cabeçalho — será
+          considerada vazia. O código do logradouro poderá ainda ser
+          derivado automaticamente a partir do prefixo do endereço (Rua,
+          Avenida, Travessa)."</em> Isso não altera o retorno <code>false</code>
+          de <code>reportarEstrutura</code> nem interrompe a leitura das
+          linhas.
+        </p>
+      </li>
+      <li>
+        <h4>ErroValidacao: nova constante</h4>
+        <p>
+          <code>public static final String COLUNA_OPCIONAL_AUSENTE = "COLUNA_OPCIONAL_AUSENTE";</code>
+          — documentada como AVISO, não bloqueante, seguindo o mesmo padrão
+          das constantes existentes.
+        </p>
+      </li>
+      <li>
+        <h4>Nenhuma mudança em leitura/importação</h4>
+        <p>
+          <code>ExcelImportService.importarLinha</code>,
+          <code>AtendimentoImportacaoService.atualizarEndereco</code> e
+          <code>LogradouroUtils</code> continuam exatamente como estão — o
+          caminho de dado ausente já é tratado (<code>null</code> →
+          fallback do prefixo do endereço → <code>null</code> se nada for
+          reconhecido).
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="bordas">
+    <h2>Casos de borda considerados</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Caso</th><th>Comportamento após a mudança</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">Coluna ausente do cabeçalho</td>
+            <td>Não bloqueia. Gera AVISO <code>COLUNA_OPCIONAL_AUSENTE</code> uma vez (nível cabeçalho, como já ocorre com <code>ESTRUTURA_INVALIDA</code> hoje).</td>
+          </tr>
+          <tr>
+            <td class="caso">Coluna presente mas célula vazia</td>
+            <td>Sem mudança — já funciona hoje: <code>dto.getCodLogradouro()</code> vem vazio/nulo, mesmo tratamento de fallback.</td>
+          </tr>
+          <tr>
+            <td class="caso">Coluna casando com mais de um cabeçalho (ambígua)</td>
+            <td>Continua bloqueante (<code>ESTRUTURA_INVALIDA</code> por <code>camposDuplicados</code>) — ambiguidade é um problema diferente de ausência e não faz parte desta mudança.</td>
+          </tr>
+          <tr>
+            <td class="caso">Endereço sem prefixo reconhecido <em>e</em> coluna ausente/vazia</td>
+            <td><code>codLogradouro</code> fica <code>null</code> no banco. Na geração do BPA-I, <code>GeradorBPAiService.padNumObrigatorio</code> aplica o default <code>"081"</code> (Rua) quando nulo — <strong>decisão de negócio deliberada</strong> (confirmada pelo usuário): o campo é obrigatório no layout do BPA-I, a coluna da planilha quase sempre chega vazia, e "Rua" é o tipo mais comum, então o default evita registro inválido no arquivo gerado. O comentário do método ("Default = 000") está desatualizado em relação ao código e pode ser corrigido à parte, mas o comportamento em si está correto e não muda com esta proposta.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="testes">
+    <h2>Testes planejados</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Classe</th><th>Cobre</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="caso"><code>PlanilhaColumnMapperTest</code></td><td>Cabeçalho sem <code>COD_LOGRADOURO</code> → <code>estruturaValida() == true</code>, <code>camposFaltando()</code> vazio, <code>camposOpcionaisFaltando()</code> contém <code>COD_LOGRADOURO</code>. Reescrever o teste do "cabeçalho completo" para refletir a nova contagem de obrigatórios.</td></tr>
+          <tr><td class="caso"><code>ValidacaoPlanilhaServiceTest</code></td><td>Planilha sem a coluna → aviso <code>COLUNA_OPCIONAL_AUSENTE</code> presente, sem nenhum erro bloqueante, importação segue e linhas são validadas normalmente.</td></tr>
+          <tr><td class="caso">Regressão</td><td>Suíte completa de <code>AtendimentoImportacaoServiceTest</code> / <code>LogradouroUtilsTest</code> permanece verde sem alteração — confirma que o caminho de resolução do código não muda.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="abertas">
+    <h2>Decisões em aberto</h2>
+    <div class="callout aberto">
+      <span class="pill aberto">1 · Escopo do conceito "campo opcional"</span>
+      <p>
+        Implementar como um <code>Set</code> genérico e reutilizável em
+        <code>PlanilhaColumnMapper</code> (permitindo marcar outros campos
+        como opcionais no futuro), ou uma solução específica só para
+        <code>COD_LOGRADOURO</code>? Recomendação: genérico, mesmo custo de
+        implementação e evita repetir o padrão se surgir outro caso
+        parecido.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">2 · Texto exato do aviso</span>
+      <p>
+        O texto sugerido nesta análise pode ser ajustado — confirmar redação
+        final antes de implementar, já que aparece tanto no diálogo de
+        avisos quanto no relatório TXT gravado em
+        <code>database/log_erros_validacao.txt</code>.
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-cod-logradouro-opcional.html
+  </footer>
+
+</div>

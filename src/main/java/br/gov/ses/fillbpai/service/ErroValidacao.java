@@ -48,6 +48,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Etnia do paciente preenchida mas não encontrada na tabela oficial — AVISO, não bloqueia. */
 	public static final String ETNIA_NAO_ENCONTRADA = "ETNIA_NAO_ENCONTRADA";
 
+	/** Coluna opcional (ex.: COD_LOGRADOURO) não encontrada no cabeçalho — AVISO, não bloqueia. */
+	public static final String COLUNA_OPCIONAL_AUSENTE = "COLUNA_OPCIONAL_AUSENTE";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

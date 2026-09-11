@@ -262,6 +262,29 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarComColunaCodLogradouroAusenteNaoBloqueiaEGeraAvisoColunaOpcionalAusente() throws IOException {
+		List<String> cabecalhoSemLogradouro = new java.util.ArrayList<>(java.util.Arrays.asList(CABECALHO_COMPLETO));
+		List<String> linhaSemLogradouro = new java.util.ArrayList<>(java.util.Arrays.asList(linhaValida()));
+
+		int indiceLogradouro = cabecalhoSemLogradouro.indexOf("Log");
+		cabecalhoSemLogradouro.remove(indiceLogradouro);
+		linhaSemLogradouro.remove(indiceLogradouro);
+
+		String caminho = salvarPlanilha(
+				cabecalhoSemLogradouro.toArray(new String[0]),
+				linhaSemLogradouro.toArray(new String[0]));
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(ErroValidacao::isBloqueante);
+		assertThat(erros).anySatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.COLUNA_OPCIONAL_AUSENTE);
+			assertThat(erro.detalhe()).contains("COD_LOGRADOURO");
+		});
+	}
+
+	@Test
 	void validarComPlanilhaLegadoNaoReportaEstruturaInvalidaEGeraAvisoComExemploReal() throws IOException {
 		String caminho = salvarPlanilha(CABECALHO_LEGADO, linhaLegado());
 

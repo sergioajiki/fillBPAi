@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Resolve, a partir da linha de cabeçalho de uma planilha, qual índice de
@@ -20,10 +21,26 @@ import java.util.Map;
 public class PlanilhaColumnMapper {
 
 	/**
+	 * Campos canônicos cuja ausência no cabeçalho não bloqueia a importação —
+	 * ao contrário dos demais campos, tratados como obrigatórios por padrão.
+	 * <p>
+	 * {@code COD_LOGRADOURO}: o código do tipo de logradouro é, na prática,
+	 * derivado automaticamente a partir do prefixo do texto do endereço
+	 * (ver {@link br.gov.ses.fillbpai.util.LogradouroUtils}) — a coluna da
+	 * planilha é só um fallback secundário, raramente preenchida. Na geração
+	 * do BPA-I, {@code GeradorBPAiService.padNumObrigatorio} já garante um
+	 * default válido ("081" — Rua) quando nenhum código é resolvido, então a
+	 * ausência desta coluna nunca produz um registro inválido.
+	 */
+	private static final Set<String> CAMPOS_OPCIONAIS = Set.of("COD_LOGRADOURO");
+
+	/**
 	 * Resultado do mapeamento de um cabeçalho.
 	 *
 	 * @param indices                  campo canônico → índice da coluna (0-based)
 	 * @param camposFaltando           campos obrigatórios não encontrados no cabeçalho
+	 * @param camposOpcionaisFaltando  campos opcionais ({@link #CAMPOS_OPCIONAIS}) não
+	 *                                 encontrados no cabeçalho — não impedem a importação
 	 * @param camposDuplicados         campos que casaram com mais de uma coluna do cabeçalho
 	 * @param colunasNaoReconhecidas   texto original das colunas do cabeçalho que não
 	 *                                 bateram com nenhum alias cadastrado — candidatas a
@@ -43,6 +60,7 @@ public class PlanilhaColumnMapper {
 	public record ResultadoMapeamento(
 			Map<String, Integer> indices,
 			List<String> camposFaltando,
+			List<String> camposOpcionaisFaltando,
 			List<String> camposDuplicados,
 			List<String> colunasNaoReconhecidas,
 			Map<String, List<String>> colunasPorCampoDuplicado,
@@ -115,15 +133,20 @@ public class PlanilhaColumnMapper {
 		}
 
 		List<String> faltando = new ArrayList<>();
+		List<String> opcionaisFaltando = new ArrayList<>();
 
 		for (String campo : ColunaAliasUtils.obterCamposCanonicos()) {
 			if (!indices.containsKey(campo)) {
-				faltando.add(campo);
+				if (CAMPOS_OPCIONAIS.contains(campo)) {
+					opcionaisFaltando.add(campo);
+				} else {
+					faltando.add(campo);
+				}
 			}
 		}
 
-		return new ResultadoMapeamento(indices, faltando, duplicados, naoReconhecidas, colunasPorCampoDuplicado,
-				especialidadeMedicoCombinados);
+		return new ResultadoMapeamento(indices, faltando, opcionaisFaltando, duplicados, naoReconhecidas,
+				colunasPorCampoDuplicado, especialidadeMedicoCombinados);
 	}
 
 	/** Extrai o texto de uma célula de cabeçalho, qualquer que seja o tipo. */

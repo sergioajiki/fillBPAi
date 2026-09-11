@@ -14,7 +14,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PlanilhaColumnMapperTest {
 
-	/** Cabeçalho com os 25 campos obrigatórios, usando aliases reais de {@code dados/colunas_aliases.csv}. */
+	/**
+	 * Cabeçalho com os 25 campos canônicos (24 obrigatórios + COD_LOGRADOURO,
+	 * opcional), usando aliases reais de {@code dados/colunas_aliases.csv}.
+	 */
 	private static final String[] CABECALHO_COMPLETO = {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"Especialidade", "ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
@@ -44,10 +47,25 @@ class PlanilhaColumnMapperTest {
 
 		assertThat(resultado.estruturaValida()).isTrue();
 		assertThat(resultado.camposFaltando()).isEmpty();
+		assertThat(resultado.camposOpcionaisFaltando()).isEmpty();
 		assertThat(resultado.camposDuplicados()).isEmpty();
 		assertThat(resultado.indices()).hasSize(25);
 		assertThat(resultado.indices()).containsEntry("CEP", 20);
 		assertThat(resultado.especialidadeMedicoCombinados()).isFalse();
+	}
+
+	@Test
+	void mapearSemColunaCodLogradouroNaoBloqueiaEstruturaMasReportaOpcionalFaltando() {
+		List<String> semLogradouro = new ArrayList<>(Arrays.asList(CABECALHO_COMPLETO));
+		semLogradouro.remove("Log");
+		Row cabecalho = criarLinhaCabecalho(semLogradouro.toArray(new String[0]));
+
+		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(cabecalho);
+
+		assertThat(resultado.estruturaValida()).isTrue();
+		assertThat(resultado.camposFaltando()).isEmpty();
+		assertThat(resultado.camposOpcionaisFaltando()).containsExactly("COD_LOGRADOURO");
+		assertThat(resultado.indices()).doesNotContainKey("COD_LOGRADOURO");
 	}
 
 	@Test
@@ -124,6 +142,7 @@ class PlanilhaColumnMapperTest {
 
 		assertThat(resultado.estruturaValida()).isFalse();
 		assertThat(resultado.indices()).isEmpty();
-		assertThat(resultado.camposFaltando()).hasSize(25);
+		assertThat(resultado.camposFaltando()).hasSize(24);
+		assertThat(resultado.camposOpcionaisFaltando()).containsExactly("COD_LOGRADOURO");
 	}
 }

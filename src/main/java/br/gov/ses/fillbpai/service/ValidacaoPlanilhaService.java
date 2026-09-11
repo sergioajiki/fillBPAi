@@ -33,6 +33,7 @@ import java.util.Map;
  *   <li>CNS do paciente com mais de 15 dígitos: AVISO (não bloqueia)</li>
  *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
  *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
+ *   <li>Coluna opcional (ex.: COD_LOGRADOURO) ausente do cabeçalho: AVISO (não bloqueia)</li>
  * </ul>
  *
  * @see ErroValidacao
@@ -259,6 +260,15 @@ public class ValidacaoPlanilhaService {
 					ErroValidacao.ESTRUTURA_INVALIDA,
 					"Coluna obrigatória não encontrada no cabeçalho: " + campo));
 			valida = false;
+		}
+
+		for (String campo : mapeamento.camposOpcionaisFaltando()) {
+			erros.add(new ErroValidacao(1, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.COLUNA_OPCIONAL_AUSENTE,
+					"Coluna \"" + campo + "\" não encontrada no cabeçalho — será considerada vazia. "
+							+ "O sistema segue a importação normalmente (o código do logradouro, quando "
+							+ "aplicável, ainda pode ser derivado automaticamente a partir do prefixo do "
+							+ "endereço: Rua, Avenida, Travessa)."));
 		}
 
 		for (String campo : mapeamento.camposDuplicados()) {
