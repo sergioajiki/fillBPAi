@@ -365,6 +365,10 @@ public class RelatorioController {
 			int m = Integer.parseInt(comp.substring(4, 6));
 			int a = Integer.parseInt(comp.substring(0, 4));
 			labelCompetencia.setText(String.format("Competência: %02d/%04d", m, a));
+
+			// A tabela deve refletir exatamente os atendimentos da competência
+			// selecionada — o mesmo conjunto que seria incluído no BPA-I completo.
+			aplicarFiltros();
 		});
 	}
 
@@ -905,11 +909,38 @@ public class RelatorioController {
 						.contains(termoBusca.trim().toUpperCase());
 			}
 
-			return esp && med && busca;
+			return esp && med && busca && competenciaCoincide(dto);
 		});
 
 		totalLabel.setText(
 				"Total: " + listaFiltrada.size());
+	}
+
+	/**
+	 * Verifica se a data de agendamento do atendimento pertence à competência
+	 * selecionada — mesma regra usada por {@code GeradorBPAiService} ao filtrar
+	 * por YEAR/MONTH(dataAgendamento) na geração do BPA-I completo. Mantém a
+	 * tabela mostrando exatamente o que seria incluído no arquivo gerado.
+	 * Sem competência selecionada (banco vazio), não filtra.
+	 */
+	private boolean competenciaCoincide(AtendimentoBPAiDTO dto) {
+
+		if (competenciaSelecionada == null) {
+			return true;
+		}
+
+		String dataStr = dto.getDataAgendamento();
+
+		if (dataStr == null || dataStr.isBlank()) {
+			return false;
+		}
+
+		try {
+			LocalDate data = LocalDate.parse(dataStr, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+			return competenciaSelecionada.equals(data.format(DateTimeFormatter.ofPattern("yyyyMM")));
+		} catch (Exception e) {
+			return false;
+		}
 	}
 
 	private void habilitarEdicao() {
@@ -1114,9 +1145,9 @@ public class RelatorioController {
 
 		atualizarCombos();
 
-		aplicarFiltros();
-
 		atualizarCompetencia();
+
+		aplicarFiltros();
 	}
 
 	public void carregarDoBanco() {
@@ -1155,32 +1186,33 @@ public class RelatorioController {
 			return;
 		}
 
-		if (lista.isEmpty()) {
+		DateTimeFormatter fmtData = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+		Optional<LocalDate> dataMaisRecente = lista.stream()
+				.map(AtendimentoBPAiDTO::getDataAgendamento)
+				.filter(d -> d != null && !d.isBlank())
+				.map(d -> {
+					try {
+						return LocalDate.parse(d, fmtData);
+					} catch (Exception e) {
+						return null;
+					}
+				})
+				.filter(java.util.Objects::nonNull)
+				.max(LocalDate::compareTo);
+
+		if (dataMaisRecente.isEmpty()) {
 			labelCompetencia.setText("Competência: --");
 			return;
 		}
 
-		String dataStr = lista.get(0).getDataAgendamento();
+		LocalDate data = dataMaisRecente.get();
 
-		if (dataStr == null || dataStr.isBlank()) {
-			labelCompetencia.setText("Competência: --");
-			return;
-		}
+		// Auto-detecta a competência mais recente entre os dados carregados
+		competenciaSelecionada = data.format(DateTimeFormatter.ofPattern("yyyyMM"));
 
-		try {
-
-			LocalDate data = LocalDate.parse(dataStr,
-					DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-
-			// Auto-detecta a competência a partir dos dados carregados
-			competenciaSelecionada = data.format(DateTimeFormatter.ofPattern("yyyyMM"));
-
-			labelCompetencia.setText("Competência: "
-					+ data.format(DateTimeFormatter.ofPattern("MM/yyyy")));
-
-		} catch (Exception e) {
-			labelCompetencia.setText("Competência: --");
-		}
+		labelCompetencia.setText("Competência: "
+				+ data.format(DateTimeFormatter.ofPattern("MM/yyyy")));
 	}
 
 	// ======================================================
