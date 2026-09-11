@@ -13,6 +13,7 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
@@ -24,6 +25,7 @@ import javafx.scene.layout.Region;
 import javafx.stage.Window;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +39,8 @@ public class RelatorioController {
 	// ======================================================
 
 	private final EntityManager entityManager;
+
+	private static final DateTimeFormatter FORMATO_YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
 
 	// ======================================================
 	// LISTAS
@@ -62,6 +66,9 @@ public class RelatorioController {
 	/** Label exibido na primeira linha com a competência atual */
 	private Label labelCompetencia = new Label("Competência: --");
 
+	/** Badge com a mesma informação de competência, repetido junto às ações da linha 2 */
+	private Label labelCompetenciaBadge = new Label("📅 Competência: --");
+
 	private ComboBox<String> filtroEspecialidade = new ComboBox<>();
 
 	private ComboBox<String> filtroMedico = new ComboBox<>();
@@ -81,11 +88,30 @@ public class RelatorioController {
 	private Button btnLimpar = new Button("Limpar");
 
 	// BOTÃO GERAR BPA — gera arquivo filtrado por especialidade/médico
-	private Button btnGerarBPA = new Button("Gerar BPA-I");
+	private Button btnGerarBPA = new Button("Gerar BPA-I Parcial");
 
 	// BOTÃO GERAR BPA COMPLETO — gera arquivo com todos os médicos,
 	// atribuindo folhas sequenciais por especialidade (ordem alfabética)
-	private Button btnGerarBPACompleto = new Button("Gerar BPA-I Completo");
+	private Button btnGerarBPACompleto = new Button("Gerar BPA-I");
+
+	// TOGGLE EXIBIÇÃO — alterna o filtro da tabela entre "competência
+	// selecionada", "período" (intervalo de competências) e "completo"
+	// (todas as competências). Nunca afeta competenciaSelecionada nem a
+	// geração do BPA-I, que sempre usa a competência selecionada em
+	// [Selecionar Mês], independentemente do modo de exibição.
+	private enum ModoExibicao { COMPETENCIA, PERIODO, COMPLETO }
+	private ModoExibicao modoExibicao = ModoExibicao.COMPETENCIA;
+
+	private final ToggleGroup grupoExibicao = new ToggleGroup();
+	private ToggleButton toggleExibirCompetencia = new ToggleButton("Competência");
+	private ToggleButton toggleExibirPeriodo = new ToggleButton("Período");
+	private ToggleButton toggleExibirCompleto = new ToggleButton("Completo");
+
+	/** Intervalo de competências (formato YYYYMM) usado no modo de exibição "Período" */
+	private String periodoInicio = null;
+	private String periodoFim = null;
+
+	private Button btnSelecionarPeriodo = new Button("Selecionar Período");
 
 	// BOTÃO AVISO — indica pendências que impedem a geração do BPA-I completo
 	private Button btnAvisoGeracao = new Button("⚠ Pendências CNS");
@@ -130,6 +156,7 @@ public class RelatorioController {
 
 		this.entityManager = entityManager;
 		btnSelecionarMes.setOnAction(e -> abrirDialogSelecionarCompetencia());
+		btnSelecionarPeriodo.setOnAction(e -> abrirDialogSelecionarPeriodo());
 	}
 
 	/**
@@ -364,7 +391,7 @@ public class RelatorioController {
 			competenciaSelecionada = comp;
 			int m = Integer.parseInt(comp.substring(4, 6));
 			int a = Integer.parseInt(comp.substring(0, 4));
-			labelCompetencia.setText(String.format("Competência: %02d/%04d", m, a));
+			atualizarTextoCompetencia(String.format("Competência: %02d/%04d", m, a));
 
 			// A tabela deve refletir exatamente os atendimentos da competência
 			// selecionada — o mesmo conjunto que seria incluído no BPA-I completo.
@@ -372,11 +399,141 @@ public class RelatorioController {
 		});
 	}
 
+	/**
+	 * Abre o diálogo de seleção de período (mês/ano inicial e final) usado
+	 * pelo modo de exibição "Período" — só afeta o filtro da tabela, nunca
+	 * a competência usada na geração do BPA-I.
+	 */
+	private void abrirDialogSelecionarPeriodo() {
+
+		int anoInicial = LocalDate.now().getYear();
+		int mesInicial = LocalDate.now().getMonthValue();
+
+		int anoInicialDe = anoInicial;
+		int mesInicialDe = mesInicial;
+		int anoInicialAte = anoInicial;
+		int mesInicialAte = mesInicial;
+
+		if (periodoInicio != null) {
+			anoInicialDe = Integer.parseInt(periodoInicio.substring(0, 4));
+			mesInicialDe = Integer.parseInt(periodoInicio.substring(4, 6));
+		}
+		if (periodoFim != null) {
+			anoInicialAte = Integer.parseInt(periodoFim.substring(0, 4));
+			mesInicialAte = Integer.parseInt(periodoFim.substring(4, 6));
+		}
+
+		Spinner<Integer> spinnerMesDe = new Spinner<>(1, 12, mesInicialDe);
+		spinnerMesDe.setEditable(true);
+		spinnerMesDe.setPrefWidth(70);
+
+		Spinner<Integer> spinnerAnoDe = new Spinner<>(2000, 2100, anoInicialDe);
+		spinnerAnoDe.setEditable(true);
+		spinnerAnoDe.setPrefWidth(90);
+
+		Spinner<Integer> spinnerMesAte = new Spinner<>(1, 12, mesInicialAte);
+		spinnerMesAte.setEditable(true);
+		spinnerMesAte.setPrefWidth(70);
+
+		Spinner<Integer> spinnerAnoAte = new Spinner<>(2000, 2100, anoInicialAte);
+		spinnerAnoAte.setEditable(true);
+		spinnerAnoAte.setPrefWidth(90);
+
+		VBox content = new VBox(10,
+				new HBox(10, new Label("De:"), spinnerMesDe, spinnerAnoDe),
+				new HBox(10, new Label("Até:"), spinnerMesAte, spinnerAnoAte));
+		content.setPadding(new Insets(10));
+
+		Dialog<String[]> dialog = new Dialog<>();
+		dialog.setTitle("Selecionar Período de Exibição");
+		dialog.setHeaderText("Escolha o intervalo de competências para exibir na tabela");
+		dialog.getDialogPane().setContent(content);
+
+		ButtonType confirmar = new ButtonType("Confirmar", ButtonBar.ButtonData.OK_DONE);
+		dialog.getDialogPane().getButtonTypes().addAll(confirmar, ButtonType.CANCEL);
+
+		dialog.setResultConverter(btn -> {
+			if (btn == confirmar) {
+				String de = String.format("%04d%02d", spinnerAnoDe.getValue(), spinnerMesDe.getValue());
+				String ate = String.format("%04d%02d", spinnerAnoAte.getValue(), spinnerMesAte.getValue());
+				return new String[]{de, ate};
+			}
+			return null;
+		});
+
+		dialog.showAndWait().ifPresent(par -> {
+			String de = par[0];
+			String ate = par[1];
+
+			// Troca automaticamente se "até" vier antes de "de" — evita
+			// período vazio por engano de digitação.
+			if (ate.compareTo(de) < 0) {
+				String tmp = de;
+				de = ate;
+				ate = tmp;
+			}
+
+			periodoInicio = de;
+			periodoFim = ate;
+		});
+
+		atualizarBadgeExibicao();
+		aplicarFiltros();
+	}
+
 	// ======================================================
-	// LINHA 3 — BARRA DE AÇÕES (Gerar BPA-I Completo, ⚠, Gerar BPA-I, Ver Log)
+	// LINHA 2 — BARRA DE AÇÕES (Competência, Selecionar Mês, Exibir, Gerar BPA-I, ⚠)
 	// ======================================================
 
 	private HBox criarBarraAcoes() {
+
+		// BADGE DE COMPETÊNCIA — repete a informação da topBar junto às ações
+		// que dependem da competência selecionada (geração e filtro da tabela)
+		labelCompetenciaBadge.setStyle(
+				"-fx-background-color: #DCEAE4; -fx-text-fill: #2F6F5E; " +
+				"-fx-font-weight: bold; -fx-padding: 4 12 4 12; -fx-background-radius: 100;");
+
+		// TOGGLE EXIBIÇÃO — alterna o filtro da tabela entre competência
+		// selecionada (padrão), período (intervalo) e completo (todas as
+		// competências no banco)
+		toggleExibirCompetencia.setToggleGroup(grupoExibicao);
+		toggleExibirPeriodo.setToggleGroup(grupoExibicao);
+		toggleExibirCompleto.setToggleGroup(grupoExibicao);
+		toggleExibirCompetencia.setSelected(true);
+		toggleExibirCompetencia.setStyle("-fx-background-radius: 4 0 0 4; -fx-border-radius: 4 0 0 4;");
+		toggleExibirPeriodo.setStyle("-fx-background-radius: 0; -fx-border-radius: 0;");
+		toggleExibirCompleto.setStyle("-fx-background-radius: 0 4 4 0; -fx-border-radius: 0 4 4 0;");
+
+		// Botão "Selecionar Período" só aparece no modo Período — nasce oculto
+		btnSelecionarPeriodo.setVisible(false);
+		btnSelecionarPeriodo.setManaged(false);
+
+		toggleExibirCompetencia.setOnAction(e -> {
+			modoExibicao = ModoExibicao.COMPETENCIA;
+			atualizarBotaoSelecao();
+			atualizarBadgeExibicao();
+			aplicarFiltros();
+		});
+		toggleExibirPeriodo.setOnAction(e -> {
+			modoExibicao = ModoExibicao.PERIODO;
+			atualizarBotaoSelecao();
+			if (periodoInicio == null || periodoFim == null) {
+				// Primeira vez neste modo — já pede o intervalo
+				abrirDialogSelecionarPeriodo();
+			} else {
+				atualizarBadgeExibicao();
+				aplicarFiltros();
+			}
+		});
+		toggleExibirCompleto.setOnAction(e -> {
+			modoExibicao = ModoExibicao.COMPLETO;
+			atualizarBotaoSelecao();
+			atualizarBadgeExibicao();
+			aplicarFiltros();
+		});
+
+		HBox grupoToggleExibicao = new HBox(0,
+				toggleExibirCompetencia, toggleExibirPeriodo, toggleExibirCompleto);
 
 		// EVENTO GERAR BPA COMPLETO — todos os médicos, folha auto-atribuída
 		btnGerarBPACompleto.setOnAction(e -> gerarBPACompleto());
@@ -400,8 +557,11 @@ public class RelatorioController {
 		btnAvisoParcial.setManaged(false);
 		btnAvisoParcial.setOnAction(e -> mostrarAvisosParcial());
 
-		HBox barra = new HBox(10, btnSelecionarMes, btnGerarBPACompleto, btnAvisoGeracao);
+		HBox barra = new HBox(10,
+				labelCompetenciaBadge, btnSelecionarMes, btnSelecionarPeriodo, grupoToggleExibicao,
+				btnGerarBPACompleto, btnAvisoGeracao);
 		barra.setPadding(new Insets(0));
+		barra.setAlignment(Pos.CENTER_LEFT);
 
 		return barra;
 	}
@@ -921,11 +1081,11 @@ public class RelatorioController {
 	 * selecionada — mesma regra usada por {@code GeradorBPAiService} ao filtrar
 	 * por YEAR/MONTH(dataAgendamento) na geração do BPA-I completo. Mantém a
 	 * tabela mostrando exatamente o que seria incluído no arquivo gerado.
-	 * Sem competência selecionada (banco vazio), não filtra.
+	 * Sem competência selecionada (banco vazio) ou no modo "Completo", não filtra.
 	 */
 	private boolean competenciaCoincide(AtendimentoBPAiDTO dto) {
 
-		if (competenciaSelecionada == null) {
+		if (modoExibicao == ModoExibicao.COMPLETO) {
 			return true;
 		}
 
@@ -936,11 +1096,68 @@ public class RelatorioController {
 		}
 
 		try {
-			LocalDate data = LocalDate.parse(dataStr, DateTimeFormatter.ofPattern("dd/MM/yyyy"));
-			return competenciaSelecionada.equals(data.format(DateTimeFormatter.ofPattern("yyyyMM")));
+			YearMonth ym = YearMonth.from(LocalDate.parse(dataStr, DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+
+			if (modoExibicao == ModoExibicao.PERIODO) {
+
+				if (periodoInicio == null || periodoFim == null) {
+					return true;
+				}
+
+				YearMonth inicio = YearMonth.parse(periodoInicio, FORMATO_YYYYMM);
+				YearMonth fim = YearMonth.parse(periodoFim, FORMATO_YYYYMM);
+
+				return !ym.isBefore(inicio) && !ym.isAfter(fim);
+			}
+
+			// ModoExibicao.COMPETENCIA
+			if (competenciaSelecionada == null) {
+				return true;
+			}
+
+			return competenciaSelecionada.equals(ym.format(FORMATO_YYYYMM));
+
 		} catch (Exception e) {
 			return false;
 		}
+	}
+
+	/** Mostra/oculta [Selecionar Mês] e [Selecionar Período] conforme o modo de exibição ativo. */
+	private void atualizarBotaoSelecao() {
+
+		boolean periodo = modoExibicao == ModoExibicao.PERIODO;
+
+		btnSelecionarMes.setVisible(!periodo);
+		btnSelecionarMes.setManaged(!periodo);
+
+		btnSelecionarPeriodo.setVisible(periodo);
+		btnSelecionarPeriodo.setManaged(periodo);
+	}
+
+	/** Atualiza o badge da linha 2 com o texto correspondente ao modo de exibição ativo. */
+	private void atualizarBadgeExibicao() {
+
+		switch (modoExibicao) {
+
+			case PERIODO -> {
+				if (periodoInicio == null || periodoFim == null) {
+					labelCompetenciaBadge.setText("📅 Período: --");
+				} else {
+					labelCompetenciaBadge.setText("📅 Período: "
+							+ formatarCompetenciaExibicao(periodoInicio) + " – "
+							+ formatarCompetenciaExibicao(periodoFim));
+				}
+			}
+
+			case COMPLETO -> labelCompetenciaBadge.setText("📅 Completo (todas as competências)");
+
+			default -> labelCompetenciaBadge.setText("📅 " + labelCompetencia.getText());
+		}
+	}
+
+	/** Formata uma competência YYYYMM como MM/YYYY para exibição. */
+	private String formatarCompetenciaExibicao(String competenciaYyyyMM) {
+		return competenciaYyyyMM.substring(4, 6) + "/" + competenciaYyyyMM.substring(0, 4);
 	}
 
 	private void habilitarEdicao() {
@@ -1202,7 +1419,7 @@ public class RelatorioController {
 				.max(LocalDate::compareTo);
 
 		if (dataMaisRecente.isEmpty()) {
-			labelCompetencia.setText("Competência: --");
+			atualizarTextoCompetencia("Competência: --");
 			return;
 		}
 
@@ -1211,8 +1428,14 @@ public class RelatorioController {
 		// Auto-detecta a competência mais recente entre os dados carregados
 		competenciaSelecionada = data.format(DateTimeFormatter.ofPattern("yyyyMM"));
 
-		labelCompetencia.setText("Competência: "
+		atualizarTextoCompetencia("Competência: "
 				+ data.format(DateTimeFormatter.ofPattern("MM/yyyy")));
+	}
+
+	/** Atualiza o label da topBar e o badge repetido na barra de ações com o mesmo texto. */
+	private void atualizarTextoCompetencia(String texto) {
+		labelCompetencia.setText(texto);
+		atualizarBadgeExibicao();
 	}
 
 	// ======================================================
