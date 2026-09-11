@@ -102,6 +102,11 @@ public class AtendimentoBPAiDTO {
 				entity.getPaciente().getRaca() : "";
 	}
 
+	public String getEtniaPaciente() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getEtnia() : "";
+	}
+
 	public String getDataNascimento() {
 		Paciente p = entity.getPaciente();
 		if (p != null && p.getDataNascimento() != null) {

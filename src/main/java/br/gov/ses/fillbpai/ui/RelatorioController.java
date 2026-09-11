@@ -196,37 +196,26 @@ public class RelatorioController {
 		tabela.setItems(listaSorted);
 
 		// Desativa o resize automático que comprime colunas para caber na janela.
-		// Com UNCONSTRAINED, cada coluna mantém seu prefWidth (150px),
-		// e o conteúdo total da tabela pode ultrapassar a largura visível.
+		// Com UNCONSTRAINED, cada coluna mantém seu prefWidth (150px), e a própria
+		// TableView exibe sua barra de rolagem horizontal nativa quando o total das
+		// colunas ultrapassa a largura visível — não precisa (e não deve) ser
+		// envolvida por um ScrollPane extra, senão aparecem duas barras horizontais
+		// (a nativa da tabela e a do ScrollPane).
 		tabela.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
 
 		totalLabel = new Label("Total: 0");
 
 		configurarColunas(); // cria TODAS as colunas
 
-		// Calcula a largura mínima necessária para exibir todas as colunas.
-		// 27 colunas × 150px = 4050px + margem para scrollbar vertical.
-		double larguraTotal = tabela.getColumns().size() * 150 + 20;
-		tabela.setMinWidth(larguraTotal);
-		tabela.setPrefWidth(larguraTotal);
-
-		// ScrollPane gerencia a rolagem horizontal de forma explícita.
-		// Sem ele, o BorderPane/VBox pai expande a tabela para a largura da janela
-		// (1500px) e as colunas à direita ficam inacessíveis.
-		ScrollPane scrollPane = new ScrollPane(tabela);
-		scrollPane.setHbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-		scrollPane.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-		scrollPane.setFitToHeight(true);
-
-		// ScrollPane cresce para ocupar todo o espaço vertical disponível
-		VBox.setVgrow(scrollPane, Priority.ALWAYS);
+		// Tabela cresce para ocupar todo o espaço vertical disponível
+		VBox.setVgrow(tabela, Priority.ALWAYS);
 
 		VBox box = new VBox(
 				10,
 				criarBarraAcoes(),
 				criarBarraFiltros(),
 				criarBarraEdicao(),
-				scrollPane,
+				tabela,
 				totalLabel
 		);
 
@@ -1055,6 +1044,9 @@ public class RelatorioController {
 
 				criarColuna("Raça",
 						AtendimentoBPAiDTO::getRacaPaciente),
+
+				criarColuna("Etnia",
+						AtendimentoBPAiDTO::getEtniaPaciente),
 
 				criarColuna("Nascimento",
 						AtendimentoBPAiDTO::getDataNascimento),
