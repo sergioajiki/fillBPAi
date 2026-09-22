@@ -28,7 +28,10 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -56,6 +59,38 @@ public class RelatorioController {
 			new SortedList<>(listaFiltrada);
 
 	// ======================================================
+	// ÁRVORE DE ESPECIALIDADES / MÉDICOS (navegação lateral)
+	// ======================================================
+
+	private enum TipoNo { ESPECIALIDADE, MEDICO }
+
+	/** Nó da árvore lateral: uma especialidade (medico == null) ou um médico dentro dela. */
+	private static class NoArvore {
+		final TipoNo tipo;
+		final String especialidade;
+		final String medico;
+		final String rotulo;
+
+		NoArvore(TipoNo tipo, String especialidade, String medico, String rotulo) {
+			this.tipo = tipo;
+			this.especialidade = especialidade;
+			this.medico = medico;
+			this.rotulo = rotulo;
+		}
+	}
+
+	/** Especialidade -> médicos distintos, usado para (re)construir a árvore ao filtrar. */
+	private final Map<String, List<String>> especialidadeMedicoMap = new TreeMap<>();
+
+	private TreeView<NoArvore> arvore;
+
+	private TextField campoBuscaArvore = new TextField();
+
+	/** Especialidade e médico atualmente selecionados na árvore (null = nada selecionado). */
+	private String especialidadeSelecionada = null;
+	private String medicoSelecionado = null;
+
+	// ======================================================
 	// COMPONENTES
 	// ======================================================
 
@@ -63,22 +98,13 @@ public class RelatorioController {
 
 	private Label totalLabel;
 
-	/** Label exibido na primeira linha com a competência atual */
-	private Label labelCompetencia = new Label("Competência: --");
+	/** Breadcrumb exibido acima da tabela com o contexto da seleção atual na árvore. */
+	private Label crumbLabel = new Label("Todos os atendimentos");
 
-	/** Badge com a mesma informação de competência, repetido junto às ações da linha 2 */
-	private Label labelCompetenciaBadge = new Label("📅 Competência: --");
+	/** Legenda do modo de exibição ativo (Competência/Período/Completo), ao lado do toggle. */
+	private Label lblModoExibicao = new Label("Competência selecionada");
 
-	private ComboBox<String> filtroEspecialidade = new ComboBox<>();
-
-	private ComboBox<String> filtroMedico = new ComboBox<>();
-
-	// Campo e botão de busca livre por nome do médico
-	private TextField campoBuscaMedico = new TextField();
-
-	private Button btnBuscarMedico = new Button("Buscar");
-
-	// Campo para edição do CNS do profissional (habilitado após seleção de médico)
+	// Campo para edição do CNS do profissional (habilitado quando um médico está selecionado na árvore)
 	private TextField campoCnsProfissional = new TextField();
 
 	private Button btnAtualizar = new Button("Atualizar CNS");
@@ -87,18 +113,15 @@ public class RelatorioController {
 
 	private Button btnLimpar = new Button("Limpar");
 
-	// BOTÃO GERAR BPA — gera arquivo filtrado por especialidade/médico
-	private Button btnGerarBPA = new Button("Gerar BPA-I Parcial");
-
-	// BOTÃO GERAR BPA COMPLETO — gera arquivo com todos os médicos,
-	// atribuindo folhas sequenciais por especialidade (ordem alfabética)
-	private Button btnGerarBPACompleto = new Button("Gerar BPA-I");
+	// BOTÃO DE GERAÇÃO ÚNICO — texto e ação se adaptam à seleção da árvore:
+	// médico selecionado -> gera parcial (aquele médico); nada selecionado -> gera completo
+	private Button btnGerar = new Button("Gerar BPA-I — Completo (todos os médicos)");
 
 	// TOGGLE EXIBIÇÃO — alterna o filtro da tabela entre "competência
 	// selecionada", "período" (intervalo de competências) e "completo"
 	// (todas as competências). Nunca afeta competenciaSelecionada nem a
-	// geração do BPA-I, que sempre usa a competência selecionada em
-	// [Selecionar Mês], independentemente do modo de exibição.
+	// geração do BPA-I, que sempre usa a competência selecionada no badge
+	// da barra inferior, independentemente do modo de exibição.
 	private enum ModoExibicao { COMPETENCIA, PERIODO, COMPLETO }
 	private ModoExibicao modoExibicao = ModoExibicao.COMPETENCIA;
 
@@ -113,14 +136,19 @@ public class RelatorioController {
 
 	private Button btnSelecionarPeriodo = new Button("Selecionar Período");
 
-	// BOTÃO AVISO — indica pendências que impedem a geração do BPA-I completo
-	private Button btnAvisoGeracao = new Button("⚠ Pendências CNS");
+	// BADGE/BOTÃO DE COMPETÊNCIA — única exibição da competência de geração,
+	// fica na barra fixa inferior; clicar abre o seletor de mês
+	private Button btnCompetencia = new Button("📅 Competência: --");
 
-	// BOTÃO AVISO PARCIAL — folha ou CNS ausente no médico/especialidade selecionados
-	private Button btnAvisoParcial = new Button("⚠");
+	// CHIP DE AVISO CONTEXTUAL — mostra pendências da geração completa
+	// (nada selecionado) ou da geração parcial (médico selecionado)
+	private Button btnAvisoBottom = new Button("⚠ Pendências");
 
-	/** Mensagem de pendências do BPA-I parcial (null = sem pendências) */
+	/** Mensagem de pendências do BPA-I parcial (null = sem pendências) para o médico selecionado */
 	private String avisosParcial = null;
+
+	/** Mensagem de pendências do BPA-I completo (null = sem pendências) */
+	private String avisosGeracao = null;
 
 	// BOTÃO VER LOG — exibe o log da última importação
 	private Button btnVerLog = new Button("Ver Log Importação");
@@ -128,19 +156,11 @@ public class RelatorioController {
 	// BOTÃO ANALISAR PLANILHA — valida a planilha antes de importar
 	private Button btnAnalisarPlanilha = new Button("Analisar Planilha");
 
-	/** Barra de edição (CNS e Folha) — visível apenas quando um médico está selecionado */
+	/** Barra de edição (CNS e Folha) — visível apenas quando um médico está selecionado na árvore */
 	private HBox barraEdicao;
 
 	/** Competência selecionada para geração BPA-I (formato YYYYMM do mês de atendimento) */
 	private String competenciaSelecionada = null;
-
-	private Button btnSelecionarMes = new Button("Selecionar Mês");
-
-	/** Grupo Médico (label + combo) — visível apenas quando especialidade está selecionada */
-	private HBox grupoMedico;
-
-	/** Mensagem atual de avisos que impedem a geração completa (null = sem avisos) */
-	private String avisosGeracao = null;
 
 	/** Ação executada ao clicar em "Ver Log" — definida pelo MainController */
 	private Runnable acaoVerLog;
@@ -155,8 +175,6 @@ public class RelatorioController {
 	public RelatorioController(EntityManager entityManager) {
 
 		this.entityManager = entityManager;
-		btnSelecionarMes.setOnAction(e -> abrirDialogSelecionarCompetencia());
-		btnSelecionarPeriodo.setOnAction(e -> abrirDialogSelecionarPeriodo());
 	}
 
 	/**
@@ -195,20 +213,6 @@ public class RelatorioController {
 		return btnAnalisarPlanilha;
 	}
 
-	/**
-	 * Retorna o label de competência para ser adicionado na topBar pelo MainController.
-	 */
-	public Label getLabelCompetencia() {
-		return labelCompetencia;
-	}
-
-	/**
-	 * Retorna o botão "Selecionar Mês" para ser posicionado pelo MainController.
-	 */
-	public Button getBtnSelecionarMes() {
-		return btnSelecionarMes;
-	}
-
 	// ======================================================
 	// CRIAR COMPONENTE PRINCIPAL
 	// ======================================================
@@ -237,94 +241,287 @@ public class RelatorioController {
 		// Tabela cresce para ocupar todo o espaço vertical disponível
 		VBox.setVgrow(tabela, Priority.ALWAYS);
 
-		VBox box = new VBox(
-				10,
-				criarBarraAcoes(),
-				criarBarraFiltros(),
-				criarBarraEdicao(),
-				tabela,
-				totalLabel
-		);
-
-		box.setPadding(new Insets(10));
-
 		BorderPane pane = new BorderPane();
-
-		pane.setCenter(box);
+		pane.setTop(criarBarraExibicao());
+		pane.setLeft(criarSidebarNavegacao());
+		pane.setCenter(criarAreaConteudo());
+		pane.setBottom(criarBarraGeracao());
 
 		return pane;
 	}
 
 	// ======================================================
-	// LINHA 2 — BARRA DE FILTROS (Especialidade, Médico, CNS, Folha, OK, Limpar)
+	// LINHA SUPERIOR — MODO DE EXIBIÇÃO DA TABELA
+	// (nunca afeta a geração do BPA-I, só o que a tabela mostra)
 	// ======================================================
 
-	private HBox criarBarraFiltros() {
+	private HBox criarBarraExibicao() {
 
-		filtroEspecialidade.setPromptText("Especialidade");
-		filtroMedico.setPromptText("Médico");
+		toggleExibirCompetencia.setToggleGroup(grupoExibicao);
+		toggleExibirPeriodo.setToggleGroup(grupoExibicao);
+		toggleExibirCompleto.setToggleGroup(grupoExibicao);
+		toggleExibirCompetencia.setSelected(true);
+		toggleExibirCompetencia.setStyle("-fx-background-radius: 4 0 0 4; -fx-border-radius: 4 0 0 4;");
+		toggleExibirPeriodo.setStyle("-fx-background-radius: 0; -fx-border-radius: 0;");
+		toggleExibirCompleto.setStyle("-fx-background-radius: 0 4 4 0; -fx-border-radius: 0 4 4 0;");
 
-		// Grupo Médico: oculto até que especialidade seja selecionada
-		grupoMedico = new HBox(5, new Label("Médico:"), filtroMedico);
-		grupoMedico.setVisible(false);
-		grupoMedico.setManaged(false);
+		// Botão "Selecionar Período" só aparece no modo Período — nasce oculto
+		btnSelecionarPeriodo.setVisible(false);
+		btnSelecionarPeriodo.setManaged(false);
+		btnSelecionarPeriodo.setOnAction(e -> abrirDialogSelecionarPeriodo());
 
-		// EVENTO FILTRO ESPECIALIDADE — reseta busca livre ao usar seleção por especialidade
-		filtroEspecialidade.setOnAction(e -> {
-			if (filtroEspecialidade.getValue() != null) {
-				campoBuscaMedico.clear();
-				barraEdicao.setVisible(false);
-				barraEdicao.setManaged(false);
+		toggleExibirCompetencia.setOnAction(e -> {
+			modoExibicao = ModoExibicao.COMPETENCIA;
+			atualizarBotaoSelecao();
+			atualizarLabelModoExibicao();
+			aplicarFiltros();
+			atualizarContexto();
+		});
+		toggleExibirPeriodo.setOnAction(e -> {
+			modoExibicao = ModoExibicao.PERIODO;
+			atualizarBotaoSelecao();
+			if (periodoInicio == null || periodoFim == null) {
+				// Primeira vez neste modo — já pede o intervalo
+				abrirDialogSelecionarPeriodo();
+			} else {
+				atualizarLabelModoExibicao();
+				aplicarFiltros();
+				atualizarContexto();
 			}
-			atualizarMedicosPorEspecialidade();
+		});
+		toggleExibirCompleto.setOnAction(e -> {
+			modoExibicao = ModoExibicao.COMPLETO;
+			atualizarBotaoSelecao();
+			atualizarLabelModoExibicao();
 			aplicarFiltros();
+			atualizarContexto();
 		});
 
-		// EVENTO FILTRO MÉDICO
-		filtroMedico.setOnAction(e -> {
-			aplicarFiltros();
-			habilitarEdicao();
-		});
+		HBox grupoToggleExibicao = new HBox(0,
+				toggleExibirCompetencia, toggleExibirPeriodo, toggleExibirCompleto);
 
-		// EVENTO LIMPAR
-		btnLimpar.setOnAction(e -> limparFiltros());
+		lblModoExibicao.setStyle("-fx-font-size: 11px; -fx-text-fill: #6B7280;");
 
-		// BUSCA LIVRE POR MÉDICO — exibe barra de edição quando há resultados
-		campoBuscaMedico.setPromptText("Nome do médico...");
-		campoBuscaMedico.setPrefWidth(180);
-		campoBuscaMedico.setOnAction(e -> executarBuscaLivre());
-		btnBuscarMedico.setOnAction(e -> executarBuscaLivre());
+		HBox barra = new HBox(10,
+				new Label("Exibir tabela:"), grupoToggleExibicao, btnSelecionarPeriodo, lblModoExibicao);
+		barra.setPadding(new Insets(10));
+		barra.setAlignment(Pos.CENTER_LEFT);
+		barra.setStyle("-fx-border-color: transparent transparent #E5E7EB transparent; -fx-border-width: 1;");
 
-		return new HBox(
-				10,
-				new Label("Buscar médico:"), campoBuscaMedico, btnBuscarMedico,
-				new Label("Especialidade:"), filtroEspecialidade,
-				grupoMedico,
-				btnGerarBPA, btnAvisoParcial,
-				btnLimpar
-		);
+		return barra;
 	}
 
-	private void executarBuscaLivre() {
-		// Reseta seleção por especialidade ao usar busca livre
-		if (campoBuscaMedico.getText() != null && !campoBuscaMedico.getText().isBlank()) {
-			filtroEspecialidade.getSelectionModel().clearSelection();
-			filtroMedico.getSelectionModel().clearSelection();
-			filtroMedico.getItems().clear();
-			grupoMedico.setVisible(false);
-			grupoMedico.setManaged(false);
+	// ======================================================
+	// SIDEBAR — BUSCA + ÁRVORE DE ESPECIALIDADES/MÉDICOS
+	// Substitui a antiga busca livre + combos de especialidade/médico
+	// ======================================================
+
+	private VBox criarSidebarNavegacao() {
+
+		Label titulo = new Label("ESPECIALIDADES E MÉDICOS");
+		titulo.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #6B7280;");
+
+		campoBuscaArvore.setPromptText("Buscar...");
+		campoBuscaArvore.textProperty().addListener((obs, antigo, novo) -> filtrarArvore(novo));
+
+		btnLimpar.setOnAction(e -> limparSelecao());
+
+		HBox linhaBusca = new HBox(6, campoBuscaArvore, btnLimpar);
+		HBox.setHgrow(campoBuscaArvore, Priority.ALWAYS);
+
+		arvore = new TreeView<>();
+		arvore.setShowRoot(false);
+		arvore.setRoot(new TreeItem<>());
+		arvore.setCellFactory(tv -> new TreeCell<>() {
+			@Override
+			protected void updateItem(NoArvore item, boolean empty) {
+				super.updateItem(item, empty);
+				setText(empty || item == null ? null : item.rotulo);
+			}
+		});
+		arvore.getSelectionModel().selectedItemProperty().addListener(
+				(obs, antigo, novo) -> selecionarNaArvore(novo));
+
+		VBox.setVgrow(arvore, Priority.ALWAYS);
+
+		VBox sidebar = new VBox(8, titulo, linhaBusca, arvore);
+		sidebar.setPadding(new Insets(10));
+		sidebar.setPrefWidth(230);
+		sidebar.setMinWidth(190);
+		sidebar.setStyle("-fx-background-color: #FAFAFA; -fx-border-color: transparent #E5E7EB transparent transparent; -fx-border-width: 1;");
+
+		return sidebar;
+	}
+
+	/**
+	 * Chamado quando a seleção na árvore muda (clique do usuário ou
+	 * restauração automática após recarregar os dados).
+	 */
+	private void selecionarNaArvore(TreeItem<NoArvore> item) {
+
+		if (item == null || item.getValue() == null) {
+			especialidadeSelecionada = null;
+			medicoSelecionado = null;
+		} else {
+			NoArvore no = item.getValue();
+			especialidadeSelecionada = no.especialidade;
+			medicoSelecionado = no.tipo == TipoNo.MEDICO ? no.medico : null;
+		}
+
+		aplicarFiltros();
+		atualizarContexto();
+		atualizarBarraGeracao();
+
+		if (medicoSelecionado != null) {
+			barraEdicao.setVisible(true);
+			barraEdicao.setManaged(true);
+		} else {
 			barraEdicao.setVisible(false);
 			barraEdicao.setManaged(false);
 		}
+	}
+
+	/**
+	 * Reconstrói o mapa especialidade -> médicos a partir dos dados carregados
+	 * e repopula a árvore (aplicando o texto de busca atual, se houver).
+	 */
+	private void construirArvore() {
+
+		especialidadeMedicoMap.clear();
+
+		Map<String, TreeSet<String>> agrupado = lista.stream()
+				.filter(dto -> dto.getEspecialidadeMedico() != null && !dto.getEspecialidadeMedico().isEmpty())
+				.collect(Collectors.groupingBy(
+						AtendimentoBPAiDTO::getEspecialidadeMedico,
+						TreeMap::new,
+						Collectors.mapping(AtendimentoBPAiDTO::getMedico, Collectors.toCollection(TreeSet::new))));
+
+		agrupado.forEach((esp, medicos) -> especialidadeMedicoMap.put(
+				esp, medicos.stream().filter(m -> m != null && !m.isBlank()).collect(Collectors.toList())));
+
+		filtrarArvore(campoBuscaArvore.getText());
+	}
+
+	/**
+	 * Repopula a árvore a partir de {@code especialidadeMedicoMap}, mostrando
+	 * apenas especialidades/médicos que casam com o termo de busca (ou tudo,
+	 * se o termo estiver vazio), e tenta restaurar a seleção atual.
+	 */
+	private void filtrarArvore(String termo) {
+
+		String t = termo == null ? "" : termo.trim().toUpperCase();
+
+		TreeItem<NoArvore> raiz = new TreeItem<>();
+
+		for (Map.Entry<String, List<String>> entrada : especialidadeMedicoMap.entrySet()) {
+
+			String esp = entrada.getKey();
+			boolean espCasa = t.isEmpty() || esp.toUpperCase().contains(t);
+
+			List<String> medicosCasam = entrada.getValue().stream()
+					.filter(m -> espCasa || m.toUpperCase().contains(t))
+					.collect(Collectors.toList());
+
+			if (t.isEmpty() || espCasa || !medicosCasam.isEmpty()) {
+
+				TreeItem<NoArvore> noEsp = new TreeItem<>(new NoArvore(
+						TipoNo.ESPECIALIDADE, esp, null,
+						esp + " (" + entrada.getValue().size() + ")"));
+
+				for (String medico : medicosCasam) {
+					noEsp.getChildren().add(new TreeItem<>(
+							new NoArvore(TipoNo.MEDICO, esp, medico, medico)));
+				}
+
+				noEsp.setExpanded(!t.isEmpty() || esp.equals(especialidadeSelecionada));
+
+				raiz.getChildren().add(noEsp);
+			}
+		}
+
+		arvore.setRoot(raiz);
+
+		restaurarSelecaoArvore();
+	}
+
+	/** Reaplica a seleção de especialidade/médico atual na árvore recém-reconstruída. */
+	private void restaurarSelecaoArvore() {
+
+		if (especialidadeSelecionada == null) {
+			return;
+		}
+
+		for (TreeItem<NoArvore> noEsp : arvore.getRoot().getChildren()) {
+
+			if (!noEsp.getValue().especialidade.equals(especialidadeSelecionada)) {
+				continue;
+			}
+
+			if (medicoSelecionado == null) {
+				arvore.getSelectionModel().select(noEsp);
+				return;
+			}
+
+			for (TreeItem<NoArvore> noMedico : noEsp.getChildren()) {
+				if (medicoSelecionado.equals(noMedico.getValue().medico)) {
+					noEsp.setExpanded(true);
+					arvore.getSelectionModel().select(noMedico);
+					return;
+				}
+			}
+
+			return;
+		}
+	}
+
+	private void limparSelecao() {
+
+		campoBuscaArvore.clear();
+
+		especialidadeSelecionada = null;
+		medicoSelecionado = null;
+		arvore.getSelectionModel().clearSelection();
+
+		campoCnsProfissional.clear();
+		barraEdicao.setVisible(false);
+		barraEdicao.setManaged(false);
+
+		filtrarArvore("");
 		aplicarFiltros();
-		String termo = campoBuscaMedico.getText();
-		if (termo != null && !termo.isBlank() && !listaFiltrada.isEmpty()) {
-			habilitarEdicao();
+		atualizarContexto();
+		atualizarBarraGeracao();
+	}
+
+	// ======================================================
+	// ÁREA CENTRAL — BREADCRUMB + EDIÇÃO CONTEXTUAL + TABELA
+	// ======================================================
+
+	private VBox criarAreaConteudo() {
+
+		crumbLabel.setStyle("-fx-font-size: 12px; -fx-text-fill: #6B7280;");
+
+		VBox box = new VBox(8, crumbLabel, criarBarraEdicao(), tabela, totalLabel);
+		box.setPadding(new Insets(10));
+
+		return box;
+	}
+
+	/** Atualiza o texto do breadcrumb com o contexto atual da árvore. */
+	private void atualizarContexto() {
+
+		if (medicoSelecionado != null) {
+			crumbLabel.setText(especialidadeSelecionada + "  ›  " + medicoSelecionado
+					+ "  —  " + listaFiltrada.size() + " atendimento(s) na competência selecionada");
+		} else if (especialidadeSelecionada != null) {
+			crumbLabel.setText(especialidadeSelecionada + "  —  todos os médicos  —  "
+					+ listaFiltrada.size() + " atendimento(s)");
+		} else {
+			crumbLabel.setText("Todos os atendimentos  —  " + listaFiltrada.size() + " registro(s)");
 		}
 	}
 
 	// ======================================================
-	// LINHA 4 — BARRA DE EDIÇÃO (aparece ao selecionar médico)
+	// BARRA DE EDIÇÃO (CNS e Folha) — contextual ao médico selecionado
 	// ======================================================
 
 	private HBox criarBarraEdicao() {
@@ -343,6 +540,80 @@ public class RelatorioController {
 		barraEdicao.setManaged(false);
 
 		return barraEdicao;
+	}
+
+	// ======================================================
+	// BARRA FIXA INFERIOR — COMPETÊNCIA + AVISO + GERAR BPA-I
+	// Única fonte de verdade da competência de geração; o botão de gerar
+	// muda de texto/ação conforme a seleção atual na árvore.
+	// ======================================================
+
+	private HBox criarBarraGeracao() {
+
+		btnCompetencia.setOnAction(e -> abrirDialogSelecionarCompetencia());
+		btnCompetencia.setStyle(
+				"-fx-background-color: #DCEAE4; -fx-text-fill: #2F6F5E; -fx-font-weight: bold; " +
+				"-fx-padding: 6 14 6 14; -fx-background-radius: 100; -fx-cursor: hand;");
+
+		btnAvisoBottom.setStyle(
+				"-fx-background-color: #FFC107; -fx-text-fill: #000; " +
+				"-fx-font-weight: bold; -fx-cursor: hand;");
+		btnAvisoBottom.setVisible(false);
+		btnAvisoBottom.setManaged(false);
+
+		btnGerar.setStyle(
+				"-fx-background-color: #2F6F5E; -fx-text-fill: white; " +
+				"-fx-font-weight: bold; -fx-padding: 8 16 8 16; -fx-background-radius: 5;");
+		btnGerar.setOnAction(e -> {
+			if (medicoSelecionado != null) {
+				gerarBPA();
+			} else {
+				gerarBPACompleto();
+			}
+		});
+
+		Region spacer = new Region();
+		HBox.setHgrow(spacer, Priority.ALWAYS);
+
+		HBox barra = new HBox(10, btnCompetencia, spacer, btnAvisoBottom, btnGerar);
+		barra.setPadding(new Insets(10, 16, 10, 16));
+		barra.setAlignment(Pos.CENTER_LEFT);
+		barra.setStyle("-fx-background-color: #1F2A24;");
+
+		return barra;
+	}
+
+	/**
+	 * Atualiza o texto do botão de geração e o chip de aviso contextual
+	 * conforme a seleção atual na árvore (médico selecionado -> parcial;
+	 * nada selecionado -> completo).
+	 */
+	private void atualizarBarraGeracao() {
+
+		if (medicoSelecionado != null) {
+
+			btnGerar.setText("Gerar BPA-I — " + medicoSelecionado + " (" + especialidadeSelecionada + ")");
+			verificarAvisosParcial();
+			atualizarChipAviso(avisosParcial, this::mostrarAvisosParcial);
+
+		} else {
+
+			btnGerar.setText("Gerar BPA-I — Completo (todos os médicos)");
+			atualizarChipAviso(avisosGeracao, this::mostrarAvisosGeracao);
+		}
+	}
+
+	private void atualizarChipAviso(String mensagem, Runnable acaoClique) {
+
+		if (mensagem == null) {
+			btnAvisoBottom.setVisible(false);
+			btnAvisoBottom.setManaged(false);
+			return;
+		}
+
+		btnAvisoBottom.setVisible(true);
+		btnAvisoBottom.setManaged(true);
+		btnAvisoBottom.setOnAction(e -> acaoClique.run());
 	}
 
 	// ======================================================
@@ -396,6 +667,8 @@ public class RelatorioController {
 			// A tabela deve refletir exatamente os atendimentos da competência
 			// selecionada — o mesmo conjunto que seria incluído no BPA-I completo.
 			aplicarFiltros();
+			atualizarContexto();
+			atualizarBarraGeracao();
 		});
 	}
 
@@ -477,98 +750,19 @@ public class RelatorioController {
 			periodoFim = ate;
 		});
 
-		atualizarBadgeExibicao();
+		atualizarLabelModoExibicao();
 		aplicarFiltros();
+		atualizarContexto();
 	}
 
 	// ======================================================
-	// LINHA 2 — BARRA DE AÇÕES (Competência, Selecionar Mês, Exibir, Gerar BPA-I, ⚠)
+	// AVISOS / PENDÊNCIAS
 	// ======================================================
-
-	private HBox criarBarraAcoes() {
-
-		// BADGE DE COMPETÊNCIA — repete a informação da topBar junto às ações
-		// que dependem da competência selecionada (geração e filtro da tabela)
-		labelCompetenciaBadge.setStyle(
-				"-fx-background-color: #DCEAE4; -fx-text-fill: #2F6F5E; " +
-				"-fx-font-weight: bold; -fx-padding: 4 12 4 12; -fx-background-radius: 100;");
-
-		// TOGGLE EXIBIÇÃO — alterna o filtro da tabela entre competência
-		// selecionada (padrão), período (intervalo) e completo (todas as
-		// competências no banco)
-		toggleExibirCompetencia.setToggleGroup(grupoExibicao);
-		toggleExibirPeriodo.setToggleGroup(grupoExibicao);
-		toggleExibirCompleto.setToggleGroup(grupoExibicao);
-		toggleExibirCompetencia.setSelected(true);
-		toggleExibirCompetencia.setStyle("-fx-background-radius: 4 0 0 4; -fx-border-radius: 4 0 0 4;");
-		toggleExibirPeriodo.setStyle("-fx-background-radius: 0; -fx-border-radius: 0;");
-		toggleExibirCompleto.setStyle("-fx-background-radius: 0 4 4 0; -fx-border-radius: 0 4 4 0;");
-
-		// Botão "Selecionar Período" só aparece no modo Período — nasce oculto
-		btnSelecionarPeriodo.setVisible(false);
-		btnSelecionarPeriodo.setManaged(false);
-
-		toggleExibirCompetencia.setOnAction(e -> {
-			modoExibicao = ModoExibicao.COMPETENCIA;
-			atualizarBotaoSelecao();
-			atualizarBadgeExibicao();
-			aplicarFiltros();
-		});
-		toggleExibirPeriodo.setOnAction(e -> {
-			modoExibicao = ModoExibicao.PERIODO;
-			atualizarBotaoSelecao();
-			if (periodoInicio == null || periodoFim == null) {
-				// Primeira vez neste modo — já pede o intervalo
-				abrirDialogSelecionarPeriodo();
-			} else {
-				atualizarBadgeExibicao();
-				aplicarFiltros();
-			}
-		});
-		toggleExibirCompleto.setOnAction(e -> {
-			modoExibicao = ModoExibicao.COMPLETO;
-			atualizarBotaoSelecao();
-			atualizarBadgeExibicao();
-			aplicarFiltros();
-		});
-
-		HBox grupoToggleExibicao = new HBox(0,
-				toggleExibirCompetencia, toggleExibirPeriodo, toggleExibirCompleto);
-
-		// EVENTO GERAR BPA COMPLETO — todos os médicos, folha auto-atribuída
-		btnGerarBPACompleto.setOnAction(e -> gerarBPACompleto());
-
-		// BOTÃO AVISO — estilo visual de alerta, visível apenas quando há pendências
-		btnAvisoGeracao.setStyle(
-				"-fx-background-color: #FFC107; -fx-text-fill: #000; " +
-				"-fx-font-weight: bold; -fx-cursor: hand;");
-		btnAvisoGeracao.setVisible(false);
-		btnAvisoGeracao.setManaged(false);
-		btnAvisoGeracao.setOnAction(e -> mostrarAvisosGeracao());
-
-		// EVENTO GERAR BPA — filtrado por especialidade/médico selecionados
-		btnGerarBPA.setOnAction(e -> gerarBPA());
-
-		// Botão de aviso parcial — estilo amarelo, oculto por padrão
-		btnAvisoParcial.setStyle(
-				"-fx-background-color: #FFC107; -fx-text-fill: #000; " +
-				"-fx-font-weight: bold; -fx-cursor: hand;");
-		btnAvisoParcial.setVisible(false);
-		btnAvisoParcial.setManaged(false);
-		btnAvisoParcial.setOnAction(e -> mostrarAvisosParcial());
-
-		HBox barra = new HBox(10,
-				labelCompetenciaBadge, btnSelecionarMes, btnSelecionarPeriodo, grupoToggleExibicao,
-				btnGerarBPACompleto, btnAvisoGeracao);
-		barra.setPadding(new Insets(0));
-		barra.setAlignment(Pos.CENTER_LEFT);
-
-		return barra;
-	}
 
 	/**
 	 * Verifica no banco se existem atendimentos sem CNS do profissional.
-	 * Atualiza visibilidade do botão de aviso e armazena o log de pendências.
+	 * Usado pelo chip de aviso da barra inferior quando nenhum médico está
+	 * selecionado (contexto de geração "Completo").
 	 */
 	private void verificarAvisosGeracao() {
 
@@ -585,8 +779,6 @@ public class RelatorioController {
 
 			if (semCns.isEmpty()) {
 				avisosGeracao = null;
-				btnAvisoGeracao.setVisible(false);
-				btnAvisoGeracao.setManaged(false);
 				return;
 			}
 
@@ -611,10 +803,6 @@ public class RelatorioController {
 			}
 
 			avisosGeracao = sb.toString();
-			btnAvisoGeracao.setVisible(true);
-			btnAvisoGeracao.setManaged(true);
-			btnAvisoGeracao.setTooltip(new Tooltip(
-					semCns.size() + " atendimento(s) sem CNS do profissional"));
 
 		} catch (Exception e) {
 			// Falha silenciosa — não impede o carregamento da tabela
@@ -622,18 +810,17 @@ public class RelatorioController {
 	}
 
 	/**
-	 * Verifica folha e CNS ausentes para o médico/especialidade selecionados.
-	 * Atualiza visibilidade do botão de aviso parcial.
+	 * Verifica folha e CNS ausentes para o médico/especialidade selecionados
+	 * na árvore. Usado pelo chip de aviso da barra inferior quando um médico
+	 * está selecionado (contexto de geração "parcial").
 	 */
 	private void verificarAvisosParcial() {
 
-		String especialidade = filtroEspecialidade.getValue();
-		String medico = filtroMedico.getValue();
+		String especialidade = especialidadeSelecionada;
+		String medico = medicoSelecionado;
 
 		if (especialidade == null || medico == null) {
 			avisosParcial = null;
-			btnAvisoParcial.setVisible(false);
-			btnAvisoParcial.setManaged(false);
 			return;
 		}
 
@@ -657,8 +844,6 @@ public class RelatorioController {
 
 			if (semFolha == 0 && semCns == 0) {
 				avisosParcial = null;
-				btnAvisoParcial.setVisible(false);
-				btnAvisoParcial.setManaged(false);
 				return;
 			}
 
@@ -672,14 +857,6 @@ public class RelatorioController {
 				sb.append("⚠ CNS do profissional ausente: ").append(semCns).append(" atendimento(s)\n");
 
 			avisosParcial = sb.toString();
-
-			StringBuilder tooltip = new StringBuilder();
-			if (semFolha > 0) tooltip.append("Folha ausente: ").append(semFolha).append("\n");
-			if (semCns   > 0) tooltip.append("CNS ausente: ").append(semCns);
-
-			btnAvisoParcial.setVisible(true);
-			btnAvisoParcial.setManaged(true);
-			btnAvisoParcial.setTooltip(new Tooltip(tooltip.toString().trim()));
 
 		} catch (Exception e) {
 			// Falha silenciosa
@@ -740,11 +917,11 @@ public class RelatorioController {
 	 */
 	private void definirFolha() {
 
-		String medico = filtroMedico.getValue();
-		String especialidade = filtroEspecialidade.getValue();
+		String medico = medicoSelecionado;
+		String especialidade = especialidadeSelecionada;
 
 		if (medico == null || especialidade == null) {
-			mostrarMensagem("Selecione especialidade e médico.");
+			mostrarMensagem("Selecione um médico na árvore.");
 			return;
 		}
 
@@ -880,12 +1057,12 @@ public class RelatorioController {
 
 	private void gerarBPA() {
 
-		String especialidade = filtroEspecialidade.getValue();
+		String especialidade = especialidadeSelecionada;
 
-		String medico = filtroMedico.getValue();
+		String medico = medicoSelecionado;
 
 		if (especialidade == null || medico == null) {
-			mostrarMensagem("Selecione especialidade e médico.");
+			mostrarMensagem("Selecione um médico na árvore.");
 			return;
 		}
 
@@ -973,103 +1150,20 @@ public class RelatorioController {
 	// FILTROS
 	// ======================================================
 
-	private void limparFiltros() {
-
-		campoBuscaMedico.clear();
-
-		filtroEspecialidade.getSelectionModel().clearSelection();
-
-		filtroMedico.getSelectionModel().clearSelection();
-		filtroMedico.getItems().clear();
-
-		grupoMedico.setVisible(false);
-		grupoMedico.setManaged(false);
-
-		campoCnsProfissional.clear();
-
-		barraEdicao.setVisible(false);
-		barraEdicao.setManaged(false);
-
-		avisosParcial = null;
-		btnAvisoParcial.setVisible(false);
-		btnAvisoParcial.setManaged(false);
-
-		aplicarFiltros();
-	}
-
-	private void atualizarCombos() {
-
-		filtroEspecialidade.setItems(
-
-				FXCollections.observableArrayList(
-
-						lista.stream()
-
-								.map(AtendimentoBPAiDTO::getEspecialidadeMedico)
-
-								.filter(s -> s != null && !s.isEmpty())
-
-								.distinct()
-
-								.sorted()
-
-								.collect(Collectors.toList())
-				)
-		);
-	}
-
-	private void atualizarMedicosPorEspecialidade() {
-
-		String especialidade = filtroEspecialidade.getValue();
-
-		filtroMedico.getItems().clear();
-		filtroMedico.getSelectionModel().clearSelection();
-
-		if (especialidade == null) {
-			grupoMedico.setVisible(false);
-			grupoMedico.setManaged(false);
-			return;
-		}
-
-		List<String> medicos =
-				lista.stream()
-						.filter(dto -> especialidade.equals(dto.getEspecialidadeMedico()))
-						.map(AtendimentoBPAiDTO::getMedico)
-						.distinct()
-						.sorted()
-						.collect(Collectors.toList());
-
-		filtroMedico.setItems(FXCollections.observableArrayList(medicos));
-
-		grupoMedico.setVisible(true);
-		grupoMedico.setManaged(true);
-	}
-
 	private void aplicarFiltros() {
-
-		String termoBusca = campoBuscaMedico.getText();
 
 		listaFiltrada.setPredicate(dto -> {
 
 			boolean esp = true;
 			boolean med = true;
-			boolean busca = true;
 
-			if (filtroEspecialidade.getValue() != null)
-				esp = filtroEspecialidade.getValue()
-						.equals(dto.getEspecialidadeMedico());
+			if (especialidadeSelecionada != null)
+				esp = especialidadeSelecionada.equals(dto.getEspecialidadeMedico());
 
-			if (filtroMedico.getValue() != null)
-				med = filtroMedico.getValue()
-						.equals(dto.getMedico());
+			if (medicoSelecionado != null)
+				med = medicoSelecionado.equals(dto.getMedico());
 
-			if (termoBusca != null && !termoBusca.isBlank()) {
-				String nomeMedico = dto.getMedico() != null ? dto.getMedico() : "";
-				busca = nomeMedico.toUpperCase()
-						.contains(termoBusca.trim().toUpperCase());
-			}
-
-			return esp && med && busca && competenciaCoincide(dto);
+			return esp && med && competenciaCoincide(dto);
 		});
 
 		totalLabel.setText(
@@ -1122,36 +1216,33 @@ public class RelatorioController {
 		}
 	}
 
-	/** Mostra/oculta [Selecionar Mês] e [Selecionar Período] conforme o modo de exibição ativo. */
+	/** Mostra/oculta [Selecionar Período] conforme o modo de exibição ativo. */
 	private void atualizarBotaoSelecao() {
 
 		boolean periodo = modoExibicao == ModoExibicao.PERIODO;
-
-		btnSelecionarMes.setVisible(!periodo);
-		btnSelecionarMes.setManaged(!periodo);
 
 		btnSelecionarPeriodo.setVisible(periodo);
 		btnSelecionarPeriodo.setManaged(periodo);
 	}
 
-	/** Atualiza o badge da linha 2 com o texto correspondente ao modo de exibição ativo. */
-	private void atualizarBadgeExibicao() {
+	/** Atualiza a legenda do modo de exibição ativo, ao lado do toggle. */
+	private void atualizarLabelModoExibicao() {
 
 		switch (modoExibicao) {
 
 			case PERIODO -> {
 				if (periodoInicio == null || periodoFim == null) {
-					labelCompetenciaBadge.setText("📅 Período: --");
+					lblModoExibicao.setText("Período: --");
 				} else {
-					labelCompetenciaBadge.setText("📅 Período: "
+					lblModoExibicao.setText("Período: "
 							+ formatarCompetenciaExibicao(periodoInicio) + " – "
 							+ formatarCompetenciaExibicao(periodoFim));
 				}
 			}
 
-			case COMPLETO -> labelCompetenciaBadge.setText("📅 Completo (todas as competências)");
+			case COMPLETO -> lblModoExibicao.setText("Todas as competências");
 
-			default -> labelCompetenciaBadge.setText("📅 " + labelCompetencia.getText());
+			default -> lblModoExibicao.setText("Competência selecionada");
 		}
 	}
 
@@ -1160,59 +1251,37 @@ public class RelatorioController {
 		return competenciaYyyyMM.substring(4, 6) + "/" + competenciaYyyyMM.substring(0, 4);
 	}
 
-	private void habilitarEdicao() {
-
-		barraEdicao.setVisible(true);
-		barraEdicao.setManaged(true);
-		verificarAvisosParcial();
-	}
-
 	// ======================================================
 	// ATUALIZAÇÃO BANCO
 	// ======================================================
 
 	/**
 	 * Atualiza o CNS do profissional para todos os atendimentos
-	 * do médico e especialidade selecionados.
+	 * do médico e especialidade selecionados na árvore.
 	 *
 	 * A folha não é mais editável pela UI — é controlada pelo gerador.
 	 */
 	private void atualizarCns() {
 
-		String medico = filtroMedico.getValue();
-		String especialidade = filtroEspecialidade.getValue();
-		String termoBusca = campoBuscaMedico.getText();
+		String medico = medicoSelecionado;
+		String especialidade = especialidadeSelecionada;
+
+		if (medico == null || especialidade == null) {
+			mostrarMensagem("Selecione um médico na árvore.");
+			return;
+		}
 
 		entityManager.getTransaction().begin();
 
 		try {
 
-			List<AtendimentoBPAi> atendimentos;
-
-			if (medico != null && especialidade != null) {
-				// Caminho combo: médico + especialidade específicos
-				atendimentos = entityManager.createQuery(
-								"SELECT a FROM AtendimentoBPAi a JOIN a.medico m " +
-								"WHERE m.nome = :medico AND a.especialidadeMedico = :esp",
-								AtendimentoBPAi.class)
-						.setParameter("medico", medico)
-						.setParameter("esp", especialidade)
-						.getResultList();
-
-			} else if (termoBusca != null && !termoBusca.isBlank()) {
-				// Caminho busca livre: todos os registros cujo médico contém o termo
-				atendimentos = entityManager.createQuery(
-								"SELECT a FROM AtendimentoBPAi a JOIN a.medico m " +
-								"WHERE UPPER(m.nome) LIKE :termo",
-								AtendimentoBPAi.class)
-						.setParameter("termo", "%" + termoBusca.trim().toUpperCase() + "%")
-						.getResultList();
-
-			} else {
-				entityManager.getTransaction().rollback();
-				mostrarMensagem("Selecione um médico ou use a busca por nome.");
-				return;
-			}
+			List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
+							"SELECT a FROM AtendimentoBPAi a JOIN a.medico m " +
+							"WHERE m.nome = :medico AND a.especialidadeMedico = :esp",
+							AtendimentoBPAi.class)
+					.setParameter("medico", medico)
+					.setParameter("esp", especialidade)
+					.getResultList();
 
 			for (AtendimentoBPAi a : atendimentos) {
 				a.setCnsProfissional(campoCnsProfissional.getText());
@@ -1360,11 +1429,15 @@ public class RelatorioController {
 				lista.add(
 						AtendimentoBPAiDTO.fromEntity(r)));
 
-		atualizarCombos();
+		construirArvore();
 
 		atualizarCompetencia();
 
 		aplicarFiltros();
+
+		atualizarContexto();
+
+		atualizarBarraGeracao();
 	}
 
 	public void carregarDoBanco() {
@@ -1385,7 +1458,8 @@ public class RelatorioController {
 		atualizarDados(query.getResultList());
 
 		verificarAvisosGeracao();
-		verificarAvisosParcial();
+
+		atualizarBarraGeracao();
 	}
 
 	// ======================================================
@@ -1393,7 +1467,7 @@ public class RelatorioController {
 	// ======================================================
 
 	/**
-	 * Atualiza o label de competência com base nos dados carregados.
+	 * Atualiza o texto do badge de competência com base nos dados carregados.
 	 * Competência = yyyyMM da data de agendamento mais recente.
 	 */
 	private void atualizarCompetencia() {
@@ -1432,10 +1506,9 @@ public class RelatorioController {
 				+ data.format(DateTimeFormatter.ofPattern("MM/yyyy")));
 	}
 
-	/** Atualiza o label da topBar e o badge repetido na barra de ações com o mesmo texto. */
+	/** Atualiza o texto do badge/botão de competência na barra inferior. */
 	private void atualizarTextoCompetencia(String texto) {
-		labelCompetencia.setText(texto);
-		atualizarBadgeExibicao();
+		btnCompetencia.setText("📅 " + texto);
 	}
 
 	// ======================================================

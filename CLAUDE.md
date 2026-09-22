@@ -65,7 +65,7 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 ### Geração BPA-I
 - Geração individual (filtrada por especialidade/médico selecionados)
 - Geração completa (atendimentos do mês de competência selecionado, folha auto-atribuída: especialidades em ordem alfabética → médicos em ordem alfabética → folha sequencial)
-- Competência para geração: selecionada via `[Selecionar Mês]`; auto-detectada da primeira carga de dados se não definida manualmente
+- Competência para geração: selecionada clicando no badge `📅 Competência: MM/YYYY` da barra fixa inferior; auto-detectada da primeira carga de dados se não definida manualmente
 - `GeradorBPAiService.gerarArquivoCompletoComFileChooser(window, competenciaAtendimento)` recebe competência no formato `YYYYMM` do mês de atendimento e filtra por `YEAR/MONTH(dataAgendamento)`
 - Seq 10 (prd-cnspac): sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
@@ -73,19 +73,21 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 - **Pré-validação obrigatória**: `GeradorBPAiService.validarCnsProfissional()` bloqueia a geração se qualquer atendimento estiver sem CNS do profissional, exibindo relatório com médico/paciente/data de cada ocorrência
 
 ### Layout da UI
-A tela principal tem 5 linhas:
-1. **topBar** (`MainController`): `[Analisar Planilha]` `[Importar Planilha]` `[Ver Log Importação]` ... `Competência: MM/YYYY`
-2. **Barra de ações** (`RelatorioController.criarBarraAcoes()`): `[Selecionar Mês]` `[Gerar BPA-I Completo]` `[⚠ Pendências CNS]` `[Gerar BPA-I]`
-   - `[Selecionar Mês]`: abre dialog com spinners de mês/ano; competência selecionada exibida no canto superior direito
-   - `[⚠ Pendências CNS]` (amarelo): aparece quando há atendimentos sem CNS do profissional; clicando exibe log de pendências. Atualizado automaticamente em cada `carregarDoBanco()`.
-3. **Barra de filtros** (`RelatorioController.criarBarraFiltros()`): `[Buscar médico: ___ ]` `[Buscar]` `Especialidade [▼]` `Médico [▼]` `[Limpar]`
-   - **Busca livre** e **seleção por especialidade** são mutuamente exclusivas — cada uma reseta a outra ao ser acionada
-   - Combo `Médico` fica oculto até que uma especialidade seja selecionada
-4. **Barra de edição** (`RelatorioController.criarBarraEdicao()`): `CNS: [___]` `[Atualizar CNS]` `[Definir Folha]`
-   - Oculta por padrão; aparece ao selecionar médico no combo **ou** ao usar busca livre com resultados
-   - `[Atualizar CNS]` via combo: aplica a médico+especialidade selecionados. Via busca livre: aplica a todos os registros cujo médico contém o termo buscado
-   - `[Definir Folha]` sempre requer especialidade + médico selecionados nos combos
-5. **Tabela** + rodapé `Total: N`
+Layout em `BorderPane` (sidebar de navegação + barra fixa de geração), não mais em linhas horizontais empilhadas. Reescrito para separar fisicamente "visualizar tabela" de "gerar BPA-I", que antes ficavam misturados na mesma barra e causavam confusão (toggle de exibição colado ao botão de geração, dois botões "Gerar BPA-I"/"Gerar BPA-I Parcial" parecidos, busca livre e combo de especialidade/médico mutuamente exclusivos sem indicação visual).
+
+1. **topBar** (`MainController`): `[Analisar Planilha]` `[Ver Log Importação]` `[Configurações]` — não exibe mais competência (movida para a barra inferior, fonte única).
+2. **Topo do conteúdo** (`RelatorioController.criarBarraExibicao()`): `Exibir tabela:` + toggle `Competência | Período | Completo` + `[Selecionar Período]` (só no modo Período) + legenda do modo ativo.
+   - Controla **apenas o que a tabela mostra**; nunca afeta a competência de geração.
+3. **Sidebar esquerda** (`RelatorioController.criarSidebarNavegacao()`): campo de busca + `TreeView` de especialidades → médicos, substituindo busca livre + combos de especialidade/médico.
+   - Busca filtra a árvore em tempo real (nome do médico ou da especialidade); selecionar um nó de especialidade filtra por ela, selecionar um médico filtra por médico+especialidade.
+   - Campos `especialidadeSelecionada`/`medicoSelecionado` (não mais `ComboBox`) guardam o estado da seleção.
+4. **Área central**: breadcrumb do contexto atual (`crumbLabel`) + **barra de edição** (`CNS: [___]` `[Atualizar CNS]` `[Definir Folha]`), visível apenas quando um médico está selecionado na árvore, + tabela + rodapé `Total: N`.
+5. **Barra fixa inferior** (`RelatorioController.criarBarraGeracao()`, fundo escuro): badge clicável `📅 Competência: MM/YYYY` (abre o seletor de mês/ano) + chip `⚠ Pendências` contextual + botão único `[Gerar BPA-I — ...]` cujo texto/ação se adapta à seleção da árvore:
+   - Médico selecionado → `Gerar BPA-I — <médico> (<especialidade>)`, gera parcial (`GeradorBPAiService.gerarArquivoComFileChooser`)
+   - Nada selecionado → `Gerar BPA-I — Completo (todos os médicos)`, gera completo (`GeradorBPAiService.gerarArquivoCompletoComFileChooser`)
+   - O chip de aviso mostra pendências de CNS/folha do contexto atual (parcial ou completo) e abre o respectivo relatório ao clicar
+
+Nota: a atualização de CNS por busca livre em nome parcial (aplicar a todos os registros cujo médico contém um termo, independente de especialidade) existia na versão anterior e foi removida nesta reestruturação — a árvore sempre identifica um médico exato antes de habilitar a edição.
 
 ## Team Profile: Standard
 

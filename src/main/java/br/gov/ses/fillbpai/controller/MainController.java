@@ -14,8 +14,6 @@ import javafx.geometry.Insets;
 import javafx.scene.control.*;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -71,15 +69,10 @@ public class MainController {
 	private void configurarLayout() {
 
 		// ==============================
-		// Linha 1: Analisar Planilha, Importar Planilha, ... Competência
+		// Linha 1: Analisar Planilha, Ver Log, Configurações
+		// (a competência de geração agora vive na barra fixa inferior do
+		// RelatorioController, junto com o botão "Gerar BPA-I")
 		// ==============================
-
-		// Spacer empurra o label de competência para a direita
-		Region spacer = new Region();
-		HBox.setHgrow(spacer, Priority.ALWAYS);
-
-		Label labelCompetencia = relatorioController.getLabelCompetencia();
-		labelCompetencia.setStyle("-fx-font-weight: bold; -fx-font-size: 14px;");
 
 		Button btnAnalisarPlanilha = relatorioController.getBtnAnalisarPlanilha();
 		Button btnVerLog = relatorioController.getBtnVerLog();
@@ -88,7 +81,7 @@ public class MainController {
 		btnConfiguracoes.setOnAction(e ->
 				configuracoesDialog.abrir(rootLayout.getScene().getWindow()));
 
-		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnVerLog, btnConfiguracoes, spacer, labelCompetencia);
+		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnVerLog, btnConfiguracoes);
 		topBar.setPadding(new Insets(10));
 
 		rootLayout.setTop(topBar);
