@@ -394,6 +394,71 @@
     border-top:1px solid var(--line);
   }
 
+  /* ==================================================== */
+  /* ---- mockup Fase 3: sidebar + árvore + barra fixa ---- */
+  /* ==================================================== */
+  .mockup-shell{ display:flex; min-height:0; }
+  .mockup-sidebar{
+    width:190px; flex-shrink:0;
+    background:#F5F6F2;
+    border-right:1px solid var(--line);
+    padding:10px 10px 12px;
+  }
+  :root[data-theme="dark"] .mockup-sidebar,
+  :root:not([data-theme="light"]) .mockup-sidebar{ background:#171C15; }
+  .mockup-sidebar-head{
+    font-family:var(--font-mono);
+    font-size:.66rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-muted);
+    margin:0 0 8px;
+  }
+  .mockup-sidebar-search{
+    font-size:.78rem;
+    color:var(--ink-muted);
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    padding:6px 9px;
+    background:var(--paper-raised);
+    margin-bottom:8px;
+  }
+  .mockup-tree-esp{
+    font-size:.84rem; font-weight:600; color:var(--ink);
+    padding:5px 4px; display:flex; align-items:center; gap:5px;
+  }
+  .mockup-tree-med{
+    font-size:.82rem; color:var(--ink-muted);
+    padding:4px 4px 4px 22px; border-radius:5px;
+  }
+  .mockup-tree-med.sel{
+    background:var(--accent-soft); color:var(--accent); font-weight:600;
+  }
+  .mockup-content{ flex:1; min-width:0; padding:12px 16px; }
+  .mockup-crumb{
+    font-size:.8rem; color:var(--ink-muted);
+    padding-bottom:9px; margin-bottom:9px;
+    border-bottom:1px solid var(--line);
+  }
+  .mockup-crumb strong{ color:var(--ink); }
+  .mockup-genbar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:11px 16px;
+    background:#1F2A24;
+  }
+  .mockup-genbar .mockup-badge{
+    background:rgba(255,255,255,.14); color:#EAF3EF; border-color:rgba(255,255,255,.3);
+  }
+  .mockup-genbar .mockup-chip-warn{
+    font-size:.74rem; font-weight:700; color:#3a2e00; background:#FFC107;
+    border-radius:100px; padding:5px 11px; white-space:nowrap;
+  }
+  .mockup-genbar .mockup-btn-gerar{
+    font-family:var(--font-body); font-weight:700; font-size:.84rem;
+    padding:8px 15px; border-radius:6px; border:none;
+    background:#4ADE80; color:#0B3B24; white-space:nowrap;
+  }
+
   footer.doc-foot{
     margin-top:72px;
     padding-top:20px;
@@ -415,25 +480,30 @@
       A tabela principal filtra automaticamente pela competência selecionada
       (mesma regra usada na geração do BPA-I completo). A Fase 1 — renomear
       os dois botões de geração, tornar a competência mais visível e
-      alternar entre "competência selecionada" e "completo" — e a Fase 2 —
+      alternar entre "competência selecionada" e "completo" —, a Fase 2 —
       observar um <strong>período</strong> de competências (ex.: fev a ago)
-      — já foram implementadas. A geração do arquivo continua sempre por
-      uma única competência, independente do modo de exibição da tabela.
+      — e a Fase 3 — substituir a busca livre + combos por uma
+      <strong>árvore de navegação lateral</strong> e mover a geração do
+      BPA-I para uma <strong>barra fixa inferior</strong> com botão único
+      adaptativo — já foram implementadas. A geração do arquivo continua
+      sempre por uma única competência, independente do modo de exibição da
+      tabela.
     </p>
     <div class="meta">
-      <span>Área: <strong>RelatorioController — barra de ações e barra de filtros</strong></span>
-      <span>Status: <strong>Fase 1 e Fase 2 implementadas</strong></span>
-      <span>Data: <strong>11/09/2026</strong></span>
-      <span>Módulos afetados: <strong>RelatorioController (apenas UI, sem mudança de regra de negócio)</strong></span>
+      <span>Área: <strong>RelatorioController — layout completo (sidebar, topo, centro, barra inferior)</strong></span>
+      <span>Status: <strong>Fase 1, Fase 2 e Fase 3 implementadas</strong></span>
+      <span>Data: <strong>11/09/2026 (Fases 1–2) · 22/09/2026 (Fase 3)</strong></span>
+      <span>Módulos afetados: <strong>RelatorioController, MainController (apenas UI, sem mudança de regra de negócio — exceto remoção da atualização de CNS por busca livre parcial, ver <a href="#fase3-abertas">nota</a>)</strong></span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
       <a href="#contexto">Contexto</a>
-      <a href="#antes">Layout atual</a>
+      <a href="#antes">Layout atual (histórico)</a>
       <a href="#renomear">Renomeação dos botões</a>
       <a href="#visibilidade">Competência mais visível</a>
       <a href="#alternar">Alternar competência / completo</a>
-      <a href="#recomendacao">Recomendação combinada (implementada)</a>
+      <a href="#recomendacao">Recomendação combinada (Fases 1–2)</a>
       <a href="#periodo">Fase 2 — Exibir por período</a>
+      <a href="#fase3">Fase 3 — Navegação lateral e barra fixa</a>
       <a href="#abertas">Decisões em aberto</a>
     </nav>
   </header>
@@ -463,7 +533,19 @@
   </section>
 
   <section id="antes">
-    <h2>Layout atual</h2>
+    <h2>Layout atual (histórico — substituído pela Fase 3)</h2>
+    <div class="callout aberto">
+      <p class="kicker">Superado pela Fase 3</p>
+      <p>
+        Esta seção documenta o layout de barras horizontais empilhadas como
+        ele existia antes da Fase 3. Ele foi <strong>completamente
+        substituído</strong> pelo layout descrito em
+        <a href="#fase3">Fase 3 — Navegação lateral e barra fixa</a>: não há
+        mais busca livre, combos de especialidade/médico, nem os dois
+        botões de geração lado a lado. Mantido aqui só como referência do
+        raciocínio que levou à Fase 3.
+      </p>
+    </div>
     <figure class="fig">
       <div class="mockup-app">
         <div class="mockup-titlebar">
@@ -640,7 +722,19 @@
   </section>
 
   <section id="recomendacao">
-    <h2>Recomendação combinada</h2>
+    <h2>Recomendação combinada (Fases 1–2 — parcialmente superada)</h2>
+    <div class="callout aberto">
+      <p class="kicker">O que mudou na Fase 3</p>
+      <p>
+        O badge de competência e o botão <code>[Selecionar Mês]</code> desta
+        recomendação saíram da linha 2 e viraram um único elemento clicável
+        (<code>btnCompetencia</code>) na <a href="#fase3">barra fixa
+        inferior</a>. O toggle <code>Competência | Período | Completo</code>
+        continua existindo com a mesma lógica, mas migrou para o topo da
+        área de conteúdo — deliberadamente longe da geração, para não
+        parecer que ele afeta o arquivo gerado.
+      </p>
+    </div>
     <p>
       Juntando a Opção 1 (badge na linha 2) com a Opção B (toggle
       segmentado) — o resultado final da linha 2 ficaria assim:
@@ -703,6 +797,16 @@
       é sempre de uma única competência). A proposta estende o toggle de 2
       para 3 estados e adiciona um segundo diálogo, só para observação.
     </p>
+    <div class="callout">
+      <p class="kicker">Posição atual (Fase 3)</p>
+      <p>
+        O toggle de 3 estados e o diálogo "Selecionar Período" abaixo
+        continuam exatamente como descritos — só a <em>posição na tela</em>
+        mudou: hoje ficam no topo da área de conteúdo, não mais na mesma
+        linha do badge de competência e do botão de gerar. Ver
+        <a href="#fase3">Fase 3</a>.
+      </p>
+    </div>
 
     <h3>Toggle de 3 estados</h3>
     <p>
@@ -800,6 +904,121 @@
     </div>
   </section>
 
+  <section id="fase3">
+    <h2>Fase 3 — Navegação lateral e barra fixa (Alternativa C)</h2>
+    <p>
+      Mesmo com as Fases 1 e 2 implementadas, dois problemas de UI
+      continuavam: (1) a busca livre por médico e o combo de especialidade
+      eram <strong>mutuamente exclusivos</strong> sem nenhuma pista visual
+      disso — selecionar um apagava o outro em silêncio; e (2) o toggle de
+      exibição (<code>Competência | Período | Completo</code>) ficava colado
+      ao botão de gerar, sugerindo (incorretamente) que ele também afetava o
+      arquivo gerado. A Fase 3 resolve os dois trocando o layout de linhas
+      horizontais por um <code>BorderPane</code> com navegação lateral e uma
+      barra de geração fixa na parte inferior.
+    </p>
+
+    <h3>Antes → Depois</h3>
+    <figure class="fig">
+      <div class="mockup-app">
+        <div class="mockup-titlebar"><span>fillBPAi</span><span aria-hidden="true">— □ ✕</span></div>
+        <div class="mockup-row linha1">
+          <button class="mockup-btn">Analisar Planilha</button>
+          <button class="mockup-btn">Ver Log Importação</button>
+          <button class="mockup-btn">Configurações</button>
+        </div>
+        <div class="mockup-row">
+          <span class="mockup-label">Exibir tabela:</span>
+          <div class="mockup-toggle">
+            <span class="active">Competência</span><span>Período</span><span>Completo</span>
+          </div>
+        </div>
+        <div class="mockup-shell">
+          <div class="mockup-sidebar">
+            <p class="mockup-sidebar-head">Especialidades e médicos</p>
+            <div class="mockup-sidebar-search">🔍 Buscar...</div>
+            <div class="mockup-tree-esp">▾ Cardiologia (12)</div>
+            <div class="mockup-tree-med sel">Dr. João Silva</div>
+            <div class="mockup-tree-med">Dra. Ana Prado</div>
+            <div class="mockup-tree-esp">▸ Dermatologia (5)</div>
+          </div>
+          <div class="mockup-content">
+            <div class="mockup-crumb">Cardiologia › <strong>Dr. João Silva</strong> — 14 atendimento(s)</div>
+            <p class="mockup-note" style="margin:0;">CNS: [___] · Atualizar CNS · Definir Folha</p>
+            <p class="mockup-note" style="margin-top:6px;">↓ tabela de atendimentos ↓</p>
+          </div>
+        </div>
+        <div class="mockup-genbar">
+          <span class="mockup-badge">📅 Competência: 09/2026</span>
+          <div class="mockup-spacer"></div>
+          <span class="mockup-chip-warn">⚠ 2 sem CNS</span>
+          <button class="mockup-btn-gerar">Gerar BPA-I — Dr. João Silva (Cardiologia)</button>
+        </div>
+      </div>
+      <figcaption>
+        Sem médico selecionado na árvore, o mesmo botão muda para
+        <code>Gerar BPA-I — Completo (todos os médicos)</code> e o chip
+        amarelo passa a refletir as pendências da geração completa, não as
+        do médico. Nunca existem dois botões de geração ao mesmo tempo.
+      </figcaption>
+    </figure>
+
+    <h3>O que mudou, ponto a ponto</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Antes (Fases 1–2)</th><th>Depois (Fase 3)</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="antes">Busca livre por médico + combo Especialidade + combo Médico, mutuamente exclusivos e sem indicação visual disso</td>
+            <td class="depois">Árvore lateral única (<code>TreeView&lt;NoArvore&gt;</code>) com busca embutida filtrando especialidade OU médico em tempo real</td>
+          </tr>
+          <tr>
+            <td class="antes">Badge de competência (linha 2) + label na topBar — informação duplicada em dois lugares</td>
+            <td class="depois">Um único badge clicável (<code>btnCompetencia</code>) na barra fixa inferior — fonte única</td>
+          </tr>
+          <tr>
+            <td class="antes">"Gerar BPA-I" e "Gerar BPA-I Parcial" — dois botões parecidos, em linhas diferentes</td>
+            <td class="depois">Um botão único (<code>btnGerar</code>) cujo texto muda: <code>— Completo (todos os médicos)</code> ou <code>— &lt;médico&gt; (&lt;especialidade&gt;)</code></td>
+          </tr>
+          <tr>
+            <td class="antes">Toggle de exibição na mesma linha dos botões de geração</td>
+            <td class="depois">Toggle isolado no topo da área de conteúdo, fisicamente separado da barra de geração</td>
+          </tr>
+          <tr>
+            <td class="antes"><code>btnAvisoGeracao</code> e <code>btnAvisoParcial</code> — dois botões de aviso distintos</td>
+            <td class="depois">Um chip de aviso contextual (<code>btnAvisoBottom</code>) que mostra a pendência relevante para a seleção atual</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout aberto" id="fase3-abertas">
+      <p class="kicker">Comportamento removido</p>
+      <p>
+        A Fase 3 removeu a atualização de CNS por <strong>busca livre em
+        nome parcial</strong> (aplicar a todos os registros cujo médico
+        contém um termo digitado, sem escolher especialidade). A árvore
+        sempre exige selecionar um médico exato antes de habilitar
+        <code>[Atualizar CNS]</code>/<code>[Definir Folha]</code>. Se a
+        correção em massa por nome parcial for necessária na prática,
+        reintroduzir como uma ação separada na própria árvore (ex.: seleção
+        múltipla).
+      </p>
+    </div>
+
+    <p>
+      Implementado em <code>RelatorioController.criarComponente()</code>
+      (agora um <code>BorderPane</code> com <code>criarBarraExibicao()</code>
+      no topo, <code>criarSidebarNavegacao()</code> à esquerda,
+      <code>criarAreaConteudo()</code> no centro e
+      <code>criarBarraGeracao()</code> embaixo) e em
+      <code>MainController</code> (label de competência removida da
+      topBar).
+    </p>
+  </section>
+
   <section id="abertas">
     <h2>Decisões em aberto</h2>
     <div class="callout">
@@ -820,6 +1039,17 @@
         mockup da <a href="#periodo">Fase 2</a>. Ao ativar "Período" pela
         primeira vez (sem intervalo definido), o diálogo abre
         automaticamente para pedir o "De/Até".
+      </p>
+    </div>
+    <div class="callout">
+      <span class="pill ok">✓ Implementado</span>
+      <p>
+        Fase 3: navegação lateral por árvore de especialidades/médicos,
+        badge de competência único e clicável na barra fixa inferior, botão
+        de geração único com texto adaptativo e chip de aviso contextual —
+        ver <a href="#fase3">Fase 3 — Navegação lateral e barra fixa</a>.
+        Comportamento removido: atualização de CNS por busca livre em nome
+        parcial (ver <a href="#fase3-abertas">nota</a>).
       </p>
     </div>
   </section>
