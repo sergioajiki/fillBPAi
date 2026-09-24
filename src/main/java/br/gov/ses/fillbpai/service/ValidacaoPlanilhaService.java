@@ -39,6 +39,7 @@ import java.util.Map;
  *   <li>Coluna opcional (ex.: COD_LOGRADOURO, SITUACAO_RUA, PACIENTE_SEM_CPF) ausente do cabeçalho: AVISO (não bloqueia)</li>
  *   <li>Situação de rua preenchida mas não reconhecida (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
  *   <li>Paciente sem CPF preenchido mas não reconhecido (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
+ *   <li>Estabelecimento preenchido mas sem separador "código - nome" reconhecido: AVISO (não bloqueia)</li>
  * </ul>
  *
  * @see ErroValidacao
@@ -259,6 +260,25 @@ public class ValidacaoPlanilhaService {
 					"Paciente sem CPF \"" + dto.getPacienteSemCpf().trim()
 							+ "\" nao reconhecido (use Sim/Nao ou S/N) - o valor sera derivado"
 							+ " automaticamente a partir do CPF informado"));
+		}
+
+		// -------------------------------------------------------
+		// Regra 8: Estabelecimento — célula preenchida mas sem separador
+		// "código - nome" reconhecido (o código não é identificado). AVISO,
+		// não bloqueia — na importação o vínculo é tentado por nome, se já
+		// houver um estabelecimento cadastrado com esse nome.
+		// -------------------------------------------------------
+		String estabelecimentoBruto = dto.getEstabelecimento();
+
+		if (estabelecimentoBruto != null && !estabelecimentoBruto.isBlank()
+				&& StringUtils.separarCodigoENome(estabelecimentoBruto)[0] == null) {
+
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.ESTABELECIMENTO_SEM_CODIGO,
+					"Estabelecimento \"" + estabelecimentoBruto.trim() + "\" nao traz codigo reconhecido "
+							+ "(formato esperado: \"codigo - nome\") - sera vinculado por nome, se ja "
+							+ "houver um estabelecimento cadastrado com esse nome; caso contrario, o "
+							+ "atendimento ficara sem estabelecimento"));
 		}
 	}
 

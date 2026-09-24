@@ -101,6 +101,37 @@ class AtendimentoProcessorTest {
 		assertThat(dto.getEstabelecimento()).isEqualTo("HOSPITAL CENTRAL");
 	}
 
+	@Test
+	void processarSemSeparadorNoEstabelecimentoGeraAviso() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEstabelecimento("HOSPITAL CENTRAL");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).anyMatch(a -> a.contains("Estabelecimento")
+				&& a.contains("HOSPITAL CENTRAL") && a.contains("codigo reconhecido"));
+	}
+
+	@Test
+	void processarComEstabelecimentoVazioNaoGeraAviso() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEstabelecimento(null);
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).noneMatch(a -> a.contains("Estabelecimento"));
+	}
+
+	@Test
+	void processarComSeparadorNoEstabelecimentoNaoGeraAviso() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEstabelecimento("12345 - HOSPITAL CENTRAL");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).noneMatch(a -> a.contains("Estabelecimento"));
+	}
+
 	// ===== ESPECIALIDADE/MÉDICO (formato legado) =====
 
 	@Test
@@ -125,6 +156,30 @@ class AtendimentoProcessorTest {
 
 		assertThat(dto.getEspecialidadeMedico()).isEqualTo("CARDIOLOGIA");
 		assertThat(dto.getMedico()).isEqualTo("JOAO DA SILVA - FILHO");
+	}
+
+	// ===== ESPECIALIDADE — prefixo "Médico"/"Médica" =====
+
+	@Test
+	void processarRemovePrefixoMedicoDaEspecialidade() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEspecialidadeMedico("Médico Endocrinologista");
+		dto.setMedico("JOAO DA SILVA");
+
+		processor.processar(dto);
+
+		assertThat(dto.getEspecialidadeMedico()).isEqualTo("Endocrinologista");
+	}
+
+	@Test
+	void processarSemPrefixoMedicoNaoAlteraEspecialidade() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEspecialidadeMedico("Psiquiatra");
+		dto.setMedico("JOAO DA SILVA");
+
+		processor.processar(dto);
+
+		assertThat(dto.getEspecialidadeMedico()).isEqualTo("Psiquiatra");
 	}
 
 	// ===== SEXO =====

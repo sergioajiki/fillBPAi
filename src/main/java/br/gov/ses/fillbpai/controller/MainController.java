@@ -307,7 +307,7 @@ public class MainController {
 			mostrarDialogoErrosValidacao(demaisErros, logErros, nomePlanilha, stage, avisosColunaOpcional);
 		} else {
 			// Apenas avisos — exibe com botão de importação direta
-			mostrarDialogoAvisosAnalise(logErros, nomePlanilha, caminho, stage, avisoLegado, avisosColunaOpcional);
+			mostrarDialogoAvisosAnalise(demaisErros, logErros, nomePlanilha, caminho, stage, avisoLegado, avisosColunaOpcional);
 		}
 	}
 
@@ -404,18 +404,23 @@ public class MainController {
 	 * Exibe avisos de validação (não bloqueantes) com botão para importar diretamente.
 	 * Usado apenas no fluxo de análise — no fluxo de importação os avisos são exibidos
 	 * sem botão, pois a importação prossegue automaticamente.
+	 * <p>
+	 * Mesmo bloco âmbar de {@link #criarBlocoSeveridade} usado em
+	 * {@link #mostrarDialogoErrosValidacao} para os avisos não bloqueantes —
+	 * antes esta tela usava um {@code TextArea} plano, inconsistente com o
+	 * restante da apresentação de erros/avisos.
 	 */
-	private void mostrarDialogoAvisosAnalise(String logAvisos, String nomePlanilha, String caminho, Stage stage,
-			ErroValidacao avisoLegado, List<ErroValidacao> avisosColunaOpcional) {
+	private void mostrarDialogoAvisosAnalise(List<ErroValidacao> avisos, String logAvisos, String nomePlanilha,
+			String caminho, Stage stage, ErroValidacao avisoLegado, List<ErroValidacao> avisosColunaOpcional) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Avisos de Validação");
 		alert.setHeaderText("A planilha contém avisos mas pode ser importada");
 
-		TextArea areaLog = new TextArea(logAvisos);
-		areaLog.setEditable(false);
-		areaLog.setWrapText(true);
-		areaLog.setPrefHeight(300);
+		VBox blocoAvisos = criarBlocoSeveridade(
+				"⚠ AVISOS — não impedem a importação (" + avisos.size() + ")",
+				formatarLinhas(avisos),
+				"#93630F", "#F3E6D2");
 
 		Button btnSalvarLog = new Button("Salvar Log TXT");
 		btnSalvarLog.setOnAction(e -> {
@@ -450,7 +455,7 @@ public class MainController {
 			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
 		}
 
-		layout.getChildren().addAll(areaLog, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
+		layout.getChildren().addAll(blocoAvisos, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);

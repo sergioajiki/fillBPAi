@@ -475,14 +475,33 @@ Linha 6 - RACA_AUSENTE: Raça do paciente não informada</div>
       </p>
     </div>
 
+    <div class="callout risco">
+      <p class="kicker">🛑 Corrigido — gap esquecido pela nota acima</p>
+      <p>
+        A nota original dizia que <code>mostrarDialogoAvisosAnalise()</code> "já só mostra avisos...
+        nenhum dos dois precisaria da divisão em dois blocos" — verdade quanto à <em>divisão</em>
+        (não há erro pra separar), mas essa lógica confundiu "não precisa dividir em dois blocos"
+        com "não precisa do bloco colorido nenhum". Na prática, o diálogo continuou usando um
+        <code>TextArea</code> plano (sem cabeçalho âmbar, sem borda colorida) para os mesmos avisos
+        que em <code>mostrarDialogoErrosValidacao()</code> ganham o tratamento
+        <code>criarBlocoSeveridade</code> — inconsistente, e foi assim que o usuário notou (um aviso
+        novo, <code>ESTABELECIMENTO_SEM_CODIGO</code>, apareceu em texto corrido em vez do quadro
+        âmbar esperado). Corrigido: <code>mostrarDialogoAvisosAnalise()</code> agora recebe a lista
+        de avisos e monta o mesmo bloco único âmbar (<code>#93630F</code>/<code>#F3E6D2</code>) via
+        <code>criarBlocoSeveridade</code>, em vez do <code>TextArea</code> sem estilo. O botão
+        "Salvar Log TXT" continua exportando o TXT plano de <code>logAvisos</code>, sem mudança.
+      </p>
+    </div>
+
     <div class="callout aberto">
       <p class="kicker">Onde essa mudança se aplica</p>
       <p>
-        Só faz diferença em <code>mostrarDialogoErrosValidacao()</code> — é o único diálogo onde
-        erros e avisos aparecem juntos hoje (quando há pelo menos um erro bloqueante, os avisos que
-        sobraram continuam na mesma lista). <code>mostrarDialogoAvisosAnalise()</code> já só mostra
-        avisos (nenhum erro bloqueante presente), e <code>mostrarDialogoErroEstrutura()</code> tem
-        formato próprio, sem essa mistura — nenhum dos dois precisaria da divisão em dois blocos.
+        A divisão em <strong>dois</strong> blocos (erro vermelho + aviso âmbar) só faz diferença em
+        <code>mostrarDialogoErrosValidacao()</code> — é o único diálogo onde erros e avisos aparecem
+        juntos hoje. Mas o bloco colorido em si (só o âmbar) agora também é usado em
+        <code>mostrarDialogoAvisosAnalise()</code>, que mostra só avisos. Fora do escopo:
+        <code>mostrarDialogoErroEstrutura()</code> tem formato próprio (lista de colunas, não linhas
+        de erro/aviso), sem esse padrão.
       </p>
     </div>
   </section>

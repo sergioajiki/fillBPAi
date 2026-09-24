@@ -383,7 +383,11 @@ public class AtendimentoImportacaoService {
 	private Estabelecimento buscarOuCriarEstabelecimento(LinhaImportacaoDTO dto) {
 
 		if (dto.getCodEstabelecimento() == null || dto.getCodEstabelecimento().isBlank()) {
-			return null;
+			// Código não reconhecido na célula (sem separador "código - nome") —
+			// tenta reaproveitar um estabelecimento já cadastrado com o mesmo
+			// nome antes de desistir do vínculo (AVISO já emitido em
+			// AtendimentoProcessor/ValidacaoPlanilhaService).
+			return estabelecimentoRepository.buscarPorNome(dto.getEstabelecimento()).orElse(null);
 		}
 
 		return estabelecimentoRepository.buscarPorCodigo(dto.getCodEstabelecimento())

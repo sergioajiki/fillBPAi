@@ -63,6 +63,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** "Paciente sem CPF" preenchido mas com valor não reconhecido (não é S/N, Sim/Não ou 1/0) — AVISO, não bloqueia. */
 	public static final String PACIENTE_SEM_CPF_INVALIDO = "PACIENTE_SEM_CPF_INVALIDO";
 
+	/** Estabelecimento preenchido mas sem separador "código - nome" reconhecido — código não identificado. AVISO, não bloqueia. */
+	public static final String ESTABELECIMENTO_SEM_CODIGO = "ESTABELECIMENTO_SEM_CODIGO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

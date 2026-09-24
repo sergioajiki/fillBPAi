@@ -1,6 +1,7 @@
 package br.gov.ses.fillbpai.repository;
 
 import br.gov.ses.fillbpai.model.Estabelecimento;
+import br.gov.ses.fillbpai.util.TextoUtils;
 import jakarta.persistence.EntityManager;
 
 import java.util.Optional;
@@ -35,5 +36,29 @@ public class EstabelecimentoRepository {
 	 */
 	public void salvar(Estabelecimento estabelecimento) {
 		entityManager.persist(estabelecimento);
+	}
+
+	/**
+	 * Busca estabelecimento pelo nome, ignorando acentuação e caixa.
+	 * <p>
+	 * Usado quando a célula "Estabelecimento" da planilha não trouxe um código
+	 * reconhecido (formato "código - nome") — tenta reaproveitar um
+	 * estabelecimento já cadastrado com esse nome, em vez de descartar o
+	 * vínculo. A tabela é pequena (unidades de saúde do Núcleo), então a
+	 * comparação em memória é suficiente.
+	 */
+	public Optional<Estabelecimento> buscarPorNome(String nome) {
+
+		if (nome == null || nome.isBlank()) {
+			return Optional.empty();
+		}
+
+		String nomeNormalizado = TextoUtils.normalizar(nome);
+
+		return entityManager
+				.createQuery("SELECT e FROM Estabelecimento e", Estabelecimento.class)
+				.getResultStream()
+				.filter(e -> TextoUtils.normalizar(e.getNome()).equals(nomeNormalizado))
+				.findFirst();
 	}
 }

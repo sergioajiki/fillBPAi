@@ -210,6 +210,7 @@ na árvore             na árvore
 | Coluna opcional ausente (`Código Logradouro`, `Situação de Rua` ou `Paciente sem CPF`) | `COLUNA_OPCIONAL_AUSENTE` | AVISO | Importa normalmente; mensagem explica o fallback usado para o campo específico |
 | Situação de Rua preenchida mas valor não reconhecido (aceita S/N, Sim/Não, 1/0) | `SITUACAO_RUA_INVALIDA` | AVISO | Importa com aviso; remessa usa "N" |
 | Paciente sem CPF preenchido mas valor não reconhecido | `PACIENTE_SEM_CPF_INVALIDO` | AVISO | Importa com aviso; valor é derivado automaticamente a partir do CPF |
+| Estabelecimento sem separador "código - nome" reconhecido | `ESTABELECIMENTO_SEM_CODIGO` | AVISO | Importa com aviso; tenta vincular por nome a um estabelecimento já cadastrado, senão o atendimento fica sem estabelecimento |
 
 ---
 
@@ -352,6 +353,7 @@ O banco H2 é criado automaticamente em `database/` e persiste dados entre reini
 - Etnia só é considerada quando a raça do paciente é Indígena; para as demais raças, o conteúdo da coluna é ignorado mesmo se preenchido
 - Situação de Rua é um campo do **paciente** (traço estável da pessoa); reimportar uma planilha sem essa coluna nunca apaga um valor já conhecido de uma importação anterior com a coluna
 - Paciente sem CPF é um campo do **atendimento**, não do paciente — a exceção está ligada ao procedimento específico (atributo SIGTAP "058 - Obrigatório CPF"), não a um traço fixo da pessoa; por isso é sempre sobrescrito pela importação mais recente daquele atendimento
+- Estabelecimento tem código como chave natural; quando a célula da planilha não traz um código reconhecido (formato esperado `"código - nome"`), a importação tenta vincular por nome a um estabelecimento já cadastrado antes de deixar o atendimento sem vínculo — o campo não é escrito no arquivo BPA-I (só é usado no relatório interno da tela)
 
 ---
 

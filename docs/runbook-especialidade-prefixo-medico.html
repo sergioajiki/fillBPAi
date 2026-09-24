@@ -1,0 +1,326 @@
+<title>Prefixo "Médico" na Especialidade</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+      --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+      --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+    --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+    --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:840px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 14px; }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(2.1rem, 4.4vw, 2.9rem); line-height:1.08; letter-spacing:-.01em; margin:0 0 16px; text-wrap:balance; }
+  .lede{ font-size:1.1rem; line-height:1.6; color:var(--ink-muted); max-width:64ch; margin:0 0 22px; }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px 18px; font-family:var(--font-mono); font-size:.78rem; color:var(--ink-muted); padding-top:18px; border-top:1px solid var(--line); }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{ display:flex; flex-wrap:wrap; gap:8px; margin:26px 0 0; }
+  nav.toc a{ font-family:var(--font-mono); font-size:.74rem; color:var(--ink-muted); text-decoration:none; padding:6px 12px; border:1px solid var(--line); border-radius:100px; transition:border-color .15s ease, color .15s ease; }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{ font-family:var(--font-display); font-weight:600; font-size:1.5rem; letter-spacing:-.005em; margin:0 0 18px; text-wrap:balance; }
+  section > h3{ font-family:var(--font-body); font-weight:600; font-size:1rem; margin:28px 0 10px; }
+  p{ line-height:1.7; font-size:1.02rem; max-width:66ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{ font-family:var(--font-mono); font-size:.88em; background:var(--accent-soft); color:var(--ink); padding:.12em .38em; border-radius:4px; }
+  pre{ font-family:var(--font-mono); font-size:.84rem; line-height:1.6; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; overflow-x:auto; box-shadow:var(--shadow); }
+  pre code{ background:none; padding:0; }
+
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:480px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }
+  td.caso{ font-weight:500; }
+  td.antes{ color:var(--ink-muted); text-decoration:line-through; }
+  td.depois{ color:var(--accent); font-weight:600; }
+
+  ol.plano{ list-style:none; padding:0; margin:20px 0 0; counter-reset:passo; }
+  ol.plano li{ counter-increment:passo; position:relative; padding:2px 0 22px 46px; border-left:1px solid var(--line); margin-left:15px; }
+  ol.plano li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  ol.plano li::before{
+    content: counter(passo); position:absolute; left:-15px; top:0; width:30px; height:30px;
+    background:var(--paper-raised); border:1.5px solid var(--accent); color:var(--accent);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:.82rem;
+  }
+  ol.plano li p{ margin:0; font-size:.98rem; }
+  ol.plano li h4{ margin:0 0 6px; font-family:var(--font-body); font-weight:600; font-size:.98rem; }
+
+  .callout{ margin-top:18px; border:1px solid var(--line); border-left:3px solid var(--accent); background:var(--paper-raised); border-radius:0 10px 10px 0; padding:18px 22px; }
+  .callout.aberto{ border-left-color:var(--sev-aviso); }
+  .callout.recomendado{ border-left-color:var(--accent); }
+  .callout.risco{ border-left-color:var(--sev-erro); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  .pill{ font-family:var(--font-mono); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; padding:4px 10px; border-radius:100px; border:1px solid var(--line-strong); color:var(--ink-muted); white-space:nowrap; display:inline-block; margin-bottom:8px; }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.aberto{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+  .pill.risco{ border-color:var(--sev-erro); color:var(--sev-erro); }
+
+  footer.doc-foot{ margin-top:72px; padding-top:20px; border-top:1px solid var(--line); font-family:var(--font-mono); font-size:.76rem; color:var(--ink-muted); }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Prefixo "Médico" na coluna Especialidade <span class="pill ok">✓ Implementado (Opção C)</span></h1>
+    <p class="lede">
+      Relato do usuário: a coluna Especialidade normalmente traz só o nome da especialidade
+      ("Endocrinologista", "Psiquiatra"), mas algumas planilhas vêm com o prefixo "Médico "
+      na frente ("Médico Endocrinologista", "Médico Psiquiatra"). Este documento mapeia o que
+      isso quebra de verdade e propõe soluções — nada implementado ainda.
+    </p>
+    <div class="meta">
+      <span>Área: <strong>AtendimentoProcessor · GeradorBPAiService · RelatorioController (árvore)</strong></span>
+      <span>Status: <strong>Implementado (Opção C — só prefixo "Médico"/"Médica") — <code>mvnw.cmd test</code> passando</strong></span>
+      <span>Data: <strong>25/09/2026</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#contexto">Contexto</a>
+      <a href="#impacto">O que quebra de verdade</a>
+      <a href="#opcoes">Opções de solução</a>
+      <a href="#plano">Plano técnico (quando aprovado)</a>
+      <a href="#abertas">Decisões em aberto</a>
+    </nav>
+  </header>
+
+  <section id="contexto">
+    <h2>Contexto</h2>
+    <p>
+      <code>ESPECIALIDADE_MEDICO</code> é lido cru da planilha por
+      <code>ExcelImportService</code> e persistido sem normalização de conteúdo em
+      <code>AtendimentoBPAi.especialidadeMedico</code> — a única transformação que existe hoje é
+      <code>AtendimentoProcessor.separarEspecialidadeEMedico()</code>, que trata um problema
+      diferente (planilha legado com "ESPECIALIDADE - NOME DO MÉDICO" numa única célula). O
+      prefixo "Médico "/"Médica " na frente do nome da especialidade não é tratado por nada disso
+      — o valor vai para o banco exatamente como veio.
+    </p>
+  </section>
+
+  <section id="impacto">
+    <h2>O que quebra de verdade <span class="pill ok">✓ Corrigido</span></h2>
+    <p>
+      Descrição do problema como estava antes desta implementação — ver
+      <a href="#plano">Plano técnico</a> para o que corrige cada ponto.
+    </p>
+
+    <div class="callout risco">
+      <p class="kicker">🛑 O mais grave (era) — SIGTAP forçado para NUTRICIONISTA/PSICÓLOGO deixava de disparar</p>
+      <p>
+        <code>GeradorBPAiService.montarRegistro()</code> (seq 9, prd-pa) força o código SIGTAP
+        fixo <code>0301010315</code> quando a especialidade é exatamente
+        <code>"NUTRICIONISTA"</code> ou <code>"PSICÓLOGO"</code> (comparação por
+        <code>.equals()</code>, após <code>trim().toUpperCase()</code>):
+      </p>
+      <pre><code>String especialidade = a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico().trim().toUpperCase() : "";
+String prdPa = (especialidade.equals("NUTRICIONISTA") || especialidade.equals("PSICÓLOGO"))
+        ? "0301010315"
+        : sigtap;</code></pre>
+      <p>
+        Se a planilha trouxer <strong>"Médico Psicólogo"</strong> ou <strong>"Médico
+        Nutricionista"</strong> (mesmo padrão dos exemplos citados pelo usuário para outras
+        especialidades), essa comparação falha silenciosamente — o atendimento sai com o SIGTAP
+        errado no arquivo gerado, sem nenhum aviso. Isso não é um problema cosmético: é um dado
+        de saúde incorreto indo para o DATASUS.
+      </p>
+    </div>
+
+    <div class="callout aberto">
+      <p class="kicker">Árvore de navegação fragmentada</p>
+      <p>
+        <code>RelatorioController.construirArvore()</code> agrupa por
+        <code>AtendimentoBPAiDTO::getEspecialidadeMedico</code> num <code>TreeMap</code> (ordem
+        alfabética natural da string). "Endocrinologista" e "Médico Endocrinologista" viram dois
+        nós <strong>separados</strong> na árvore — um em "E", outro em "M" — mesmo sendo a mesma
+        especialidade na prática. Um médico pode aparecer "duplicado" em dois lugares diferentes
+        da árvore dependendo de qual atendimento dele carrega qual grafia.
+      </p>
+    </div>
+
+    <div class="callout aberto">
+      <p class="kicker">Ordem alfabética de folha na geração completa muda</p>
+      <p>
+        <code>GeradorBPAiService.atribuirFolhas()</code> ordena por
+        <code>ORDER BY a.especialidadeMedico, a.medico.nome, ...</code> — a regra documentada no
+        <code>CLAUDE.md</code> ("especialidades em ordem alfabética → médicos em ordem alfabética
+        → folha sequencial") assume implicitamente que o texto da especialidade é comparável de
+        forma consistente. Com "Médico X" ordenando por "M" em vez de pela letra real da
+        especialidade, a sequência de folhas fica com uma especialidade fora do lugar esperado —
+        não quebra a geração, mas produz uma ordem que não bate com a intenção da regra.
+      </p>
+    </div>
+  </section>
+
+  <section id="opcoes">
+    <h2>Opções de solução</h2>
+
+    <h3>Opção A — Normalizar na importação (remove o prefixo na entrada)</h3>
+    <p>
+      Novo passo em <code>AtendimentoProcessor</code> (mesmo lugar de
+      <code>separarEspecialidadeEMedico</code>): detectar e remover um prefixo "Médico "/"Médica "
+      no início do texto da especialidade, preservando o resto exatamente como veio (mesma ideia
+      de <code>LogradouroUtils</code>, que já detecta prefixo no início do endereço). "Médico
+      Endocrinologista" → "Endocrinologista"; "Médica Psiquiatra" → "Psiquiatra". Resolve os três
+      problemas da seção anterior <strong>para importações novas</strong>: SIGTAP forçado volta a
+      bater, árvore deixa de fragmentar, ordenação de folha fica correta.
+    </p>
+    <div class="callout aberto">
+      <p class="kicker">Não resolve dados já importados</p>
+      <p>
+        Atendimentos já persistidos com "Médico X" continuam exatamente assim no banco — mesma
+        limitação que já vimos com raça/"99": normalizar na entrada não migra o que já existe.
+      </p>
+    </div>
+
+    <h3>Opção B — Tornar a comparação do SIGTAP forçado tolerante (só o ponto mais grave)</h3>
+    <p>
+      Trocar <code>.equals("NUTRICIONISTA")</code> por algo como
+      <code>.contains("NUTRICIONISTA")</code> (mesmo estilo de substring já usado em
+      <code>RacaUtils</code>) só no ponto onde o SIGTAP é forçado. Resolve <strong>o risco mais
+      grave</strong> (dado clínico incorreto no arquivo) para dados novos <em>e</em> legados, sem
+      mexer em importação — mas não resolve a fragmentação da árvore nem a ordem de folha, que
+      continuam existindo com "Médico X" ainda gravado como veio.
+    </p>
+
+    <h3>Opção C — As duas juntas <span class="pill ok">✓ Implementada</span></h3>
+    <div class="callout recomendado">
+      <p class="kicker">✓ Implementado — Opção A + Opção B</p>
+      <p>
+        Mesmo padrão já aplicado para raça/"99": corrige a causa na importação (Opção A,
+        especialidade limpa para todo dado novo) <em>e</em> protege o ponto mais arriscado contra
+        dados que já existem no banco (Opção B, o SIGTAP forçado nunca mais depende de um
+        <code>.equals()</code> frágil, esteja a especialidade limpa ou não).
+      </p>
+    </div>
+  </section>
+
+  <section id="plano">
+    <h2>Plano técnico <span class="pill ok">✓ Implementado</span></h2>
+    <ol class="plano">
+      <li>
+        <h4>Novo utilitário — remover prefixo "Médico"/"Médica"</h4>
+        <p>
+          <code>util/EspecialidadeUtils.normalizar(String especialidade)</code>: regex ancorada no
+          início (<code>(?iu)^m[eé]dic[oa]\s+</code>), remove o prefixo quando presente e devolve
+          o restante com a grafia original preservada (só remove o prefixo, não mexe no resto).
+          Sem prefixo, devolve o texto com <code>trim()</code>.
+        </p>
+        <div class="callout aberto">
+          <p class="kicker">Pegadinha encontrada durante a implementação</p>
+          <p>
+            <code>(?i)</code> sozinho no Java <strong>não</strong> cobre acentos Unicode — "É"
+            maiúsculo não batia com <code>[eé]</code> até trocar para <code>(?iu)</code>
+            (habilita <code>CASE_INSENSITIVE</code> + <code>UNICODE_CASE</code> juntos). Pego pelo
+            próprio teste (<code>EspecialidadeUtilsTest</code>) antes de virar bug em produção.
+          </p>
+        </div>
+      </li>
+      <li>
+        <h4>Aplicar na importação</h4>
+        <p>
+          Em <code>AtendimentoProcessor.processar()</code>, logo após
+          <code>separarEspecialidadeEMedico(dto)</code>:
+          <code>dto.setEspecialidadeMedico(EspecialidadeUtils.normalizar(dto.getEspecialidadeMedico()))</code>.
+          Nenhuma mudança em <code>ExcelImportService</code> nem em
+          <code>AtendimentoImportacaoService</code> — o valor já chega limpo quando persistido.
+        </p>
+      </li>
+      <li>
+        <h4>Blindar o SIGTAP forçado</h4>
+        <p>
+          Em <code>GeradorBPAiService.montarRegistro()</code> (seq 9), a especialidade passa por
+          <code>EspecialidadeUtils.normalizar()</code> antes do <code>trim().toUpperCase()</code> e
+          da comparação com <code>"NUTRICIONISTA"</code>/<code>"PSICÓLOGO"</code> — para dado novo
+          (já limpo na importação) isso é um no-op; para dado legado com prefixo ainda gravado, a
+          normalização acontece na hora de gerar.
+        </p>
+      </li>
+      <li>
+        <h4>Aviso — não implementado (correção silenciosa)</h4>
+        <p>
+          Optou-se por <strong>não</strong> gerar aviso quando o prefixo é removido — mesmo
+          critério que <code>LogradouroUtils</code> já usa (deriva o código do prefixo do endereço
+          sem avisar nada). Se isso se mostrar necessário na prática, é um acréscimo pequeno e
+          isolado depois.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="abertas">
+    <h2>Decisões em aberto</h2>
+    <div class="callout aberto">
+      <span class="pill aberto">1 · Quais prefixos remover</span>
+      <p>
+        Os exemplos dados foram "Médico X"/"Médica X". Existem variações prováveis não citadas —
+        "Dr. X", "Enfermeiro(a) X", especialidade com prefixo de categoria profissional em geral?
+        <strong>Decisão do usuário: restringir a "Médico"/"Médica" por agora</strong> — é
+        exatamente o que <code>EspecialidadeUtils</code> remove. Se outra variação aparecer na
+        prática, é um ajuste pequeno e isolado no regex.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 2 · Decidido — corrigir em silêncio</span>
+      <p>
+        Implementado sem aviso — mesmo critério de <code>LogradouroUtils</code>. Ver nota na
+        seção <a href="#plano">Plano técnico</a>.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">3 · Dados já persistidos</span>
+      <p>
+        Assim como no achado de raça, existem hoje atendimentos no banco com "Médico X" gravado.
+        A Opção B blinda o SIGTAP forçado para eles, mas a árvore de navegação e a ordem de folha
+        continuam vendo o valor sujo até uma nova importação atualizar esse atendimento (ou uma
+        correção manual/script nos dados existentes).
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-especialidade-prefixo-medico.html
+  </footer>
+
+</div>

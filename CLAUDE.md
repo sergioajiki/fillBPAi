@@ -27,7 +27,7 @@ Arquitetura em camadas: `controller → service → repository → model`, com `
 - `Paciente` — chave natural: CPF (único). @OneToOne com Endereco. Campo `situacaoRua` ("S"/"N"/nulo, opcional) — só preenchido quando a planilha traz a coluna "Situação de Rua"; nulo = não informado (a geração do BPA-I usa "N" como padrão nesse caso).
 - `Endereco` — 1:1 com Paciente. Inclui campo `codigoIbge` (7 dígitos).
 - `Medico` — chave natural: CPF (único). Campos: id, cpf, nome.
-- `Estabelecimento` — chave natural: codigo (único). Campos: id, codigo, nome.
+- `Estabelecimento` — chave natural: codigo (único). Campos: id, codigo, nome. Quando a célula "Estabelecimento" da planilha não traz um código reconhecido (formato esperado `"código - nome"`), a importação tenta vincular por nome a um estabelecimento já cadastrado (`EstabelecimentoRepository.buscarPorNome`); se não encontrar, o atendimento fica sem estabelecimento vinculado (`AVISO`, não bloqueia).
 - `AtendimentoBPAi` — @ManyToOne para Paciente, Medico, Estabelecimento. Campos próprios: tipoServico, sigtap, dataAgendamento, horaAtendimento, especialidadeMedico, cboMedico, cidConsulta, cnsProfissional, cnesNts, codIne, folha, pacienteSemCpf ("S"/"N"/nulo — ver Geração BPA-I).
 
 ### Validação Pré-Importação
@@ -53,6 +53,7 @@ Tipos de AVISO (não bloqueantes):
 - **COLUNA_OPCIONAL_AUSENTE** — coluna opcional (`COD_LOGRADOURO`, `SITUACAO_RUA` ou `PACIENTE_SEM_CPF`) não encontrada no cabeçalho; mensagem específica por campo (`ValidacaoPlanilhaService.mensagemColunaOpcionalAusente`) explica o fallback usado
 - **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
 - **PACIENTE_SEM_CPF_INVALIDO** — coluna "Paciente sem CPF" presente mas valor da célula não reconhecido (mesmas regras de `SimNaoUtils`) — valor será derivado automaticamente a partir do CPF do paciente
+- **ESTABELECIMENTO_SEM_CODIGO** — célula "Estabelecimento" preenchida mas sem separador "código - nome" reconhecido; a importação tenta vincular por nome a um estabelecimento já cadastrado, senão o atendimento fica sem estabelecimento
 
 O botão **"Analisar Planilha"** (topBar) permite validar sem importar; o botão "Importar Planilha" não fica fixo na UI — aparece dentro do diálogo de resultado quando não há erros bloqueantes.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.

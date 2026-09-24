@@ -1,0 +1,349 @@
+<title>Estabelecimento sem Código Reconhecido</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+      --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+      --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+    --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+    --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:840px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 14px; }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(2.1rem, 4.4vw, 2.9rem); line-height:1.08; letter-spacing:-.01em; margin:0 0 16px; text-wrap:balance; }
+  .lede{ font-size:1.1rem; line-height:1.6; color:var(--ink-muted); max-width:64ch; margin:0 0 22px; }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px 18px; font-family:var(--font-mono); font-size:.78rem; color:var(--ink-muted); padding-top:18px; border-top:1px solid var(--line); }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{ display:flex; flex-wrap:wrap; gap:8px; margin:26px 0 0; }
+  nav.toc a{ font-family:var(--font-mono); font-size:.74rem; color:var(--ink-muted); text-decoration:none; padding:6px 12px; border:1px solid var(--line); border-radius:100px; transition:border-color .15s ease, color .15s ease; }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{ font-family:var(--font-display); font-weight:600; font-size:1.5rem; letter-spacing:-.005em; margin:0 0 18px; text-wrap:balance; }
+  section > h3{ font-family:var(--font-body); font-weight:600; font-size:1rem; margin:28px 0 10px; }
+  p{ line-height:1.7; font-size:1.02rem; max-width:66ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{ font-family:var(--font-mono); font-size:.88em; background:var(--accent-soft); color:var(--ink); padding:.12em .38em; border-radius:4px; }
+  pre{ font-family:var(--font-mono); font-size:.84rem; line-height:1.6; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; overflow-x:auto; box-shadow:var(--shadow); }
+  pre code{ background:none; padding:0; }
+
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:480px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }
+  td.caso{ font-weight:500; }
+  td.antes{ color:var(--ink-muted); text-decoration:line-through; }
+  td.depois{ color:var(--accent); font-weight:600; }
+
+  ol.plano{ list-style:none; padding:0; margin:20px 0 0; counter-reset:passo; }
+  ol.plano li{ counter-increment:passo; position:relative; padding:2px 0 22px 46px; border-left:1px solid var(--line); margin-left:15px; }
+  ol.plano li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  ol.plano li::before{
+    content: counter(passo); position:absolute; left:-15px; top:0; width:30px; height:30px;
+    background:var(--paper-raised); border:1.5px solid var(--accent); color:var(--accent);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:.82rem;
+  }
+  ol.plano li p{ margin:0; font-size:.98rem; }
+  ol.plano li h4{ margin:0 0 6px; font-family:var(--font-body); font-weight:600; font-size:.98rem; }
+
+  .callout{ margin-top:18px; border:1px solid var(--line); border-left:3px solid var(--accent); background:var(--paper-raised); border-radius:0 10px 10px 0; padding:18px 22px; }
+  .callout.aberto{ border-left-color:var(--sev-aviso); }
+  .callout.recomendado{ border-left-color:var(--accent); }
+  .callout.risco{ border-left-color:var(--sev-erro); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  .pill{ font-family:var(--font-mono); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; padding:4px 10px; border-radius:100px; border:1px solid var(--line-strong); color:var(--ink-muted); white-space:nowrap; display:inline-block; margin-bottom:8px; }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.aberto{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+  .pill.risco{ border-color:var(--sev-erro); color:var(--sev-erro); }
+
+  footer.doc-foot{ margin-top:72px; padding-top:20px; border-top:1px solid var(--line); font-family:var(--font-mono); font-size:.76rem; color:var(--ink-muted); }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Estabelecimento sem código reconhecido <span class="pill ok">✓ Implementado (Opção C)</span></h1>
+    <p class="lede">
+      Relato do usuário: a coluna Estabelecimento é separada em código + nome na importação, mas
+      nada avisa quando a célula não traz os dois itens. Quando o separador não é encontrado, o
+      código sai vazio — e, antes desta implementação, isso era suficiente para o estabelecimento
+      inteiro (nome incluído) ser descartado em silêncio.
+    </p>
+    <div class="meta">
+      <span>Área: <strong>AtendimentoProcessor · AtendimentoImportacaoService · EstabelecimentoRepository · ValidacaoPlanilhaService</strong></span>
+      <span>Status: <strong>Implementado (Opção C — aviso + reaproveitamento por nome) — <code>mvnw.cmd test</code> passando (274 testes)</strong></span>
+      <span>Data: <strong>24/09/2026</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#contexto">Contexto</a>
+      <a href="#impacto">O que quebra de verdade</a>
+      <a href="#opcoes">Opções de solução</a>
+      <a href="#plano">Plano técnico (quando aprovado)</a>
+      <a href="#abertas">Decisões em aberto</a>
+    </nav>
+  </header>
+
+  <section id="contexto">
+    <h2>Contexto</h2>
+    <p>
+      <code>AtendimentoProcessor.separarEstabelecimento(dto)</code> chama
+      <code>StringUtils.separarCodigoENome(valor)</code> sobre o valor cru da célula
+      <code>ESTABELECIMENTO</code>, esperando o formato <code>"CÓDIGO - NOME"</code> (separador
+      reconhecido por regex: hífen comum, en dash ou em dash — <code>[-–—]</code>).
+    </p>
+    <pre><code>public static String[] separarCodigoENome(String valor) {
+    if (valor == null || !valor.matches(".*" + SEPARADOR_REGEX + ".*")) {
+        return new String[]{null, valor};
+    }
+    String[] partes = valor.split(SEPARADOR_REGEX, 2);
+    String codigo = partes[0].trim();
+    String nome = partes[1].trim();
+    return new String[]{codigo, nome};
+}</code></pre>
+    <p>
+      Quando a célula não contém nenhum separador reconhecido, o método devolve
+      <code>{null, valorOriginal}</code> — o <strong>nome é preservado corretamente</strong> (o
+      texto inteiro da célula vira o nome), só o código sai nulo. Até aqui, nenhuma informação é
+      perdida — o problema está um passo adiante.
+    </p>
+  </section>
+
+  <section id="impacto">
+    <h2>O que quebra de verdade <span class="pill ok">✓ Corrigido</span></h2>
+    <p>
+      Descrição do problema como estava antes desta implementação — ver
+      <a href="#plano">Plano técnico</a> para o que corrige cada ponto.
+    </p>
+
+    <div class="callout risco">
+      <p class="kicker">🛑 O nome corretamente extraído é jogado fora</p>
+      <p>
+        <code>AtendimentoImportacaoService.buscarOuCriarEstabelecimento(dto)</code> trata
+        código nulo/vazio como "não há estabelecimento nenhum" e devolve <code>null</code> — sem
+        nunca olhar para o nome que <code>separarEstabelecimento</code> preservou corretamente:
+      </p>
+      <pre><code>private Estabelecimento buscarOuCriarEstabelecimento(LinhaImportacaoDTO dto) {
+    if (dto.getCodEstabelecimento() == null || dto.getCodEstabelecimento().isBlank()) {
+        return null;
+    }
+    ...
+}</code></pre>
+      <p>
+        O atendimento é persistido com <code>estabelecimento = null</code>. O nome que estava
+        certo na célula (ex.: só <code>"UBS CENTRAL"</code>, sem prefixo numérico) nunca chega a
+        ser usado em lugar nenhum — nem salvo, nem logado.
+      </p>
+    </div>
+
+    <div class="callout risco">
+      <p class="kicker">Nenhum aviso existe hoje para este caso</p>
+      <p>
+        Diferente de raça, situação de rua e "paciente sem CPF" — que já emitem
+        <code>AVISO</code>/<code>ERRO</code> quando o valor não é reconhecido —
+        <code>ValidacaoPlanilhaService</code> não tem <strong>nenhuma regra</strong> para
+        Estabelecimento (confirmado: nenhuma ocorrência do termo no arquivo). O usuário não vê
+        nada no relatório de análise nem no log de importação; a única pista é uma coluna
+        "Estabelecimento" em branco na tela, sem explicação.
+      </p>
+    </div>
+
+    <div class="callout aberto">
+      <p class="kicker">Escopo real do dano — não afeta o arquivo BPA-I</p>
+      <p>
+        <code>Estabelecimento</code> não é escrito no registro BPA-I gerado (o campo do layout
+        relacionado a unidade é <code>AtendimentoBPAi.cnesNts</code>, preenchido por outro fluxo).
+        <code>Estabelecimento</code> hoje serve só para o relatório/organização interna na tela
+        (<code>RelatorioController</code>, coluna "Estabelecimento", via
+        <code>LEFT JOIN FETCH a.estabelecimento</code>). Ou seja: a perda é real, mas fica
+        confinada ao relatório interno do Núcleo — não corrompe o arquivo enviado ao DATASUS. Isso
+        muda a prioridade em relação aos achados de raça/especialidade, mas não torna o problema
+        aceitável: o Núcleo perde a capacidade de saber em qual unidade o atendimento ocorreu,
+        silenciosamente.
+      </p>
+    </div>
+
+    <div class="callout aberto">
+      <p class="kicker">Terceira vez que esse padrão aparece nesta sessão</p>
+      <p>
+        Raça (valor não reconhecido → <code>99</code> em silêncio, corrigido), especialidade
+        ("Médico X" → SIGTAP errado em silêncio, corrigido) e agora estabelecimento (nome não
+        reconhecido → registro descartado em silêncio) são a mesma categoria de problema: um
+        <code>separar*</code>/normalizador aceita qualquer entrada sem reclamar quando o formato
+        não bate com o esperado. Vale considerar, depois deste caso, um levantamento pontual dos
+        demais pontos de entrada da planilha que ainda não têm essa cobertura — não é o foco deste
+        runbook, só um registro para não perder de vista.
+      </p>
+    </div>
+  </section>
+
+  <section id="opcoes">
+    <h2>Opções de solução</h2>
+
+    <h3>Opção A — Aviso apenas, sem mudar o modelo</h3>
+    <p>
+      Nova constante <code>ESTABELECIMENTO_SEM_CODIGO</code> (<code>AVISO</code>, não bloqueante,
+      mesmo padrão de <code>SITUACAO_RUA_INVALIDA</code>/<code>PACIENTE_SEM_CPF_INVALIDO</code>).
+      Emitida em dois pontos, mesmo par já usado para as outras regras:
+    </p>
+    <ul class="plain">
+      <li><code>ValidacaoPlanilhaService</code> — ao validar a planilha ("Analisar Planilha"), avisa por linha quando a célula Estabelecimento está preenchida mas não contém um separador reconhecido.</li>
+      <li><code>AtendimentoProcessor.separarEstabelecimento()</code> — devolve um aviso na lista de warnings da importação real, para o mesmo caso.</li>
+    </ul>
+    <p>
+      Comportamento de dados <strong>não muda</strong>: o atendimento continua sendo salvo sem
+      vínculo de estabelecimento. A diferença é que o usuário passa a ser avisado — pode corrigir a
+      planilha (acrescentar o código) antes de reimportar. Simples, sem risco, consistente com a
+      cautela já registrada sobre não inventar chaves de identidade que não sobrevivem a uma nova
+      importação (mesmo motivo pelo qual o CPF sintético de <code>Medico</code> foi sinalizado como
+      frágil).
+    </p>
+
+    <h3>Opção B — Reaproveitar Estabelecimento existente pelo nome</h3>
+    <p>
+      Acrescentar <code>EstabelecimentoRepository.buscarPorNome(String nome)</code> (busca
+      normalizada, mesmo estilo de <code>TextoUtils.normalizar</code>). Quando o código vier
+      ausente mas o nome bater com um estabelecimento <strong>já cadastrado</strong> (de uma
+      importação anterior com código correto), reaproveita o registro existente — o atendimento
+      fica vinculado corretamente sem precisar do código nesta linha.
+    </p>
+    <div class="callout aberto">
+      <p class="kicker">Não resolve o caso de estabelecimento realmente novo</p>
+      <p>
+        Se o nome também não existir ainda no banco, não há para onde apontar — a coluna
+        <code>codigo</code> de <code>Estabelecimento</code> é chave natural
+        (<code>unique=true, nullable=false</code>); não dá para persistir um estabelecimento sem
+        código só com base no nome sem alterar esse modelo. Neste caso o comportamento cai de volta
+        para a Opção A (aviso, sem vínculo).
+      </p>
+    </div>
+
+    <h3>Opção C — A + B combinadas <span class="pill ok">✓ Implementada</span></h3>
+    <div class="callout recomendado">
+      <p class="kicker">✓ Implementado — Opção A + Opção B</p>
+      <p>
+        Sempre emite o aviso da Opção A quando o código não é reconhecido, e adicionalmente tenta o
+        reaproveitamento por nome da Opção B antes de desistir. Resultado prático: quando o
+        estabelecimento já existe no banco (o caso mais comum — a mesma unidade normalmente aparece
+        em várias planilhas ao longo do tempo), o vínculo é recuperado automaticamente e o aviso
+        serve só como registro do que aconteceu; quando é um estabelecimento genuinamente novo sem
+        código em lugar nenhum, o atendimento fica sem vínculo como antes, mas o usuário é avisado e
+        pode agir.
+      </p>
+    </div>
+  </section>
+
+  <section id="plano">
+    <h2>Plano técnico <span class="pill ok">✓ Implementado</span></h2>
+    <ol class="plano">
+      <li>
+        <h4>Nova constante de aviso</h4>
+        <p>
+          <code>ErroValidacao.ESTABELECIMENTO_SEM_CODIGO</code> (<code>AVISO</code>), mesmo padrão
+          das constantes de aviso existentes.
+        </p>
+      </li>
+      <li>
+        <h4>Validação pré-importação</h4>
+        <p>
+          Regra 8 em <code>ValidacaoPlanilhaService.validarLinha()</code>: célula Estabelecimento
+          não vazia mas sem separador reconhecido (<code>StringUtils.separarCodigoENome()[0] ==
+          null</code>) → <code>AVISO</code> por linha.
+        </p>
+      </li>
+      <li>
+        <h4>Importação real</h4>
+        <p>
+          <code>AtendimentoProcessor.separarEstabelecimento()</code> passou a devolver
+          <code>List&lt;String&gt;</code> — acrescenta o mesmo aviso à lista de avisos do
+          processador quando <code>partes[0]</code> vem nulo mas o valor original não é vazio.
+        </p>
+      </li>
+      <li>
+        <h4>Busca por nome antes de desistir</h4>
+        <p>
+          <code>EstabelecimentoRepository.buscarPorNome(String nome)</code> (comparação em memória
+          via <code>TextoUtils.normalizar</code> — tabela pequena, unidades do Núcleo) +
+          <code>AtendimentoImportacaoService.buscarOuCriarEstabelecimento()</code> tenta essa busca
+          quando o código está ausente, antes de retornar <code>null</code>.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="abertas">
+    <h2>Decisões em aberto</h2>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 1 · Decidido — Opção C</span>
+      <p>
+        Aviso sempre emitido + reaproveitamento por nome quando o estabelecimento já existe no
+        banco. Ver <a href="#plano">Plano técnico</a>.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">2 · Estabelecimento novo sem código nenhum</span>
+      <p>
+        Se essa situação for frequente na prática, pode valer permitir cadastro manual do
+        estabelecimento (código atribuído pelo Núcleo) em vez de só avisar — mas isso é uma
+        funcionalidade nova de cadastro, fora do escopo deste runbook. Hoje o atendimento fica sem
+        vínculo, com aviso.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">3 · Levantamento geral de "separar*"</span>
+      <p>
+        Registrado na seção <a href="#impacto">O que quebra de verdade</a>: este é o terceiro caso
+        do mesmo padrão (raça, especialidade, agora estabelecimento). Vale um passe futuro pelos
+        demais pontos de entrada da planilha para ver se há mais algum caso parecido — não é
+        necessário agora, só para não esquecer.
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-estabelecimento-codigo-ausente.html
+  </footer>
+
+</div>

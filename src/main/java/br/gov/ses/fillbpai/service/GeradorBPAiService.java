@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.service;
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
+import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import jakarta.persistence.EntityManager;
@@ -570,9 +571,15 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 9 - prd-pa
-		 * NUTRICIONISTA e PSICÓLOGO usam código fixo 0301010315
+		 * NUTRICIONISTA e PSICÓLOGO usam código fixo 0301010315.
+		 * Normaliza via EspecialidadeUtils antes de comparar — proteção para
+		 * atendimentos já persistidos com prefixo "Médico"/"Médica" (ex.:
+		 * "Médico Psicólogo") de antes desta normalização existir na
+		 * importação; novas importações já chegam limpas, então esta chamada
+		 * é um no-op na prática para dados novos.
 		 */
-		String especialidade = a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico().trim().toUpperCase() : "";
+		String especialidade = EspecialidadeUtils.normalizar(a.getEspecialidadeMedico());
+		especialidade = especialidade != null ? especialidade.trim().toUpperCase() : "";
 		String prdPa = (especialidade.equals("NUTRICIONISTA") || especialidade.equals("PSICÓLOGO"))
 				? "0301010315"
 				: sigtap;

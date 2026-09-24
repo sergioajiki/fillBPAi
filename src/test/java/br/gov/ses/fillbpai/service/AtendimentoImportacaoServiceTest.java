@@ -163,6 +163,47 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarComEstabelecimentoSemCodigoReaproveitaEstabelecimentoJaCadastradoPeloNome() throws IOException {
+
+		Estabelecimento existente = new Estabelecimento();
+		existente.setCodigo("999");
+		existente.setNome("HOSPITAL CENTRAL");
+		entityManager.getTransaction().begin();
+		entityManager.persist(existente);
+		entityManager.getTransaction().commit();
+		entityManager.clear();
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[3] = "HOSPITAL CENTRAL"; // sem separador "código - nome"
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		ImportacaoResultado resultado = service.importar(caminho);
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getEstabelecimento()).isNotNull();
+		assertThat(atendimento.getEstabelecimento().getCodigo()).isEqualTo("999");
+	}
+
+	@Test
+	void importarComEstabelecimentoSemCodigoENomeDesconhecidoFicaSemEstabelecimento() throws IOException {
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[3] = "UNIDADE NUNCA CADASTRADA"; // sem separador "código - nome"
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		ImportacaoResultado resultado = service.importar(caminho);
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getEstabelecimento()).isNull();
+	}
+
+	@Test
 	void importarPersisteTextoDaEtniaNoPaciente() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,

@@ -57,4 +57,35 @@ class EstabelecimentoRepositoryTest {
 
 		assertThat(encontrado).isEmpty();
 	}
+
+	@Test
+	void buscarPorNomeIgnoraAcentoECaixa() {
+
+		Estabelecimento estabelecimento = new Estabelecimento();
+		estabelecimento.setCodigo("12345");
+		estabelecimento.setNome("Hospital São José");
+
+		entityManager.getTransaction().begin();
+		repository.salvar(estabelecimento);
+		entityManager.getTransaction().commit();
+		entityManager.clear();
+
+		Optional<Estabelecimento> encontrado = repository.buscarPorNome("HOSPITAL SAO JOSE");
+
+		assertThat(encontrado).isPresent();
+		assertThat(encontrado.get().getCodigo()).isEqualTo("12345");
+	}
+
+	@Test
+	void buscarPorNomeComNomeInexistenteDevolveVazio() {
+		Optional<Estabelecimento> encontrado = repository.buscarPorNome("UNIDADE FANTASMA");
+
+		assertThat(encontrado).isEmpty();
+	}
+
+	@Test
+	void buscarPorNomeComNomeNuloOuVazioDevolveVazio() {
+		assertThat(repository.buscarPorNome(null)).isEmpty();
+		assertThat(repository.buscarPorNome("  ")).isEmpty();
+	}
 }

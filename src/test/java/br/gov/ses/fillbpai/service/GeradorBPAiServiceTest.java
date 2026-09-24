@@ -264,6 +264,22 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(162, 165)).isEqualTo("006");      // seq 25 prd-clf segue o código forçado
 	}
 
+	@Test
+	void especialidadeComPrefixoMedicoAindaForcaSigtapFixo() {
+		// Proteção para atendimentos já persistidos antes da normalização de
+		// especialidade existir na importação (ver EspecialidadeUtils) —
+		// "Médico Psicólogo"/"Médico Nutricionista" ainda devem forçar o
+		// SIGTAP fixo, não só a grafia exata "PSICÓLOGO"/"NUTRICIONISTA".
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setEspecialidadeMedico("Médico Psicólogo");
+		atendimento.setSigtap("12.34.56.789-0");
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(49, 59)).isEqualTo("0301010315"); // seq 9 prd-pa forçado
+	}
+
 	// ===== RAÇA (seq 21) — fallback "99" só para dados legados =====
 
 	@Test

@@ -7,6 +7,7 @@ import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
@@ -49,11 +50,13 @@ public class AtendimentoProcessor {
 		// ===============================
 		// 1. Separações
 		// Campos combinados "CÓDIGO - NOME" são divididos
-		// em campos individuais para normalização
+		// em campos individuais para normalização; prefixo
+		// "Médico"/"Médica" na especialidade é removido
 		// ===============================
 
-		separarEstabelecimento(dto);
+		avisos.addAll(separarEstabelecimento(dto));
 		separarEspecialidadeEMedico(dto);
+		dto.setEspecialidadeMedico(EspecialidadeUtils.normalizar(dto.getEspecialidadeMedico()));
 
 		// ===============================
 		// 2. Definir SIGTAP
@@ -155,20 +158,38 @@ public class AtendimentoProcessor {
 	 * em dois campos distintos: codEstabelecimento e estabelecimento (nome).
 	 *
 	 * Exemplo: "12345 - HOSPITAL CENTRAL" → código="12345", nome="HOSPITAL CENTRAL"
+	 * <p>
+	 * Quando a célula não traz um separador reconhecido, o nome é preservado
+	 * (célula inteira) mas o código fica indefinido — {@code AtendimentoImportacaoService}
+	 * tenta então vincular por nome a um estabelecimento já cadastrado; se não
+	 * encontrar, o atendimento fica sem estabelecimento. Gera aviso nesse caso.
+	 *
+	 * @return lista com o aviso aplicável, ou lista vazia
 	 */
-	private void separarEstabelecimento(LinhaImportacaoDTO dto) {
+	private List<String> separarEstabelecimento(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
 
 		String valorOriginal = dto.getEstabelecimento();
 
 		if (isNullOrEmpty(valorOriginal)) {
-			return;
+			return avisos;
 		}
 
 		String[] partes =
 				StringUtils.separarCodigoENome(valorOriginal);
 
+		if (partes[0] == null) {
+			avisos.add("Estabelecimento \"" + valorOriginal.trim() + "\" nao traz codigo reconhecido "
+					+ "(formato esperado: \"codigo - nome\") - sera vinculado por nome, se ja houver "
+					+ "um estabelecimento cadastrado com esse nome; caso contrario, o atendimento "
+					+ "ficara sem estabelecimento");
+		}
+
 		dto.setCodEstabelecimento(partes[0]);
 		dto.setEstabelecimento(partes[1]);
+
+		return avisos;
 	}
 
 	/**

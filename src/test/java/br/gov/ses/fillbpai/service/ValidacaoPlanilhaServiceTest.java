@@ -37,6 +37,7 @@ class ValidacaoPlanilhaServiceTest {
 			"END. COMPLEMENTOS", "SEXO", "Situação de Rua", "Paciente sem CPF"
 	};
 
+	private static final int COL_ESTABELECIMENTO = 3;
 	private static final int COL_CPF_PACIENTE = 9;
 	private static final int COL_CNS_PACIENTE = 11;
 	private static final int COL_RACA_PACIENTE = 12;
@@ -432,6 +433,43 @@ class ValidacaoPlanilhaServiceTest {
 		List<ErroValidacao> erros = service.validar(caminho);
 
 		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.PACIENTE_SEM_CPF_INVALIDO));
+	}
+
+	@Test
+	void validarComEstabelecimentoSemSeparadorGeraAvisoEstabelecimentoSemCodigo() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_ESTABELECIMENTO] = "HOSPITAL CENTRAL";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ESTABELECIMENTO_SEM_CODIGO);
+			assertThat(erro.detalhe()).contains("HOSPITAL CENTRAL");
+		});
+	}
+
+	@Test
+	void validarComEstabelecimentoComCodigoNaoGeraAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_ESTABELECIMENTO] = "12345 - HOSPITAL CENTRAL";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.ESTABELECIMENTO_SEM_CODIGO));
+	}
+
+	@Test
+	void validarComEstabelecimentoVazioNaoGeraAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_ESTABELECIMENTO] = null;
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.ESTABELECIMENTO_SEM_CODIGO));
 	}
 
 	@Test
