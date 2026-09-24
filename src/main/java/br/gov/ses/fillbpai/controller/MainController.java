@@ -260,26 +260,31 @@ public class MainController {
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
 
-		// O aviso de formato legado é tratado à parte: não entra na lista usada
-		// para gerarLogTxt/log salvo em arquivo nem nas decisões de roteamento
-		// abaixo — ele aparece só no banner dedicado (ver criarBannerFormatoLegado),
-		// nunca duplicado como linha genérica de aviso.
+		// Os avisos de formato legado e de coluna opcional ausente são tratados
+		// à parte: não entram na lista usada para gerarLogTxt/log salvo em
+		// arquivo nem nas decisões de roteamento abaixo — aparecem só nos
+		// banners dedicados (ver criarBannerFormatoLegado/
+		// criarBannerColunasOpcionaisAusentes), nunca duplicados como linha
+		// genérica de aviso.
 		ErroValidacao avisoLegado = errosValidacao.stream()
 				.filter(e -> ErroValidacao.FORMATO_LEGADO_ESPECIALIDADE_MEDICO.equals(e.tipoErro()))
 				.findFirst()
 				.orElse(null);
 
-		List<ErroValidacao> demaisErros = avisoLegado == null
-				? errosValidacao
-				: errosValidacao.stream()
-						.filter(e -> e != avisoLegado)
-						.collect(java.util.stream.Collectors.toList());
+		List<ErroValidacao> avisosColunaOpcional = errosValidacao.stream()
+				.filter(e -> ErroValidacao.COLUNA_OPCIONAL_AUSENTE.equals(e.tipoErro()))
+				.collect(java.util.stream.Collectors.toList());
+
+		List<ErroValidacao> demaisErros = errosValidacao.stream()
+				.filter(e -> e != avisoLegado)
+				.filter(e -> !avisosColunaOpcional.contains(e))
+				.collect(java.util.stream.Collectors.toList());
 
 		boolean temBloqueantes = demaisErros.stream().anyMatch(ErroValidacao::isBloqueante);
 
 		if (demaisErros.isEmpty()) {
 			// Sem erros — exibe resultado com botão de importação direta
-			mostrarDialogoAnaliseOk(caminho, stage, avisoLegado);
+			mostrarDialogoAnaliseOk(caminho, stage, avisoLegado, avisosColunaOpcional);
 			return;
 		}
 
@@ -298,11 +303,11 @@ public class MainController {
 					validacaoService.obterMapeamentoEstrutura(caminho);
 			mostrarDialogoErroEstrutura(mapeamento, logErros, nomePlanilha, stage);
 		} else if (temBloqueantes) {
-			// Erros bloqueantes — sem botão de importação
-			mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage);
+			// Erros — sem botão de importação
+			mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage, avisosColunaOpcional);
 		} else {
 			// Apenas avisos — exibe com botão de importação direta
-			mostrarDialogoAvisosAnalise(logErros, nomePlanilha, caminho, stage, avisoLegado);
+			mostrarDialogoAvisosAnalise(logErros, nomePlanilha, caminho, stage, avisoLegado, avisosColunaOpcional);
 		}
 	}
 
@@ -333,9 +338,38 @@ public class MainController {
 	}
 
 	/**
+	 * Monta o banner de aviso "colunas opcionais não encontradas" — mesmo
+	 * estilo visual do banner de formato legado ({@link #criarBannerFormatoLegado}),
+	 * mas com um item de lista por coluna ausente, já que pode haver mais de
+	 * uma ao mesmo tempo (ex.: COD_LOGRADOURO e SITUACAO_RUA).
+	 */
+	private VBox criarBannerColunasOpcionaisAusentes(List<ErroValidacao> avisos) {
+
+		Label kicker = new Label("⚠ Colunas opcionais não encontradas");
+		kicker.setStyle("-fx-font-weight: bold; -fx-text-fill: #2F6F5E;");
+
+		VBox itens = new VBox(4);
+		for (ErroValidacao aviso : avisos) {
+			Label item = new Label("•  " + aviso.detalhe());
+			item.setWrapText(true);
+			item.setMaxWidth(440);
+			itens.getChildren().add(item);
+		}
+
+		VBox banner = new VBox(6, kicker, itens);
+		banner.setMaxWidth(468);
+		banner.setPadding(new Insets(12, 14, 12, 14));
+		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
+				+ "-fx-border-width: 0 0 0 3;");
+
+		return banner;
+	}
+
+	/**
 	 * Exibe resultado positivo da análise com botão para importar diretamente.
 	 */
-	private void mostrarDialogoAnaliseOk(String caminho, Stage stage, ErroValidacao avisoLegado) {
+	private void mostrarDialogoAnaliseOk(String caminho, Stage stage, ErroValidacao avisoLegado,
+			List<ErroValidacao> avisosColunaOpcional) {
 
 		Alert alert = new Alert(Alert.AlertType.INFORMATION);
 		alert.setTitle("Validação da Planilha");
@@ -345,6 +379,10 @@ public class MainController {
 
 		if (avisoLegado != null) {
 			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
+		}
+
+		if (!avisosColunaOpcional.isEmpty()) {
+			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
 		}
 
 		Label msg = new Label("A planilha está pronta para importação.");
@@ -368,7 +406,7 @@ public class MainController {
 	 * sem botão, pois a importação prossegue automaticamente.
 	 */
 	private void mostrarDialogoAvisosAnalise(String logAvisos, String nomePlanilha, String caminho, Stage stage,
-			ErroValidacao avisoLegado) {
+			ErroValidacao avisoLegado, List<ErroValidacao> avisosColunaOpcional) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Avisos de Validação");
@@ -406,6 +444,10 @@ public class MainController {
 
 		if (avisoLegado != null) {
 			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
+		}
+
+		if (!avisosColunaOpcional.isEmpty()) {
+			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
 		}
 
 		layout.getChildren().addAll(areaLog, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
@@ -557,7 +599,8 @@ public class MainController {
 	/**
 	 * Exibe diálogo com erros de validação e botão para download do log TXT.
 	 */
-	private void mostrarDialogoErrosValidacao(String logErros, String nomePlanilha, Stage stage) {
+	private void mostrarDialogoErrosValidacao(String logErros, String nomePlanilha, Stage stage,
+			List<ErroValidacao> avisosColunaOpcional) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Erros de Validação");
@@ -590,7 +633,13 @@ public class MainController {
 			}
 		});
 
-		VBox layout = new VBox(10, areaLog, btnSalvarLog);
+		VBox layout = new VBox(10);
+
+		if (!avisosColunaOpcional.isEmpty()) {
+			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
+		}
+
+		layout.getChildren().addAll(areaLog, btnSalvarLog);
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);

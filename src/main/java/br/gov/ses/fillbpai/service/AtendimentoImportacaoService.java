@@ -289,6 +289,9 @@ public class AtendimentoImportacaoService {
 					paciente.setEtnia(dto.getEtniaPaciente());
 					paciente.setDataNascimento(dto.getDataNascimento());
 					paciente.setTelefone(dto.getTelefone());
+					if (dto.getSituacaoRua() != null) {
+						paciente.setSituacaoRua(dto.getSituacaoRua());
+					}
 					return paciente;
 				})
 				.orElseGet(() -> {
@@ -301,6 +304,7 @@ public class AtendimentoImportacaoService {
 					novo.setEtnia(dto.getEtniaPaciente());
 					novo.setDataNascimento(dto.getDataNascimento());
 					novo.setTelefone(dto.getTelefone());
+					novo.setSituacaoRua(dto.getSituacaoRua());
 					pacienteRepository.salvar(novo);
 					return novo;
 				});

@@ -5,6 +5,7 @@ import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.SituacaoRuaUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
 import org.apache.poi.ss.usermodel.*;
@@ -33,7 +34,8 @@ import java.util.Map;
  *   <li>CNS do paciente com mais de 15 dígitos: AVISO (não bloqueia)</li>
  *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
  *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
- *   <li>Coluna opcional (ex.: COD_LOGRADOURO) ausente do cabeçalho: AVISO (não bloqueia)</li>
+ *   <li>Coluna opcional (ex.: COD_LOGRADOURO, SITUACAO_RUA) ausente do cabeçalho: AVISO (não bloqueia)</li>
+ *   <li>Situação de rua preenchida mas não reconhecida (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
  * </ul>
  *
  * @see ErroValidacao
@@ -216,6 +218,19 @@ public class ValidacaoPlanilhaService {
 				}
 			}
 		}
+
+		// -------------------------------------------------------
+		// Regra 5: Situação de rua — valor presente mas não reconhecido
+		// (coluna ausente ou célula em branco não geram aviso aqui; a
+		// ausência da própria coluna já é avisada uma única vez em
+		// reportarEstrutura()). AVISO, não bloqueia.
+		// -------------------------------------------------------
+		if (SituacaoRuaUtils.isInvalido(dto.getSituacaoRua())) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.SITUACAO_RUA_INVALIDA,
+					"Situacao de rua \"" + dto.getSituacaoRua().trim()
+							+ "\" nao reconhecida (use Sim/Nao ou S/N) - sera enviado 'N' na remessa"));
+		}
 	}
 
 	/**
@@ -265,10 +280,7 @@ public class ValidacaoPlanilhaService {
 		for (String campo : mapeamento.camposOpcionaisFaltando()) {
 			erros.add(new ErroValidacao(1, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.COLUNA_OPCIONAL_AUSENTE,
-					"Coluna \"" + campo + "\" não encontrada no cabeçalho — será considerada vazia. "
-							+ "O sistema segue a importação normalmente (o código do logradouro, quando "
-							+ "aplicável, ainda pode ser derivado automaticamente a partir do prefixo do "
-							+ "endereço: Rua, Avenida, Travessa)."));
+					mensagemColunaOpcionalAusente(campo)));
 		}
 
 		for (String campo : mapeamento.camposDuplicados()) {
@@ -279,6 +291,29 @@ public class ValidacaoPlanilhaService {
 		}
 
 		return valida;
+	}
+
+	/**
+	 * Monta a mensagem do aviso de coluna opcional ausente ({@link ErroValidacao#COLUNA_OPCIONAL_AUSENTE}),
+	 * específica por campo — cada campo opcional tem um comportamento de
+	 * fallback diferente, então o texto genérico não serve para todos.
+	 */
+	private String mensagemColunaOpcionalAusente(String campo) {
+
+		return switch (campo) {
+
+			case "COD_LOGRADOURO" -> "Coluna \"Cód. Logradouro\" não encontrada no cabeçalho — será considerada "
+					+ "vazia. O sistema segue a importação normalmente (o código do logradouro, quando "
+					+ "aplicável, ainda pode ser derivado automaticamente a partir do prefixo do endereço: "
+					+ "Rua, Avenida, Travessa).";
+
+			case "SITUACAO_RUA" -> "Coluna \"Situação de Rua\" não encontrada no cabeçalho — será considerada "
+					+ "vazia. O sistema segue a importação normalmente e a remessa BPA-I usará o valor padrão "
+					+ "'N' (não está em situação de rua) para todos os pacientes desta planilha.";
+
+			default -> "Coluna \"" + campo + "\" não encontrada no cabeçalho — será considerada vazia. "
+					+ "O sistema segue a importação normalmente.";
+		};
 	}
 
 	/**
@@ -332,7 +367,7 @@ public class ValidacaoPlanilhaService {
 		sb.append("=== RELATÓRIO DE VALIDAÇÃO DA PLANILHA ===\n");
 		sb.append("Arquivo  : ").append(nomeArquivo).append("\n");
 		sb.append("Data/Hora: ").append(dataHora).append("\n");
-		sb.append("Erros bloqueantes: ").append(bloqueantes.size()).append("\n");
+		sb.append("Erros: ").append(bloqueantes.size()).append("\n");
 		sb.append("Avisos: ").append(avisos.size()).append("\n");
 
 		if (erros.isEmpty()) {

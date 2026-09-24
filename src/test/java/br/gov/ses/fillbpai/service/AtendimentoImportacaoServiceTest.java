@@ -176,6 +176,60 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarSemColunaSituacaoRuaDeixaCampoNuloNoPaciente() throws IOException {
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+
+		service.importar(caminho);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getPaciente().getSituacaoRua()).isNull();
+	}
+
+	@Test
+	void importarComColunaSituacaoRuaPersisteValorNormalizadoNoPaciente() throws IOException {
+
+		String[] cabecalhoComSituacaoRua = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalhoComSituacaoRua[CABECALHO_COMPLETO.length] = "Situação de Rua";
+
+		String[] linha = java.util.Arrays.copyOf(
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 1);
+		linha[CABECALHO_COMPLETO.length] = "Sim";
+
+		String caminho = salvarPlanilha(cabecalhoComSituacaoRua, linha);
+
+		service.importar(caminho);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getPaciente().getSituacaoRua()).isEqualTo("S");
+	}
+
+	@Test
+	void reimportarSemColunaSituacaoRuaPreservaValorJaConhecidoDoPaciente() throws IOException {
+
+		String[] cabecalhoComSituacaoRua = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalhoComSituacaoRua[CABECALHO_COMPLETO.length] = "Situação de Rua";
+
+		String[] linhaComSituacaoRua = java.util.Arrays.copyOf(
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 1);
+		linhaComSituacaoRua[CABECALHO_COMPLETO.length] = "Sim";
+
+		service.importar(salvarPlanilha(cabecalhoComSituacaoRua, linhaComSituacaoRua));
+
+		// Reimporta a mesma pessoa (mesmo CPF) via uma planilha sem a coluna —
+		// não deve apagar a informação já conhecida do paciente.
+		String caminhoSemColuna = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+		service.importar(caminhoSemColuna);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getPaciente().getSituacaoRua()).isEqualTo("S");
+	}
+
+	@Test
 	void importarPlanilhaLegadoSeparaEspecialidadeEMedicoAoPersistir() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_LEGADO,

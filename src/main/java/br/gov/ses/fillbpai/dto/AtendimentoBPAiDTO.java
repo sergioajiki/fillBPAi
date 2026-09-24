@@ -120,6 +120,11 @@ public class AtendimentoBPAiDTO {
 				entity.getPaciente().getTelefone() : "";
 	}
 
+	public String getSituacaoRuaPaciente() {
+		return entity.getPaciente() != null ?
+				entity.getPaciente().getSituacaoRua() : "";
+	}
+
 	public String getMunicipio() {
 		Endereco e = getEnderecoEntity();
 		return e != null ? e.getMunicipio() : "";

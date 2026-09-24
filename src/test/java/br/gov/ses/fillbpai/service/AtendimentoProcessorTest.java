@@ -326,6 +326,51 @@ class AtendimentoProcessorTest {
 		assertThat(avisos).noneSatisfy(a -> assertThat(a).contains("nao encontrada"));
 	}
 
+	// ===== SITUAÇÃO DE RUA (aviso, não bloqueia) =====
+
+	@Test
+	void processarSemColunaDeSituacaoDeRuaNaoGeraAvisoEDeixaCampoNulo() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setSituacaoRua(null);
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).isEmpty();
+		assertThat(dto.getSituacaoRua()).isNull();
+	}
+
+	@Test
+	void processarNormalizaSituacaoDeRuaPorExtensoParaCodigoDeUmaLetra() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setSituacaoRua("Sim");
+
+		processor.processar(dto);
+
+		assertThat(dto.getSituacaoRua()).isEqualTo("S");
+	}
+
+	@Test
+	void processarNormalizaSituacaoDeRuaAbreviadaIndependenteDeCaixa() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setSituacaoRua("n");
+
+		processor.processar(dto);
+
+		assertThat(dto.getSituacaoRua()).isEqualTo("N");
+	}
+
+	@Test
+	void processarComSituacaoDeRuaNaoReconhecidaGeraAvisoMasNaoBloqueiaEDeixaCampoNulo() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setSituacaoRua("TALVEZ");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).anySatisfy(a -> assertThat(a)
+				.contains("TALVEZ").contains("nao reconhecida"));
+		assertThat(dto.getSituacaoRua()).isNull();
+	}
+
 	// ===== CONVERSÃO DE DATA/HORA =====
 
 	@Test

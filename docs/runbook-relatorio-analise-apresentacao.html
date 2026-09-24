@@ -1,0 +1,369 @@
+<title>Relatório de Análise — Apresentação</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+      --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+      --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+    --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+    --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:860px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 14px; }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(2.1rem, 4.4vw, 2.9rem); line-height:1.08; letter-spacing:-.01em; margin:0 0 16px; text-wrap:balance; }
+  .lede{ font-size:1.1rem; line-height:1.6; color:var(--ink-muted); max-width:66ch; margin:0 0 22px; }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px 18px; font-family:var(--font-mono); font-size:.78rem; color:var(--ink-muted); padding-top:18px; border-top:1px solid var(--line); }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{ display:flex; flex-wrap:wrap; gap:8px; margin:26px 0 0; }
+  nav.toc a{ font-family:var(--font-mono); font-size:.74rem; color:var(--ink-muted); text-decoration:none; padding:6px 12px; border:1px solid var(--line); border-radius:100px; transition:border-color .15s ease, color .15s ease; }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{ font-family:var(--font-display); font-weight:600; font-size:1.5rem; letter-spacing:-.005em; margin:0 0 18px; text-wrap:balance; }
+  section > h3{ font-family:var(--font-body); font-weight:600; font-size:1.02rem; margin:32px 0 12px; }
+  p{ line-height:1.7; font-size:1.02rem; max-width:68ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{ font-family:var(--font-mono); font-size:.88em; background:var(--accent-soft); color:var(--ink); padding:.12em .38em; border-radius:4px; }
+
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:480px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }
+  td.caso{ font-weight:500; }
+  td.antes{ color:var(--ink-muted); text-decoration:line-through; }
+  td.depois{ color:var(--accent); font-weight:600; }
+
+  .callout{ margin-top:18px; border:1px solid var(--line); border-left:3px solid var(--accent); background:var(--paper-raised); border-radius:0 10px 10px 0; padding:18px 22px; }
+  .callout.aberto{ border-left-color:var(--sev-aviso); }
+  .callout.recomendado{ border-left-color:var(--accent); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  .pill{ font-family:var(--font-mono); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; padding:4px 10px; border-radius:100px; border:1px solid var(--line-strong); color:var(--ink-muted); white-space:nowrap; display:inline-block; margin-bottom:8px; }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.aberto{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+
+  /* ==================================================== */
+  /* ---- mockup de diálogo (Alert JavaFX) ---- */
+  /* ==================================================== */
+  figure.fig{ margin:22px 0 8px; }
+  figcaption{ margin-top:10px; font-size:.86rem; color:var(--ink-muted); line-height:1.55; }
+
+  .mockup-alert{
+    max-width:560px;
+    border:1px solid var(--line-strong);
+    border-radius:10px;
+    background:var(--paper-raised);
+    box-shadow:var(--shadow);
+    font-family:var(--font-body);
+    overflow:hidden;
+  }
+  .mockup-alert-title{
+    padding:12px 18px;
+    border-bottom:1px solid var(--line);
+    font-size:.86rem;
+    font-weight:600;
+    background:#E9ECE6;
+    display:flex; align-items:center; gap:8px;
+  }
+  :root[data-theme="dark"] .mockup-alert-title,
+  :root:not([data-theme="light"]) .mockup-alert-title{ background:#20261D; }
+  .mockup-alert-header{
+    padding:14px 18px 4px;
+    font-size:.94rem;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .mockup-alert-body{ padding:12px 18px 18px; display:flex; flex-direction:column; gap:10px; }
+
+  .mockup-banner{
+    background:var(--accent-soft);
+    border-left:3px solid var(--accent);
+    padding:10px 13px;
+    border-radius:0 6px 6px 0;
+  }
+  .mockup-banner .kicker-inline{
+    font-weight:700; color:var(--accent); font-size:.82rem; margin:0 0 4px;
+  }
+  .mockup-banner p{ margin:0; font-size:.82rem; line-height:1.5; color:var(--ink); max-width:none; }
+  .mockup-banner ul{ margin:4px 0 0; padding-left:18px; font-size:.82rem; line-height:1.6; }
+
+  .mockup-textarea{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    line-height:1.6;
+    background:#FBFBF9;
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:10px 12px;
+    max-height:220px;
+    overflow-y:auto;
+    white-space:pre-wrap;
+    color:var(--ink);
+  }
+  :root[data-theme="dark"] .mockup-textarea,
+  :root:not([data-theme="light"]) .mockup-textarea{ background:#161C13; }
+  .mockup-textarea .linha-removida{
+    background:var(--sev-erro-soft);
+    text-decoration:line-through;
+    color:var(--ink-muted);
+    display:block;
+  }
+  .mockup-textarea .linha-mantida{ display:block; }
+
+  .mockup-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
+  .mockup-btn{
+    font-family:var(--font-body); font-size:.8rem; font-weight:500;
+    padding:6px 13px; border-radius:6px; border:1px solid var(--line-strong);
+    background:var(--paper-raised); color:var(--ink); white-space:nowrap;
+  }
+
+  footer.doc-foot{ margin-top:72px; padding-top:20px; border-top:1px solid var(--line); font-family:var(--font-mono); font-size:.76rem; color:var(--ink-muted); }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Relatório de análise: apresentação e wording <span class="pill ok">✓ Implementado</span></h1>
+    <p class="lede">
+      Duas melhorias na tela de "Analisar Planilha". O banner de "Formato de planilha legado
+      detectado" já tinha uma apresentação satisfatória; (1) simplificou "Erros bloqueantes" para
+      apenas "Erros" no relatório, e (2) o aviso de coluna opcional ausente (antes um texto solto
+      no meio da lista genérica de avisos) ganhou o mesmo tratamento visual do banner de planilha
+      legado.
+    </p>
+    <div class="meta">
+      <span>Área: <strong>MainController (diálogos de análise) · ValidacaoPlanilhaService.gerarLogTxt</strong></span>
+      <span>Status: <strong>Implementado — <code>mvnw.cmd test</code> passando</strong></span>
+      <span>Data: <strong>24/09/2026</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#contexto">Contexto</a>
+      <a href="#erros">"Erros bloqueantes" → "Erros"</a>
+      <a href="#opcional">Aviso de coluna opcional no padrão do banner</a>
+      <a href="#mudancas">Onde mexer</a>
+    </nav>
+  </header>
+
+  <section id="contexto">
+    <h2>Contexto</h2>
+    <p>
+      Hoje o diálogo "Analisar Planilha" já trata um tipo de aviso de forma especial: o formato de
+      planilha legado (coluna "Especialidade/Médico" combinada) ganha um banner dedicado, extraído
+      da lista genérica de avisos, com <code>criarBannerFormatoLegado()</code> em
+      <code>MainController</code>. Os demais avisos — incluindo <code>COLUNA_OPCIONAL_AUSENTE</code>
+      (COD_LOGRADOURO, SITUACAO_RUA) — continuam despejados como texto simples dentro da
+      <code>TextArea</code>, junto com avisos por linha (CNS, raça indígena etc.). E o relatório
+      (tanto na tela quanto no TXT salvo) chama a contagem de erros de "Erros bloqueantes", quando
+      <code>ERRO</code> já significa bloqueante por definição — o adjetivo é redundante.
+    </p>
+  </section>
+
+  <section id="erros">
+    <h2>"Erros bloqueantes" → "Erros"</h2>
+    <p>
+      A troca é só de texto, em <code>ValidacaoPlanilhaService.gerarLogTxt()</code> — a contagem em
+      si e a seção <code>--- ERROS (impedem a importação) ---</code> (que já deixa claro o efeito)
+      não mudam.
+    </p>
+    <figure class="fig">
+      <div class="mockup-alert">
+        <div class="mockup-alert-title">Erros de Validação</div>
+        <div class="mockup-alert-header">A planilha contém erros que impedem a importação</div>
+        <div class="mockup-alert-body">
+          <div class="mockup-textarea">=== RELATÓRIO DE VALIDAÇÃO DA PLANILHA ===
+Arquivo  : atendimentos_setembro.xlsx
+Data/Hora: 24/09/2026 14:32:10
+<span class="linha-removida">Erros bloqueantes: 2</span><span class="linha-mantida" style="color:var(--accent);font-weight:600;">Erros: 2</span>
+Avisos: 1
+
+--- ERROS (impedem a importação) ---
+Linha 3 - CEP_AUSENTE: CEP do endereço não informado
+Linha 7 - CPF_INVALIDO: CPF com tamanho inválido (8 dígitos, esperado 11): 1234567.8</div>
+          <div class="mockup-actions">
+            <div class="mockup-btn">Salvar Log TXT</div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        Linha riscada = texto atual; linha em verde = texto proposto. Só a palavra "bloqueantes"
+        sai — o resto do relatório (seções, contagens, formato "Linha N - TIPO: detalhe") continua
+        idêntico.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section id="opcional">
+    <h2>Aviso de coluna opcional no padrão do banner de planilha legado</h2>
+
+    <h3>Antes</h3>
+    <p>
+      O aviso de coluna opcional ausente (ex.: "Situação de Rua" não encontrada) some no meio do
+      texto corrido da <code>TextArea</code>, sem destaque — mesmo tratamento de um aviso de linha
+      qualquer (CNS, raça indígena), apesar de ser uma informação sobre a planilha inteira, não uma
+      linha específica:
+    </p>
+    <figure class="fig">
+      <div class="mockup-alert">
+        <div class="mockup-alert-title">Avisos de Validação</div>
+        <div class="mockup-alert-header">A planilha contém avisos mas pode ser importada</div>
+        <div class="mockup-alert-body">
+          <div class="mockup-banner">
+            <p class="kicker-inline">⚠ Formato de planilha legado detectado</p>
+            <p>A coluna "Especialidade/Médico" veio com especialidade e nome do profissional combinados numa única célula. O sistema irá separar os dois campos automaticamente ao importar.</p>
+          </div>
+          <div class="mockup-textarea">=== RELATÓRIO DE VALIDAÇÃO DA PLANILHA ===
+Arquivo  : atendimentos_setembro.xlsx
+Avisos: 3
+
+--- AVISOS (não impedem a importação) ---
+Linha 1 - COLUNA_OPCIONAL_AUSENTE: Coluna "Situação de Rua" não encontrada no cabeçalho — será considerada vazia. O sistema segue a importação normalmente e a remessa BPA-I usará o valor padrão 'N'...
+Linha 5 - CNS_INVALIDO: CNS do paciente não informado
+Linha 9 - RACA_INDIGENA: Raca informada como Indigena - e necessario preencher a etnia do paciente</div>
+          <div class="mockup-actions">
+            <div class="mockup-btn">Salvar Log TXT</div>
+            <div class="mockup-btn" style="border-color:var(--accent);color:var(--accent);font-weight:600;">Importar Planilha</div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        A linha de "Situação de Rua" ausente é uma informação sobre a planilha toda, mas aparece
+        com a mesma hierarquia visual de um aviso pontual de uma linha (linha 1 é só uma convenção
+        do relatório — o problema não é "da linha 1").
+      </figcaption>
+    </figure>
+
+    <h3>Depois</h3>
+    <p>
+      Extrai os avisos <code>COLUNA_OPCIONAL_AUSENTE</code> da lista genérica e monta um banner
+      próprio, no mesmo estilo visual do de planilha legado (mesma cor de destaque, mesma
+      estrutura kicker + texto) — um item por coluna ausente, já que pode haver mais de uma
+      (COD_LOGRADOURO e SITUACAO_RUA ao mesmo tempo, por exemplo):
+    </p>
+    <figure class="fig">
+      <div class="mockup-alert">
+        <div class="mockup-alert-title">Avisos de Validação</div>
+        <div class="mockup-alert-header">A planilha contém avisos mas pode ser importada</div>
+        <div class="mockup-alert-body">
+          <div class="mockup-banner">
+            <p class="kicker-inline">⚠ Formato de planilha legado detectado</p>
+            <p>A coluna "Especialidade/Médico" veio com especialidade e nome do profissional combinados numa única célula. O sistema irá separar os dois campos automaticamente ao importar.</p>
+          </div>
+          <div class="mockup-banner">
+            <p class="kicker-inline">⚠ Colunas opcionais não encontradas</p>
+            <ul>
+              <li><strong>Situação de Rua</strong> — será considerada vazia; a remessa BPA-I usará o valor padrão "N" para todos os pacientes desta planilha.</li>
+            </ul>
+          </div>
+          <div class="mockup-textarea">=== RELATÓRIO DE VALIDAÇÃO DA PLANILHA ===
+Arquivo  : atendimentos_setembro.xlsx
+Avisos: 3
+
+--- AVISOS (não impedem a importação) ---
+Linha 5 - CNS_INVALIDO: CNS do paciente não informado
+Linha 9 - RACA_INDIGENA: Raca informada como Indigena - e necessario preencher a etnia do paciente</div>
+          <div class="mockup-actions">
+            <div class="mockup-btn">Salvar Log TXT</div>
+            <div class="mockup-btn" style="border-color:var(--accent);color:var(--accent);font-weight:600;">Importar Planilha</div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        A <code>TextArea</code> volta a conter só avisos genuinamente por linha. O log TXT salvo em
+        disco continua completo (ambos os tipos de aviso, banner ou não) — só a apresentação na
+        tela muda; o arquivo salvo é para diagnóstico e não perde informação.
+      </figcaption>
+    </figure>
+
+    <div class="callout recomendado">
+      <p class="kicker">Por que um banner só, com lista, em vez de um banner por coluna</p>
+      <p>
+        Legado e coluna-opcional são conceitualmente diferentes (formato de planilha vs. campo
+        ausente), então cada um mantém seu próprio banner. Mas duas colunas opcionais ausentes ao
+        mesmo tempo são a <em>mesma</em> categoria de aviso — empilhar dois banners quase idênticos
+        (mesmo kicker, mesma cor) pesaria mais do que informaria. Um banner com uma lista de
+        itens escala para N colunas opcionais sem crescer visualmente feio.
+      </p>
+    </div>
+  </section>
+
+  <section id="mudancas">
+    <h2>Onde foi mexido</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Arquivo</th><th>Mudança</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso"><code>ValidacaoPlanilhaService.gerarLogTxt()</code></td>
+            <td><code>sb.append("Erros bloqueantes: ")</code> → <code>sb.append("Erros: ")</code>. Uma linha.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>MainController.criarBannerColunasOpcionaisAusentes(List&lt;ErroValidacao&gt;)</code></td>
+            <td>Novo método, ao lado de <code>criarBannerFormatoLegado</code> (mesmo estilo, não uma generalização dele — os dois tipos de aviso são conceitualmente diferentes): kicker fixo "⚠ Colunas opcionais não encontradas" + um item de lista por aviso, usando <code>aviso.detalhe()</code> como texto de cada item.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>MainController.analisarPlanilha()</code> (extração dos avisos especiais)</td>
+            <td>Mesmo padrão já usado para <code>avisoLegado</code>: filtra <code>COLUNA_OPCIONAL_AUSENTE</code> de <code>errosValidacao</code> antes de montar <code>demaisErros</code>/<code>logErros</code>, e passa a lista extraída para o novo banner em <code>mostrarDialogoAnaliseOk</code>, <code>mostrarDialogoAvisosAnalise</code> e <code>mostrarDialogoErrosValidacao</code> (este último ganhou o parâmetro novo; não recebia <code>avisoLegado</code> antes e continua sem — gap pré-existente, fora do escopo desta mudança).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout recomendado">
+      <p class="kicker">✓ Decisão tomada — mesmo caminho do banner de planilha legado</p>
+      <p>
+        O log TXT salvo em disco (<code>database/log_erros_validacao_*.txt</code>) <strong>também
+        não</strong> contém mais os avisos de coluna opcional ausente — seguindo exatamente o
+        precedente que já existia para o banner de planilha legado (que já excluía seu próprio
+        aviso do texto salvo antes desta mudança). Consistência com o comportamento já existente
+        pesou mais do que preservar cada aviso duas vezes (banner na tela + linha no arquivo).
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-relatorio-analise-apresentacao.html
+  </footer>
+
+</div>

@@ -15,8 +15,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PlanilhaColumnMapperTest {
 
 	/**
-	 * Cabeçalho com os 25 campos canônicos (24 obrigatórios + COD_LOGRADOURO,
-	 * opcional), usando aliases reais de {@code dados/colunas_aliases.csv}.
+	 * Cabeçalho com os 26 campos canônicos (24 obrigatórios + COD_LOGRADOURO
+	 * e SITUACAO_RUA, ambos opcionais), usando aliases reais de
+	 * {@code dados/colunas_aliases.csv}.
 	 */
 	private static final String[] CABECALHO_COMPLETO = {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
@@ -24,7 +25,7 @@ class PlanilhaColumnMapperTest {
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
 			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
-			"END. COMPLEMENTOS", "SEXO"
+			"END. COMPLEMENTOS", "SEXO", "Situação de Rua"
 	};
 
 	private final PlanilhaColumnMapper mapper = new PlanilhaColumnMapper();
@@ -49,7 +50,7 @@ class PlanilhaColumnMapperTest {
 		assertThat(resultado.camposFaltando()).isEmpty();
 		assertThat(resultado.camposOpcionaisFaltando()).isEmpty();
 		assertThat(resultado.camposDuplicados()).isEmpty();
-		assertThat(resultado.indices()).hasSize(25);
+		assertThat(resultado.indices()).hasSize(26);
 		assertThat(resultado.indices()).containsEntry("CEP", 20);
 		assertThat(resultado.especialidadeMedicoCombinados()).isFalse();
 	}
@@ -94,8 +95,8 @@ class PlanilhaColumnMapperTest {
 		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(cabecalho);
 
 		assertThat(resultado.estruturaValida()).isTrue();
-		assertThat(resultado.indices()).containsEntry("CEP", 4);
-		assertThat(resultado.indices()).containsEntry("TIPO_SERVICO", 24);
+		assertThat(resultado.indices()).containsEntry("CEP", 5);
+		assertThat(resultado.indices()).containsEntry("TIPO_SERVICO", 25);
 	}
 
 	@Test
@@ -108,14 +109,15 @@ class PlanilhaColumnMapperTest {
 		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(cabecalho);
 
 		assertThat(resultado.estruturaValida()).isTrue();
-		assertThat(resultado.indices()).hasSize(25);
+		assertThat(resultado.indices()).hasSize(26);
 		assertThat(resultado.colunasNaoReconhecidas()).containsExactly("Observações");
 	}
 
 	@Test
 	void mapearComColunaObrigatoriaAusenteReportaCampoFaltando() {
-		String[] semSexo = Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length - 1);
-		Row cabecalho = criarLinhaCabecalho(semSexo);
+		List<String> semSexo = new ArrayList<>(Arrays.asList(CABECALHO_COMPLETO));
+		semSexo.remove("SEXO");
+		Row cabecalho = criarLinhaCabecalho(semSexo.toArray(new String[0]));
 
 		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(cabecalho);
 
@@ -143,6 +145,6 @@ class PlanilhaColumnMapperTest {
 		assertThat(resultado.estruturaValida()).isFalse();
 		assertThat(resultado.indices()).isEmpty();
 		assertThat(resultado.camposFaltando()).hasSize(24);
-		assertThat(resultado.camposOpcionaisFaltando()).containsExactly("COD_LOGRADOURO");
+		assertThat(resultado.camposOpcionaisFaltando()).containsExactly("COD_LOGRADOURO", "SITUACAO_RUA");
 	}
 }

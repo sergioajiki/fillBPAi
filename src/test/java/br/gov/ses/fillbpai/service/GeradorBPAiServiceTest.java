@@ -189,6 +189,30 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(349, 350)).isEqualTo("N");            // seq 39 prd-situacao_rua
 	}
 
+	// ===== SITUAÇÃO DE RUA (seq 39) =====
+
+	@Test
+	void seq39PrdSituacaoRuaSemInformacaoNaPlanilhaUsaPadraoN() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		// paciente.situacaoRua não definido (planilha sem a coluna, ou coluna em branco)
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(349, 350)).isEqualTo("N");
+	}
+
+	@Test
+	void seq39PrdSituacaoRuaComValorSNaPlanilhaUsaOValorInformado() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setSituacaoRua("S");
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(349, 350)).isEqualTo("S");
+	}
+
 	@Test
 	void especialidadeNutricionistaForcaSigtapFixoEDerivaServicoEClassificacaoDele() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();

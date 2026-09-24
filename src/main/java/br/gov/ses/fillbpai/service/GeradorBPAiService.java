@@ -757,10 +757,15 @@ public class GeradorBPAiService {
 		sb.append(padLeftZeros(cpfPacienteNum, 11));
 
 		/**
-		 * seq 39 - prd_situacao_rua
-		 * ALFA, 1 char, valores: N ou S, padrão N
+		 * seq 39 - prd_situacao_rua (numeração "38" duplicada no PDF oficial;
+		 * ver docs/runbook-layout-bpa-2026.html)
+		 * ALFA, 1 char, valores: N ou S.
+		 * Usa o valor informado na planilha (paciente.situacaoRua) quando
+		 * disponível; sem essa informação, mantém o padrão "N" — mesmo
+		 * comportamento de antes de a planilha trazer esta coluna.
 		 */
-		sb.append("N");
+		String situacaoRua = paciente != null ? paciente.getSituacaoRua() : null;
+		sb.append(situacaoRua != null ? situacaoRua : "N");
 
 		/**
 		 * seq 40 - prd-fim

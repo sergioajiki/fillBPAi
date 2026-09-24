@@ -1,0 +1,555 @@
+<title>Layout BPA-I 2026 — Campo Novo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F;
+      --paper-raised:#1A2018;
+      --ink:#E8ECE3;
+      --ink-muted:#A9B5A2;
+      --line:#2B332B;
+      --line-strong:#3C463C;
+      --accent:#7DD3B0;
+      --accent-soft:#1E3A30;
+      --sev-erro:#FF9686;
+      --sev-erro-soft:#3A1F1B;
+      --sev-aviso:#E8B15C;
+      --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D;
+      --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F;
+    --paper-raised:#1A2018;
+    --ink:#E8ECE3;
+    --ink-muted:#A9B5A2;
+    --line:#2B332B;
+    --line-strong:#3C463C;
+    --accent:#7DD3B0;
+    --accent-soft:#1E3A30;
+    --sev-erro:#FF9686;
+    --sev-erro-soft:#3A1F1B;
+    --sev-aviso:#E8B15C;
+    --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:840px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--accent);
+    margin:0 0 14px;
+  }
+  h1{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:clamp(2.1rem, 4.4vw, 2.9rem);
+    line-height:1.08;
+    letter-spacing:-.01em;
+    margin:0 0 16px;
+    text-wrap:balance;
+  }
+  .lede{
+    font-size:1.1rem;
+    line-height:1.6;
+    color:var(--ink-muted);
+    max-width:66ch;
+    margin:0 0 22px;
+  }
+  .meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px 18px;
+    font-family:var(--font-mono);
+    font-size:.78rem;
+    color:var(--ink-muted);
+    padding-top:18px;
+    border-top:1px solid var(--line);
+  }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin:26px 0 0;
+  }
+  nav.toc a{
+    font-family:var(--font-mono);
+    font-size:.74rem;
+    color:var(--ink-muted);
+    text-decoration:none;
+    padding:6px 12px;
+    border:1px solid var(--line);
+    border-radius:100px;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:1.5rem;
+    letter-spacing:-.005em;
+    margin:0 0 18px;
+    text-wrap:balance;
+  }
+  section > h3{
+    font-family:var(--font-body);
+    font-weight:600;
+    font-size:1.02rem;
+    margin:32px 0 12px;
+  }
+  p{ line-height:1.7; font-size:1.02rem; max-width:68ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{
+    font-family:var(--font-mono);
+    font-size:.88em;
+    background:var(--accent-soft);
+    color:var(--ink);
+    padding:.12em .38em;
+    border-radius:4px;
+  }
+
+  /* ---- tabela ---- */
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:480px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{
+    font-family:var(--font-mono);
+    font-size:.72rem;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+    color:var(--ink-muted);
+    font-weight:600;
+  }
+  td.caso{ font-weight:500; }
+  td.antes{ color:var(--ink-muted); text-decoration:line-through; }
+  td.depois{ color:var(--accent); font-weight:600; }
+  td.novo{ color:var(--accent); font-weight:600; }
+
+  /* ---- callout ---- */
+  .callout{
+    margin-top:18px;
+    border:1px solid var(--line);
+    border-left:3px solid var(--accent);
+    background:var(--paper-raised);
+    border-radius:0 10px 10px 0;
+    padding:18px 22px;
+  }
+  .callout.aberto{ border-left-color:var(--sev-aviso); }
+  .callout.recomendado{ border-left-color:var(--accent); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  .pill{
+    font-family:var(--font-mono);
+    font-size:.68rem;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    padding:4px 10px;
+    border-radius:100px;
+    border:1px solid var(--line-strong);
+    color:var(--ink-muted);
+    white-space:nowrap;
+    display:inline-block;
+    margin-bottom:8px;
+  }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.aberto{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+
+  /* ---- mockup do registro posicional ---- */
+  figure.fig{ margin:22px 0 8px; }
+  figcaption{
+    margin-top:10px;
+    font-size:.86rem;
+    color:var(--ink-muted);
+    line-height:1.55;
+  }
+  .campos{
+    display:flex; flex-wrap:wrap; gap:2px;
+    font-family:var(--font-mono); font-size:.72rem;
+    border:1px solid var(--line-strong);
+    border-radius:8px;
+    padding:10px;
+    background:var(--paper-raised);
+  }
+  .campo{
+    padding:5px 7px;
+    border-radius:4px;
+    background:var(--paper);
+    color:var(--ink-muted);
+    white-space:nowrap;
+  }
+  .campo.novo{
+    background:var(--accent);
+    color:var(--on-accent);
+    font-weight:700;
+  }
+  .campo.fim{
+    background:var(--line);
+    color:var(--ink);
+  }
+
+  footer.doc-foot{
+    margin-top:72px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-family:var(--font-mono);
+    font-size:.76rem;
+    color:var(--ink-muted);
+  }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Layout BPA-I 2026: campo novo no registro</h1>
+    <p class="lede">
+      Comparação campo a campo entre <code>data/Layout_Exportacao_BPA_2024.pdf</code> (versão hoje
+      implementada) e <code>data/Layout_Exportacao_BPA_2026.pdf</code> (versão recebida) contra
+      <code>GeradorBPAiService.montarRegistro()</code>. Resultado: <strong>um único campo novo</strong>
+      ao final do registro BPA-I. Nenhuma implementação foi feita ainda — este documento é a base
+      para decidirmos juntos como aplicar a mudança.
+    </p>
+    <div class="meta">
+      <span>Área: <strong>GeradorBPAiService — registro BPA-I</strong></span>
+      <span>Status: <strong>prd_sem_cpf: análise concluída, implementação pendente · Situação de Rua: implementado</strong></span>
+      <span>Data: <strong>23/09/2026</strong></span>
+      <span>Fontes: <strong>data/Layout_Exportacao_BPA_2024.pdf, data/Layout_Exportacao_BPA_2026.pdf</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#contexto">Contexto</a>
+      <a href="#mudanca">O que mudou 2024 → 2026</a>
+      <a href="#correto">O que já está correto</a>
+      <a href="#proposta">Proposta de implementação</a>
+      <a href="#raca">Achado à parte — prd-raca / "99"</a>
+      <a href="#situacao-rua">Situação de Rua — validação na planilha ✓</a>
+    </nav>
+  </header>
+
+  <section id="contexto">
+    <h2>Contexto</h2>
+    <p>
+      O Ministério da Saúde/DATASUS atualizou o layout posicional do arquivo magnético BPA
+      (Boletim de Produção Ambulatorial). Para saber exatamente o que precisa mudar no gerador,
+      os dois PDFs de referência foram comparados <strong>entre si</strong> (2024 vs. 2026), não só
+      cada um isoladamente contra o código — isso isola o que é realmente novidade do que já valia
+      antes.
+    </p>
+    <p>
+      Resultado da comparação: os dois documentos são <strong>idênticos</strong> do campo 1
+      (<code>prd-ident</code>) até o campo <code>prd_situacao_rua</code> (posição 350). A única
+      diferença estrutural entre as duas versões é um campo novo, acrescentado ao final do
+      registro BPA-I.
+    </p>
+  </section>
+
+  <section id="mudanca">
+    <h2>O que mudou 2024 → 2026</h2>
+    <figure class="fig">
+      <div class="campos">
+        <span class="campo">… campos 1–37 (idênticos) …</span>
+        <span class="campo">38 prd_cpf_pcnte (11)</span>
+        <span class="campo">38 prd_situacao_rua (1)</span>
+        <span class="campo novo">39 prd_sem_cpf (1) — NOVO</span>
+        <span class="campo fim">40 prd-fim (CRLF)</span>
+      </div>
+      <figcaption>
+        A numeração "38" duplicada (<code>prd_cpf_pcnte</code> e <code>prd_situacao_rua</code>) já
+        vem assim do próprio PDF oficial nas duas versões — não é erro de transcrição deste
+        runbook.
+      </figcaption>
+    </figure>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Seq</th><th>Nome</th><th>Tam</th><th>Posição</th><th>Formato</th><th>Obrigatório</th><th>Descrição</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">39 (novo)</td>
+            <td class="novo">prd_sem_cpf</td>
+            <td>1</td>
+            <td>351</td>
+            <td>ALFA (<code>N</code> ou <code>S</code>)</td>
+            <td>Não — pode ficar em branco</td>
+            <td>Pessoa sem CPF/Registro Civil. Válido a partir da competência <strong>07/2026</strong>.</td>
+          </tr>
+          <tr>
+            <td class="caso">40</td>
+            <td>prd-fim</td>
+            <td>2</td>
+            <td class="antes">351-352</td>
+            <td colspan="4" class="depois">→ 352-353 (desloca 1 posição)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout recomendado">
+      <p class="kicker">Efeito no tamanho do registro</p>
+      <p>
+        O registro BPA-I passa de <strong>350 caracteres de conteúdo + CRLF = 352 total</strong>
+        para <strong>351 + CRLF = 353 total</strong>. É o único número que muda em todo o layout —
+        header (132 chars) e todos os outros 38 campos do registro permanecem exatamente como
+        estão hoje.
+      </p>
+    </div>
+  </section>
+
+  <section id="correto">
+    <h2>O que já está correto</h2>
+    <p>
+      Conferindo campo a campo, <code>GeradorBPAiService.montarRegistro()</code> já implementa
+      exatamente as posições e tamanhos da versão <strong>2024</strong> do layout, incluindo o
+      campo <code>prd_situacao_rua</code> (posição 350, hoje fixo em <code>"N"</code>). Ou seja: o
+      gerador está correto para o layout anterior — falta só acrescentar o campo novo do 2026, não
+      há nenhuma correção de posição pendente nos campos existentes.
+    </p>
+  </section>
+
+  <section id="proposta">
+    <h2>Proposta de implementação (ainda não aplicada)</h2>
+    <p>
+      Para quando decidirmos seguir com a mudança:
+    </p>
+    <ul class="plain">
+      <li>
+        Acrescentar <code>prd_sem_cpf</code> em <code>montarRegistro()</code>, logo após o
+        <code>prd_situacao_rua</code> existente — mesmo padrão: campo fixo <code>"N"</code>, já
+        que a aplicação não rastreia "pessoa sem CPF/registro civil" no modelo de dados, e o CPF
+        do paciente já é obrigatório na validação de importação (<code>CPF_AUSENTE</code>
+        bloqueante) — este caso não deveria ocorrer na prática.
+      </li>
+      <li>
+        Atualizar o comentário de classe (<code>REGISTRO: 352 caracteres</code> →
+        <code>353 caracteres</code>) e o bloco "Regras de Negócio Principais" do
+        <code>CLAUDE.md</code> (350+CRLF=352 → 351+CRLF=353).
+      </li>
+      <li>
+        Atualizar em <code>CLAUDE.md</code> a referência ao documento de layout — hoje aponta para
+        <code>Layout interface texto do BPA.pdf</code>, arquivo que não existe mais no repositório
+        — para <code>data/Layout_Exportacao_BPA_2026.pdf</code>.
+      </li>
+      <li>
+        Ajustar <code>GeradorBPAiServiceTest</code>: a asserção de tamanho de registro
+        (<code>hasSize(350)</code> → <code>hasSize(351)</code>) e adicionar verificação da posição
+        do novo campo.
+      </li>
+    </ul>
+    <div class="callout aberto">
+      <p class="kicker">Decisão em aberto</p>
+      <p>
+        Nada disso foi implementado ainda — combinamos revisar este runbook primeiro antes de
+        tocar no código.
+      </p>
+    </div>
+  </section>
+
+  <section id="raca">
+    <h2>Achado à parte — <code>prd-raca</code> / "99 Sem informação"</h2>
+    <p>
+      Durante a leitura atenta dos dois PDFs, o campo <code>prd-raca</code> (seq 21) mostra o
+      valor <code>99 Sem informação</code> com formatação de <strong>tachado</strong> — indicando
+      opção descontinuada. Essa marcação já existe <strong>igual nas duas versões</strong> (2024 e
+      2026): não é novidade do layout 2026, é um achado pré-existente que só apareceu porque
+      estávamos auditando o documento com cuidado.
+    </p>
+    <p>
+      <code>GeradorBPAiService.formatarRaca()</code> usa <code>"99"</code> como valor padrão
+      quando a raça do paciente é nula, desconhecida ou não reconhecida:
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <tbody>
+          <tr><td class="caso">Caso 1</td><td><code>raca == null</code></td><td>retorna <code>"99"</code></td></tr>
+          <tr><td class="caso">Caso 2</td><td>raça informada mas não reconhecida (não contém BRANC/PRET/PARD/AMAREL/IND)</td><td>retorna <code>"99"</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Risco, não urgência</p>
+      <p>
+        Se <code>99</code> de fato não é mais aceito pelo SIA/SUS, os dois casos acima podem gerar
+        rejeição do arquivo pelo DATASUS. Como o valor já está marcado como descontinuado desde a
+        versão 2024 (que está em produção hoje), não é uma regressão causada por este runbook —
+        mas vale decidir em algum momento o que colocar no lugar (deixar em branco? outro código
+        de fallback?). Registrado aqui para não se perder; tratar em conversa separada.
+      </p>
+    </div>
+  </section>
+
+  <section id="situacao-rua">
+    <h2>Situação de Rua — validação na planilha <span class="pill ok" style="margin-left:8px;">✓ Implementado</span></h2>
+    <p>
+      Antes, <code>prd_situacao_rua</code> era enviado sempre como <code>"N"</code> — fixo, sem
+      derivar de nenhum dado importado (ver <a href="#proposta">Proposta de implementação</a> desta
+      mesma análise, que trata de um campo diferente — <code>prd_sem_cpf</code> — e continua sem
+      implementação). Como planilhas de diferentes origens variam — algumas já trazem a coluna
+      "Situação de Rua", outras ainda não —, a importação foi preparada para os <strong>dois
+      caminhos</strong>: usa o valor real quando a coluna existe, e mantém o "N" padrão (com
+      aviso explicando o porquê) quando não existe.
+    </p>
+
+    <h3>Caso 1 — coluna ausente da planilha</h3>
+    <p>
+      Reaproveitou o mecanismo que já existia para <code>COD_LOGRADOURO</code>:
+      <code>PlanilhaColumnMapper.CAMPOS_OPCIONAIS</code> agora também contém
+      <code>"SITUACAO_RUA"</code>, e <code>ValidacaoPlanilhaService</code> passou a montar a
+      mensagem do <code>AVISO COLUNA_OPCIONAL_AUSENTE</code> por campo (antes o texto era fixo,
+      escrito só para logradouro).
+    </p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Arquivo</th><th>Mudança</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso"><code>dados/colunas_aliases.csv</code></td>
+            <td>Novo campo canônico <code>SITUACAO_RUA</code> com aliases: "Situação de Rua", "Pessoa em Situação de Rua", "Mora na Rua", "Morador de Rua".</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>PlanilhaColumnMapper.CAMPOS_OPCIONAIS</code></td>
+            <td><code>Set.of("COD_LOGRADOURO", "SITUACAO_RUA")</code>.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>ValidacaoPlanilhaService.mensagemColunaOpcionalAusente(campo)</code></td>
+            <td>Novo método privado — mensagem específica por campo em vez do texto único anterior. Para <code>SITUACAO_RUA</code>: <em>"Coluna 'Situação de Rua' não encontrada no cabeçalho — será considerada vazia. O sistema segue a importação normalmente e a remessa BPA-I usará o valor padrão 'N'... para todos os pacientes desta planilha."</em></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout recomendado">
+      <p class="kicker">✓ Resultado</p>
+      <p>
+        Planilha sem a coluna: importação segue normal, nenhuma mudança de comportamento na
+        geração (continua "N"), e o relatório de "Analisar Planilha" explica o porquê.
+      </p>
+    </div>
+
+    <h3>Caso 2 — coluna presente na planilha</h3>
+    <p>
+      O valor passa a trafegar por toda a cadeia — planilha → validação → persistência → tela →
+      arquivo gerado:
+    </p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Camada</th><th>Mudança aplicada</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">Utilitário novo</td>
+            <td><code>util/SituacaoRuaUtils</code> — <code>normalizar()</code> aceita S/N, Sim/Não, 1/0 (case e acento insensível) e retorna <code>"S"</code>/<code>"N"</code>/<code>null</code>; <code>isInvalido()</code> sinaliza valor presente mas não reconhecido. Reaproveitado tanto por <code>ValidacaoPlanilhaService</code> (análise) quanto por <code>AtendimentoProcessor</code> (importação real) — os dois caminhos reconhecem exatamente os mesmos valores.</td>
+          </tr>
+          <tr>
+            <td class="caso">Modelo de dados — <code>Paciente</code></td>
+            <td>Campo <code>situacaoRua</code> (String, 1 char, nulo = não informado) — mesmo lugar onde já vivem <code>raca</code> e <code>etnia</code>, por ser um atributo do paciente. <code>hibernate.hbm2ddl.auto=update</code> cria a coluna sozinho.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>LinhaImportacaoDTO</code> / <code>ExcelImportService</code></td>
+            <td>Novo campo <code>situacaoRua</code> no DTO, lido via <code>getString(row, colunas, "SITUACAO_RUA")</code>.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>AtendimentoProcessor.normalizarSituacaoRua()</code></td>
+            <td>Valor em branco/ausente: sem aviso, campo fica nulo (fallback "N" na geração). Valor presente mas não reconhecido: <code>AVISO</code> com o texto original e o campo fica nulo mesmo assim.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>ValidacaoPlanilhaService</code> (por linha)</td>
+            <td>Nova regra 5: mesma checagem de <code>SituacaoRuaUtils.isInvalido()</code>, gerando <code>AVISO SITUACAO_RUA_INVALIDA</code> — assim "Analisar Planilha" já mostra o problema antes de importar.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>AtendimentoImportacaoService.buscarOuCriarPaciente()</code></td>
+            <td>Paciente novo: grava <code>situacaoRua</code> como veio (mesmo nulo). Paciente já existente (reimportação): só sobrescreve quando o DTO trouxe um valor não nulo — reimportar uma planilha <strong>sem</strong> a coluna não apaga uma informação já conhecida de uma importação anterior <strong>com</strong> a coluna. Diferente do comportamento de raça/etnia, que sempre sobrescrevem.</td>
+          </tr>
+          <tr>
+            <td class="caso">UI — <code>AtendimentoBPAiDTO</code> / <code>RelatorioController</code></td>
+            <td>Getter <code>getSituacaoRuaPaciente()</code> + nova coluna "Situação de Rua" na tabela, mesmo padrão de Raça/Etnia.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>GeradorBPAiService.montarRegistro()</code></td>
+            <td><code>sb.append("N")</code> fixo virou <code>sb.append(situacaoRua != null ? situacaoRua : "N")</code>, lendo de <code>paciente.getSituacaoRua()</code>.</td>
+          </tr>
+          <tr>
+            <td class="caso">Testes</td>
+            <td><code>AtendimentoProcessorTest</code>, <code>ValidacaoPlanilhaServiceTest</code>, <code>PlanilhaColumnMapperTest</code>, <code>AtendimentoImportacaoServiceTest</code> e <code>GeradorBPAiServiceTest</code> ganharam casos cobrindo coluna ausente, valor reconhecido, valor inválido e preservação em reimportação. <code>mvnw.cmd test</code> passando (225+ testes).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout recomendado">
+      <p class="kicker">✓ Decisões tomadas</p>
+      <p>
+        (1) O campo vive em <code>Paciente</code>, não em <code>AtendimentoBPAi</code> — mesmo
+        critério de raça/etnia (atributo da pessoa, não do encontro). (2) Sem informação (coluna
+        ausente ou célula em branco) sempre vira <code>"N"</code> no arquivo gerado — não espaço em
+        branco — para preservar exatamente o comportamento anterior a esta mudança e não arriscar
+        um formato que o SIA/SUS não tenha testado. (3) Reimportar uma planilha sem a coluna nunca
+        apaga uma situação de rua já conhecida de uma importação anterior.
+      </p>
+    </div>
+
+    <div class="callout">
+      <p class="kicker">Resumo</p>
+      <p>
+        Os dois casos convivem na mesma importação: uma planilha sem a coluna gera aviso e usa
+        "N"; uma planilha com a coluna usa o valor real (com aviso só se o valor for
+        irreconhecível). Não foi preciso escolher um caminho — o sistema segue os dois, que era
+        exatamente o pedido.
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-layout-bpa-2026.html
+  </footer>
+
+</div>

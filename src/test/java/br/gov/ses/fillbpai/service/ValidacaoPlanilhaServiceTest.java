@@ -17,14 +17,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ValidacaoPlanilhaServiceTest {
 
-	/** Cabeçalho com os 25 campos obrigatórios, usando aliases reais de {@code dados/colunas_aliases.csv}. */
+	/** Cabeçalho com os 25 campos obrigatórios + Situação de Rua (opcional), usando aliases reais de {@code dados/colunas_aliases.csv}. */
 	private static final String[] CABECALHO_COMPLETO = {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"Especialidade", "ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
 			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
-			"END. COMPLEMENTOS", "SEXO"
+			"END. COMPLEMENTOS", "SEXO", "Situação de Rua"
 	};
 
 	/** Cabeçalho legado: igual ao completo, mas sem a coluna própria "Especialidade". */
@@ -34,7 +34,7 @@ class ValidacaoPlanilhaServiceTest {
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
 			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
-			"END. COMPLEMENTOS", "SEXO"
+			"END. COMPLEMENTOS", "SEXO", "Situação de Rua"
 	};
 
 	private static final int COL_CPF_PACIENTE = 9;
@@ -42,6 +42,7 @@ class ValidacaoPlanilhaServiceTest {
 	private static final int COL_RACA_PACIENTE = 12;
 	private static final int COL_ETNIA_PACIENTE = 13;
 	private static final int COL_CEP = 20;
+	private static final int COL_SITUACAO_RUA = 25;
 
 	private final ValidacaoPlanilhaService service = new ValidacaoPlanilhaService();
 
@@ -55,7 +56,7 @@ class ValidacaoPlanilhaServiceTest {
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
 				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
-				"APTO 1", "F"
+				"APTO 1", "F", "N"
 		};
 	}
 
@@ -67,7 +68,7 @@ class ValidacaoPlanilhaServiceTest {
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
 				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
-				"APTO 1", "F"
+				"APTO 1", "F", "N"
 		};
 	}
 
@@ -249,11 +250,19 @@ class ValidacaoPlanilhaServiceTest {
 
 	@Test
 	void validarComColunaObrigatoriaAusenteNoCabecalhoParaAntesDeValidarLinhas() throws IOException {
-		String[] cabecalhoIncompleto = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length - 1);
-		String[] linhaComErrosDeLinha = linhaValida();
-		linhaComErrosDeLinha[COL_CEP] = null; // erro que NÃO deve ser reportado, pois a validação para antes
+		List<String> cabecalhoIncompleto = new java.util.ArrayList<>(java.util.Arrays.asList(CABECALHO_COMPLETO));
+		List<String> linhaComErrosDeLinha = new java.util.ArrayList<>(java.util.Arrays.asList(linhaValida()));
 
-		String caminho = salvarPlanilha(cabecalhoIncompleto, linhaComErrosDeLinha);
+		// Remove "SEXO" (obrigatório) — não "Situação de Rua" (opcional, no final do cabeçalho).
+		int indiceSexo = cabecalhoIncompleto.indexOf("SEXO");
+		cabecalhoIncompleto.remove(indiceSexo);
+		linhaComErrosDeLinha.remove(indiceSexo);
+
+		linhaComErrosDeLinha.set(COL_CEP, null); // erro que NÃO deve ser reportado, pois a validação para antes
+
+		String caminho = salvarPlanilha(
+				cabecalhoIncompleto.toArray(new String[0]),
+				linhaComErrosDeLinha.toArray(new String[0]));
 
 		List<ErroValidacao> erros = service.validar(caminho);
 
@@ -280,8 +289,57 @@ class ValidacaoPlanilhaServiceTest {
 		assertThat(erros).anySatisfy(erro -> {
 			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
 			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.COLUNA_OPCIONAL_AUSENTE);
-			assertThat(erro.detalhe()).contains("COD_LOGRADOURO");
+			assertThat(erro.detalhe()).contains("Cód. Logradouro");
 		});
+	}
+
+	@Test
+	void validarComColunaSituacaoRuaAusenteNaoBloqueiaEGeraAvisoColunaOpcionalAusente() throws IOException {
+		List<String> cabecalhoSemSituacaoRua = new java.util.ArrayList<>(java.util.Arrays.asList(CABECALHO_COMPLETO));
+		List<String> linhaSemSituacaoRua = new java.util.ArrayList<>(java.util.Arrays.asList(linhaValida()));
+
+		int indice = cabecalhoSemSituacaoRua.indexOf("Situação de Rua");
+		cabecalhoSemSituacaoRua.remove(indice);
+		linhaSemSituacaoRua.remove(indice);
+
+		String caminho = salvarPlanilha(
+				cabecalhoSemSituacaoRua.toArray(new String[0]),
+				linhaSemSituacaoRua.toArray(new String[0]));
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(ErroValidacao::isBloqueante);
+		assertThat(erros).anySatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.COLUNA_OPCIONAL_AUSENTE);
+			assertThat(erro.detalhe()).contains("Situação de Rua").contains("'N'");
+		});
+	}
+
+	@Test
+	void validarComSituacaoRuaNaoReconhecidaGeraAvisoSituacaoRuaInvalida() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_SITUACAO_RUA] = "TALVEZ";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.SITUACAO_RUA_INVALIDA);
+			assertThat(erro.detalhe()).contains("TALVEZ");
+		});
+	}
+
+	@Test
+	void validarComSituacaoRuaReconhecidaNaoGeraAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_SITUACAO_RUA] = "Sim";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.SITUACAO_RUA_INVALIDA));
 	}
 
 	@Test
@@ -309,7 +367,7 @@ class ValidacaoPlanilhaServiceTest {
 
 		String log = service.gerarLogTxt(erros, "planilha_teste.xlsx");
 
-		assertThat(log).contains("Erros bloqueantes: 1");
+		assertThat(log).contains("Erros: 1");
 		assertThat(log).contains("Avisos: 1");
 		assertThat(log).contains("--- ERROS (impedem a importação) ---");
 		assertThat(log).contains("--- AVISOS (não impedem a importação) ---");

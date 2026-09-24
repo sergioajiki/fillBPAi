@@ -8,6 +8,7 @@ import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.SituacaoRuaUtils;
 
 import java.text.Normalizer;
 import java.time.LocalDate;
@@ -84,6 +85,7 @@ public class AtendimentoProcessor {
 		validarCpf(dto);
 		avisos.addAll(validarCns(dto));
 		avisos.addAll(verificarEtniaDoIndigena(dto));
+		avisos.addAll(normalizarSituacaoRua(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -267,6 +269,33 @@ public class AtendimentoProcessor {
 		} else if (EtniaUtils.resolver(etnia) == null) {
 			avisos.add("Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado");
 		}
+
+		return avisos;
+	}
+
+	/**
+	 * Normaliza a situação de rua do paciente para o código S/N do BPA-I.
+	 * <p>
+	 * Coluna ausente da planilha (valor {@code null}) ou célula em branco:
+	 * sem aviso — {@link br.gov.ses.fillbpai.service.GeradorBPAiService}
+	 * usa o padrão "N" nesse caso. Valor presente mas não reconhecido
+	 * (não é S/N, Sim/Não nem 1/0): aviso, e o campo fica sem valor
+	 * definido (mesmo fallback "N" na geração).
+	 *
+	 * @return lista com o aviso aplicável, ou lista vazia
+	 */
+	private List<String> normalizarSituacaoRua(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+
+		String bruto = dto.getSituacaoRua();
+
+		if (SituacaoRuaUtils.isInvalido(bruto)) {
+			avisos.add("Situacao de rua \"" + bruto.trim()
+					+ "\" nao reconhecida (use Sim/Nao ou S/N) - sera enviado 'N' na remessa");
+		}
+
+		dto.setSituacaoRua(SituacaoRuaUtils.normalizar(bruto));
 
 		return avisos;
 	}

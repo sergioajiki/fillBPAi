@@ -41,6 +41,10 @@ public class Paciente {
 	@Column(name = "telefone", length = 20)
 	private String telefone;
 
+	/** "S"/"N"/nulo — situação de rua (prd_situacao_rua do BPA-I). Nulo = não informado na planilha. */
+	@Column(name = "situacao_rua", length = 1)
+	private String situacaoRua;
+
 	@OneToOne(mappedBy = "paciente", cascade = CascadeType.ALL, orphanRemoval = true)
 	private Endereco endereco;
 
@@ -118,6 +122,14 @@ public class Paciente {
 
 	public void setTelefone(String telefone) {
 		this.telefone = telefone;
+	}
+
+	public String getSituacaoRua() {
+		return situacaoRua;
+	}
+
+	public void setSituacaoRua(String situacaoRua) {
+		this.situacaoRua = situacaoRua;
 	}
 
 	public Endereco getEndereco() {

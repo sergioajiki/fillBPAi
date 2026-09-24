@@ -51,6 +51,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Coluna opcional (ex.: COD_LOGRADOURO) não encontrada no cabeçalho — AVISO, não bloqueia. */
 	public static final String COLUNA_OPCIONAL_AUSENTE = "COLUNA_OPCIONAL_AUSENTE";
 
+	/** Situação de rua preenchida mas com valor não reconhecido (não é S/N, Sim/Não ou 1/0) — AVISO, não bloqueia. */
+	public static final String SITUACAO_RUA_INVALIDA = "SITUACAO_RUA_INVALIDA";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

@@ -1365,6 +1365,9 @@ public class RelatorioController {
 				criarColuna("Etnia",
 						AtendimentoBPAiDTO::getEtniaPaciente),
 
+				criarColuna("Situação de Rua",
+						AtendimentoBPAiDTO::getSituacaoRuaPaciente),
+
 				criarColuna("Nascimento",
 						AtendimentoBPAiDTO::getDataNascimento),
 

@@ -24,7 +24,7 @@ O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de a
 Arquitetura em camadas: `controller → service → repository → model`, com `util`, `dto` e `ui`.
 
 ### Modelo de Dados (normalizado)
-- `Paciente` — chave natural: CPF (único). @OneToOne com Endereco.
+- `Paciente` — chave natural: CPF (único). @OneToOne com Endereco. Campo `situacaoRua` ("S"/"N"/nulo, opcional) — só preenchido quando a planilha traz a coluna "Situação de Rua"; nulo = não informado (a geração do BPA-I usa "N" como padrão nesse caso).
 - `Endereco` — 1:1 com Paciente. Inclui campo `codigoIbge` (7 dígitos).
 - `Medico` — chave natural: CPF (único). Campos: id, cpf, nome.
 - `Estabelecimento` — chave natural: codigo (único). Campos: id, codigo, nome.
@@ -46,6 +46,8 @@ Tipos de AVISO (não bloqueantes):
 - **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização (não bloqueia a importação)
 - **CNS_INCOMUM** — CNS do paciente com mais de 15 dígitos (formato incomum)
 - **RACA_INDIGENA** — raça do paciente informada como Indígena
+- **COLUNA_OPCIONAL_AUSENTE** — coluna opcional (`COD_LOGRADOURO` ou `SITUACAO_RUA`) não encontrada no cabeçalho; mensagem específica por campo (`ValidacaoPlanilhaService.mensagemColunaOpcionalAusente`) explica o fallback usado
+- **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SituacaoRuaUtils`) — será enviado "N" na remessa
 
 O botão **"Analisar Planilha"** (topBar, à esquerda de "Importar Planilha") permite validar sem importar.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
@@ -70,6 +72,7 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 - Seq 10 (prd-cnspac): sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
 - Seq 38 (prd-cpf-pcnte): CPF do paciente, 11 dígitos zero-padded — é aqui, não na seq 10, que o CPF do paciente entra no registro
+- Seq 39 (prd_situacao_rua): usa `paciente.situacaoRua` quando a planilha trouxe a coluna "Situação de Rua"; sem essa informação, mantém o padrão "N" (comportamento anterior à existência da coluna)
 - **Pré-validação obrigatória**: `GeradorBPAiService.validarCnsProfissional()` bloqueia a geração se qualquer atendimento estiver sem CNS do profissional, exibindo relatório com médico/paciente/data de cada ocorrência
 
 ### Layout da UI
