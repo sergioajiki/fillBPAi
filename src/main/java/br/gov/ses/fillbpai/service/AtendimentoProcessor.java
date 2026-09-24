@@ -8,7 +8,7 @@ import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
-import br.gov.ses.fillbpai.util.SituacaoRuaUtils;
+import br.gov.ses.fillbpai.util.SimNaoUtils;
 
 import java.text.Normalizer;
 import java.time.LocalDate;
@@ -86,6 +86,7 @@ public class AtendimentoProcessor {
 		avisos.addAll(validarCns(dto));
 		avisos.addAll(verificarEtniaDoIndigena(dto));
 		avisos.addAll(normalizarSituacaoRua(dto));
+		avisos.addAll(normalizarPacienteSemCpf(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -290,12 +291,41 @@ public class AtendimentoProcessor {
 
 		String bruto = dto.getSituacaoRua();
 
-		if (SituacaoRuaUtils.isInvalido(bruto)) {
+		if (SimNaoUtils.isInvalido(bruto)) {
 			avisos.add("Situacao de rua \"" + bruto.trim()
 					+ "\" nao reconhecida (use Sim/Nao ou S/N) - sera enviado 'N' na remessa");
 		}
 
-		dto.setSituacaoRua(SituacaoRuaUtils.normalizar(bruto));
+		dto.setSituacaoRua(SimNaoUtils.normalizar(bruto));
+
+		return avisos;
+	}
+
+	/**
+	 * Normaliza a informação de "paciente sem CPF/registro civil" (seq 39
+	 * do BPA-I, <code>prd_sem_cpf</code>) para o código S/N.
+	 * <p>
+	 * Coluna ausente da planilha (valor {@code null}) ou célula em branco:
+	 * sem aviso — {@link br.gov.ses.fillbpai.service.GeradorBPAiService}
+	 * deriva o valor automaticamente a partir da presença do CPF do
+	 * paciente nesse caso. Valor presente mas não reconhecido: aviso, e o
+	 * campo fica sem valor definido (mesma derivação automática se aplica).
+	 *
+	 * @return lista com o aviso aplicável, ou lista vazia
+	 */
+	private List<String> normalizarPacienteSemCpf(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+
+		String bruto = dto.getPacienteSemCpf();
+
+		if (SimNaoUtils.isInvalido(bruto)) {
+			avisos.add("Paciente sem CPF \"" + bruto.trim()
+					+ "\" nao reconhecido (use Sim/Nao ou S/N) - o valor sera derivado automaticamente"
+					+ " a partir do CPF informado");
+		}
+
+		dto.setPacienteSemCpf(SimNaoUtils.normalizar(bruto));
 
 		return avisos;
 	}

@@ -3,7 +3,7 @@
 ## Sobre o Projeto
 Aplicação desktop JavaFX que importa dados de atendimentos de saúde de planilhas Excel e gera arquivos magnéticos BPA-I (Boletim de Produção Ambulatorial Individualizada) no formato exigido pelo DATASUS/Ministério da Saúde.
 
-O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de atendimentos no sistema SIA/SUS. O formato BPA-I tem layout posicional rígido (352 chars por registro, incluindo CRLF).
+O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de atendimentos no sistema SIA/SUS. O formato BPA-I tem layout posicional rígido (353 chars por registro, incluindo CRLF — layout 2026, ver `data/Layout_Exportacao_BPA_2026.pdf`).
 
 ## Stack
 - Java 21, JavaFX, JPA/Hibernate (sem Spring Boot)
@@ -28,7 +28,7 @@ Arquitetura em camadas: `controller → service → repository → model`, com `
 - `Endereco` — 1:1 com Paciente. Inclui campo `codigoIbge` (7 dígitos).
 - `Medico` — chave natural: CPF (único). Campos: id, cpf, nome.
 - `Estabelecimento` — chave natural: codigo (único). Campos: id, codigo, nome.
-- `AtendimentoBPAi` — @ManyToOne para Paciente, Medico, Estabelecimento. Campos próprios: tipoServico, sigtap, dataAgendamento, horaAtendimento, especialidadeMedico, cboMedico, cidConsulta, cnsProfissional, cnesNts, codIne, folha.
+- `AtendimentoBPAi` — @ManyToOne para Paciente, Medico, Estabelecimento. Campos próprios: tipoServico, sigtap, dataAgendamento, horaAtendimento, especialidadeMedico, cboMedico, cidConsulta, cnsProfissional, cnesNts, codIne, folha, pacienteSemCpf ("S"/"N"/nulo — ver Geração BPA-I).
 
 ### Validação Pré-Importação
 Antes de importar, a planilha é validada por `ValidacaoPlanilhaService`. Se houver erros bloqueantes, a importação é **impedida** e um relatório de erros é exibido com opção de download em TXT. Avisos não-bloqueantes são exibidos em diálogo separado mas não impedem a importação.
@@ -46,8 +46,9 @@ Tipos de AVISO (não bloqueantes):
 - **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização (não bloqueia a importação)
 - **CNS_INCOMUM** — CNS do paciente com mais de 15 dígitos (formato incomum)
 - **RACA_INDIGENA** — raça do paciente informada como Indígena
-- **COLUNA_OPCIONAL_AUSENTE** — coluna opcional (`COD_LOGRADOURO` ou `SITUACAO_RUA`) não encontrada no cabeçalho; mensagem específica por campo (`ValidacaoPlanilhaService.mensagemColunaOpcionalAusente`) explica o fallback usado
-- **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SituacaoRuaUtils`) — será enviado "N" na remessa
+- **COLUNA_OPCIONAL_AUSENTE** — coluna opcional (`COD_LOGRADOURO`, `SITUACAO_RUA` ou `PACIENTE_SEM_CPF`) não encontrada no cabeçalho; mensagem específica por campo (`ValidacaoPlanilhaService.mensagemColunaOpcionalAusente`) explica o fallback usado
+- **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
+- **PACIENTE_SEM_CPF_INVALIDO** — coluna "Paciente sem CPF" presente mas valor da célula não reconhecido (mesmas regras de `SimNaoUtils`) — valor será derivado automaticamente a partir do CPF do paciente
 
 O botão **"Analisar Planilha"** (topBar, à esquerda de "Importar Planilha") permite validar sem importar.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
@@ -72,7 +73,8 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 - Seq 10 (prd-cnspac): sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
 - Seq 38 (prd-cpf-pcnte): CPF do paciente, 11 dígitos zero-padded — é aqui, não na seq 10, que o CPF do paciente entra no registro
-- Seq 39 (prd_situacao_rua): usa `paciente.situacaoRua` quando a planilha trouxe a coluna "Situação de Rua"; sem essa informação, mantém o padrão "N" (comportamento anterior à existência da coluna)
+- Seq "38" duplicado no layout oficial (prd_situacao_rua): usa `paciente.situacaoRua` quando a planilha trouxe a coluna "Situação de Rua"; sem essa informação, mantém o padrão "N" (comportamento anterior à existência da coluna)
+- Seq 39 (prd_sem_cpf, novo no layout 2026): usa `atendimento.pacienteSemCpf` quando a planilha trouxe a coluna "Paciente sem CPF"; sem essa informação, deriva automaticamente da presença do CPF do paciente (CPF preenchido → "N", CPF vazio → "S") — hoje sempre resulta em "N" na prática, já que CPF vazio já bloqueia a importação (`CPF_AUSENTE`)
 - **Pré-validação obrigatória**: `GeradorBPAiService.validarCnsProfissional()` bloqueia a geração se qualquer atendimento estiver sem CNS do profissional, exibindo relatório com médico/paciente/data de cada ocorrência
 
 ### Layout da UI
@@ -107,12 +109,12 @@ Nota: a atualização de CNS por busca livre em nome parcial (aplicar a todos os
 - Tarefas independentes devem rodar em paralelo quando possível
 
 ## Regras de Negócio Principais
-- Layout BPA-I: campos posicionais com tamanho fixo (350 chars de conteúdo por registro + CRLF = 352)
+- Layout BPA-I: campos posicionais com tamanho fixo (351 chars de conteúdo por registro + CRLF = 353)
 - Header: 132 chars
 - Campos NUM opcionais: brancos quando vazio, zeros à esquerda quando preenchido
 - Campos ALFA: espaços à direita até completar tamanho
 - Codificação do arquivo de saída: ISO-8859-1
-- Documento de referência do layout: `Layout interface texto do BPA.pdf`
+- Documento de referência do layout: `data/Layout_Exportacao_BPA_2026.pdf` (substitui `Layout interface texto do BPA.pdf`, que não existe mais no repositório)
 
 ## Convenções
 - Conventional commits em português

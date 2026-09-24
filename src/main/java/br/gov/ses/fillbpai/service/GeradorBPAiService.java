@@ -31,7 +31,7 @@ import java.nio.charset.StandardCharsets;
  * 132 caracteres (MANTIDO INALTERADO)
  * <p>
  * REGISTRO:
- * 352 caracteres
+ * 353 caracteres
  * <p>
  * Layout oficial do Ministério da Saúde
  * <p>
@@ -493,7 +493,7 @@ public class GeradorBPAiService {
 	/**
 	 * ============================================================
 	 * REGISTRO BPA-I COMPLETO
-	 * 352 caracteres
+	 * 353 caracteres
 	 * seq 1 até seq 40
 	 * ============================================================
 	 */
@@ -757,8 +757,8 @@ public class GeradorBPAiService {
 		sb.append(padLeftZeros(cpfPacienteNum, 11));
 
 		/**
-		 * seq 39 - prd_situacao_rua (numeração "38" duplicada no PDF oficial;
-		 * ver docs/runbook-layout-bpa-2026.html)
+		 * seq "38" duplicado no PDF oficial - prd_situacao_rua
+		 * (ver docs/runbook-layout-bpa-2026.html)
 		 * ALFA, 1 char, valores: N ou S.
 		 * Usa o valor informado na planilha (paciente.situacaoRua) quando
 		 * disponível; sem essa informação, mantém o padrão "N" — mesmo
@@ -766,6 +766,22 @@ public class GeradorBPAiService {
 		 */
 		String situacaoRua = paciente != null ? paciente.getSituacaoRua() : null;
 		sb.append(situacaoRua != null ? situacaoRua : "N");
+
+		/**
+		 * seq 39 - prd_sem_cpf (novo no layout 2026 — ver
+		 * docs/runbook-layout-bpa-2026.html)
+		 * ALFA, 1 char, valores: N ou S.
+		 * Usa o valor informado na planilha (atendimento.pacienteSemCpf)
+		 * quando disponível; sem essa informação, deriva automaticamente da
+		 * presença do CPF do paciente — CPF preenchido -> "N", CPF vazio ->
+		 * "S". Hoje sempre resulta em "N" na prática, já que CPF vazio já
+		 * bloqueia a importação (CPF_AUSENTE) antes de chegar aqui.
+		 */
+		String pacienteSemCpf = a.getPacienteSemCpf();
+		if (pacienteSemCpf == null) {
+			pacienteSemCpf = cpfPacienteNum.isEmpty() ? "S" : "N";
+		}
+		sb.append(pacienteSemCpf);
 
 		/**
 		 * seq 40 - prd-fim

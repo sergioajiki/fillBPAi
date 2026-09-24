@@ -54,6 +54,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Situação de rua preenchida mas com valor não reconhecido (não é S/N, Sim/Não ou 1/0) — AVISO, não bloqueia. */
 	public static final String SITUACAO_RUA_INVALIDA = "SITUACAO_RUA_INVALIDA";
 
+	/** "Paciente sem CPF" preenchido mas com valor não reconhecido (não é S/N, Sim/Não ou 1/0) — AVISO, não bloqueia. */
+	public static final String PACIENTE_SEM_CPF_INVALIDO = "PACIENTE_SEM_CPF_INVALIDO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

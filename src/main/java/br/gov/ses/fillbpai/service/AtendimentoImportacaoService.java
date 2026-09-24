@@ -239,6 +239,7 @@ public class AtendimentoImportacaoService {
 		atendimento.setEspecialidadeMedico(dto.getEspecialidadeMedico());
 		atendimento.setCboMedico(dto.getCboMedico());
 		atendimento.setCidConsulta(dto.getCidConsulta());
+		atendimento.setPacienteSemCpf(dto.getPacienteSemCpf());
 
 		// ==============================
 		// Herança de folha para novos atendimentos

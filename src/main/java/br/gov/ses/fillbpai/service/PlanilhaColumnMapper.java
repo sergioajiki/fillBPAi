@@ -32,7 +32,8 @@ public class PlanilhaColumnMapper {
 	 * default válido ("081" — Rua) quando nenhum código é resolvido, então a
 	 * ausência desta coluna nunca produz um registro inválido.
 	 */
-	private static final Set<String> CAMPOS_OPCIONAIS = Set.of("COD_LOGRADOURO", "SITUACAO_RUA");
+	private static final Set<String> CAMPOS_OPCIONAIS =
+			Set.of("COD_LOGRADOURO", "SITUACAO_RUA", "PACIENTE_SEM_CPF");
 
 	/**
 	 * Resultado do mapeamento de um cabeçalho.

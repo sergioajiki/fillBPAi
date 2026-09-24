@@ -5,7 +5,7 @@ import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
-import br.gov.ses.fillbpai.util.SituacaoRuaUtils;
+import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
 import org.apache.poi.ss.usermodel.*;
@@ -34,8 +34,9 @@ import java.util.Map;
  *   <li>CNS do paciente com mais de 15 dígitos: AVISO (não bloqueia)</li>
  *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
  *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
- *   <li>Coluna opcional (ex.: COD_LOGRADOURO, SITUACAO_RUA) ausente do cabeçalho: AVISO (não bloqueia)</li>
+ *   <li>Coluna opcional (ex.: COD_LOGRADOURO, SITUACAO_RUA, PACIENTE_SEM_CPF) ausente do cabeçalho: AVISO (não bloqueia)</li>
  *   <li>Situação de rua preenchida mas não reconhecida (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
+ *   <li>Paciente sem CPF preenchido mas não reconhecido (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
  * </ul>
  *
  * @see ErroValidacao
@@ -225,11 +226,25 @@ public class ValidacaoPlanilhaService {
 		// ausência da própria coluna já é avisada uma única vez em
 		// reportarEstrutura()). AVISO, não bloqueia.
 		// -------------------------------------------------------
-		if (SituacaoRuaUtils.isInvalido(dto.getSituacaoRua())) {
+		if (SimNaoUtils.isInvalido(dto.getSituacaoRua())) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.SITUACAO_RUA_INVALIDA,
 					"Situacao de rua \"" + dto.getSituacaoRua().trim()
 							+ "\" nao reconhecida (use Sim/Nao ou S/N) - sera enviado 'N' na remessa"));
+		}
+
+		// -------------------------------------------------------
+		// Regra 6: Paciente sem CPF/Registro Civil — valor presente mas não
+		// reconhecido (coluna ausente ou célula em branco não geram aviso
+		// aqui — nesse caso o valor é derivado automaticamente a partir do
+		// CPF do paciente na geração do BPA-I). AVISO, não bloqueia.
+		// -------------------------------------------------------
+		if (SimNaoUtils.isInvalido(dto.getPacienteSemCpf())) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.PACIENTE_SEM_CPF_INVALIDO,
+					"Paciente sem CPF \"" + dto.getPacienteSemCpf().trim()
+							+ "\" nao reconhecido (use Sim/Nao ou S/N) - o valor sera derivado"
+							+ " automaticamente a partir do CPF informado"));
 		}
 	}
 
@@ -310,6 +325,11 @@ public class ValidacaoPlanilhaService {
 			case "SITUACAO_RUA" -> "Coluna \"Situação de Rua\" não encontrada no cabeçalho — será considerada "
 					+ "vazia. O sistema segue a importação normalmente e a remessa BPA-I usará o valor padrão "
 					+ "'N' (não está em situação de rua) para todos os pacientes desta planilha.";
+
+			case "PACIENTE_SEM_CPF" -> "Coluna \"Paciente sem CPF\" não encontrada no cabeçalho — será "
+					+ "considerada vazia. O sistema segue a importação normalmente e a remessa BPA-I "
+					+ "derivará o valor automaticamente a partir do CPF do paciente: 'N' quando o CPF "
+					+ "estiver preenchido, 'S' quando estiver vazio.";
 
 			default -> "Coluna \"" + campo + "\" não encontrada no cabeçalho — será considerada vazia. "
 					+ "O sistema segue a importação normalmente.";

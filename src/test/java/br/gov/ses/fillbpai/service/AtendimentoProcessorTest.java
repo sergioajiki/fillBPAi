@@ -371,6 +371,41 @@ class AtendimentoProcessorTest {
 		assertThat(dto.getSituacaoRua()).isNull();
 	}
 
+	// ===== PACIENTE SEM CPF (aviso, não bloqueia) =====
+
+	@Test
+	void processarSemColunaDePacienteSemCpfNaoGeraAvisoEDeixaCampoNulo() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setPacienteSemCpf(null);
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).isEmpty();
+		assertThat(dto.getPacienteSemCpf()).isNull();
+	}
+
+	@Test
+	void processarNormalizaPacienteSemCpfPorExtensoParaCodigoDeUmaLetra() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setPacienteSemCpf("Sim");
+
+		processor.processar(dto);
+
+		assertThat(dto.getPacienteSemCpf()).isEqualTo("S");
+	}
+
+	@Test
+	void processarComPacienteSemCpfNaoReconhecidoGeraAvisoMasNaoBloqueiaEDeixaCampoNulo() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setPacienteSemCpf("TALVEZ");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).anySatisfy(a -> assertThat(a)
+				.contains("TALVEZ").contains("nao reconhecido"));
+		assertThat(dto.getPacienteSemCpf()).isNull();
+	}
+
 	// ===== CONVERSÃO DE DATA/HORA =====
 
 	@Test

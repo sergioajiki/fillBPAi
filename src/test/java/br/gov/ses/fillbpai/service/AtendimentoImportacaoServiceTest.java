@@ -230,6 +230,37 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarSemColunaPacienteSemCpfDeixaCampoNuloNoAtendimento() throws IOException {
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+
+		service.importar(caminho);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getPacienteSemCpf()).isNull();
+	}
+
+	@Test
+	void importarComColunaPacienteSemCpfPersisteValorNormalizadoNoAtendimento() throws IOException {
+
+		String[] cabecalhoComColuna = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalhoComColuna[CABECALHO_COMPLETO.length] = "Paciente sem CPF";
+
+		String[] linha = java.util.Arrays.copyOf(
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 1);
+		linha[CABECALHO_COMPLETO.length] = "Sim";
+
+		String caminho = salvarPlanilha(cabecalhoComColuna, linha);
+
+		service.importar(caminho);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getPacienteSemCpf()).isEqualTo("S");
+	}
+
+	@Test
 	void importarPlanilhaLegadoSeparaEspecialidadeEMedicoAoPersistir() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_LEGADO,

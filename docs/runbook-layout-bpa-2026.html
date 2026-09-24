@@ -255,8 +255,8 @@
     </p>
     <div class="meta">
       <span>Área: <strong>GeradorBPAiService — registro BPA-I</strong></span>
-      <span>Status: <strong>prd_sem_cpf: análise concluída, implementação pendente · Situação de Rua: implementado</strong></span>
-      <span>Data: <strong>23/09/2026</strong></span>
+      <span>Status: <strong>prd_sem_cpf: implementado (Opção C) · Situação de Rua: implementado</strong></span>
+      <span>Data: <strong>23/09/2026 (criação) · 24/09/2026 (boletim SIASUS + implementação)</strong></span>
       <span>Fontes: <strong>data/Layout_Exportacao_BPA_2024.pdf, data/Layout_Exportacao_BPA_2026.pdf</strong></span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -264,6 +264,8 @@
       <a href="#mudanca">O que mudou 2024 → 2026</a>
       <a href="#correto">O que já está correto</a>
       <a href="#proposta">Proposta de implementação</a>
+      <a href="#sem-cpf-verificacao">prd_sem_cpf — como verificar na planilha</a>
+      <a href="#boletim-siasus">Boletim de versões SIASUS — achados</a>
       <a href="#raca">Achado à parte — prd-raca / "99"</a>
       <a href="#situacao-rua">Situação de Rua — validação na planilha ✓</a>
     </nav>
@@ -343,48 +345,335 @@
   <section id="correto">
     <h2>O que já está correto</h2>
     <p>
-      Conferindo campo a campo, <code>GeradorBPAiService.montarRegistro()</code> já implementa
+      Conferindo campo a campo, <code>GeradorBPAiService.montarRegistro()</code> já implementava
       exatamente as posições e tamanhos da versão <strong>2024</strong> do layout, incluindo o
-      campo <code>prd_situacao_rua</code> (posição 350, hoje fixo em <code>"N"</code>). Ou seja: o
-      gerador está correto para o layout anterior — falta só acrescentar o campo novo do 2026, não
-      há nenhuma correção de posição pendente nos campos existentes.
+      campo <code>prd_situacao_rua</code>. O campo novo do 2026 (<code>prd_sem_cpf</code>) foi
+      acrescentado — ver <a href="#sem-cpf-verificacao">seção de implementação</a> abaixo — sem
+      nenhuma correção de posição necessária nos campos existentes.
     </p>
   </section>
 
   <section id="proposta">
-    <h2>Proposta de implementação (ainda não aplicada)</h2>
+    <h2>Proposta de implementação <span class="pill ok">✓ Implementado</span></h2>
+    <ul class="plain">
+      <li>
+        A lógica de valor de <code>prd_sem_cpf</code> está detalhada na seção
+        <a href="#sem-cpf-verificacao">"prd_sem_cpf — como verificar na planilha"</a> abaixo
+        (coluna opcional real + derivação automática como fallback).
+      </li>
+      <li>
+        Comentário de classe atualizado (<code>REGISTRO: 352 caracteres</code> →
+        <code>353 caracteres</code>, em dois lugares) e bloco "Regras de Negócio Principais" do
+        <code>CLAUDE.md</code> atualizado (350+CRLF=352 → 351+CRLF=353).
+      </li>
+      <li>
+        Referência ao documento de layout em <code>CLAUDE.md</code> atualizada de
+        <code>Layout interface texto do BPA.pdf</code> (arquivo que não existe mais no
+        repositório) para <code>data/Layout_Exportacao_BPA_2026.pdf</code>.
+      </li>
+      <li>
+        <code>GeradorBPAiServiceTest</code> ajustado: asserção de tamanho de registro
+        (<code>hasSize(350)</code> → <code>hasSize(351)</code>) e novas asserções cobrindo a
+        posição do campo novo (derivação automática e valor vindo da planilha).
+      </li>
+    </ul>
+  </section>
+
+  <section id="sem-cpf-verificacao">
+    <h2>prd_sem_cpf — como verificar na planilha (sugestões, nada implementado)</h2>
     <p>
-      Para quando decidirmos seguir com a mudança:
+      Mesma pergunta que resolvemos para <code>prd_situacao_rua</code>: em vez de mandar sempre
+      <code>"N"</code>, checar se a planilha traz uma coluna própria informando se a pessoa não tem
+      CPF/registro civil, e usar o valor real quando existir. A diferença importante em relação à
+      Situação de Rua é que <strong>o CPF já é obrigatório e é a chave natural do paciente</strong>
+      neste sistema (<code>Paciente.cpf</code>, <code>unique = true, nullable = false</code>;
+      <code>CPF_AUSENTE</code> bloqueia a importação hoje) — então "pessoa sem CPF" não é só mais um
+      dado a carregar, é uma informação que pode entrar em conflito com uma regra que já existe.
+    </p>
+
+    <div class="callout aberto">
+      <p class="kicker">Atualização — ver <a href="#boletim-siasus">boletim de versões SIASUS</a></p>
+      <p>
+        O boletim oficial de versões do SIASUS (analisado abaixo) revela que
+        <code>prd_sem_cpf</code> não é um traço genérico do paciente — é uma <strong>exceção ligada
+        ao procedimento</strong> (atributo "058 - Obrigatório CPF" da Tabela SIGTAP). Isso mudaria a
+        avaliação se o cenário fosse real no dia a dia — mas o fluxo operacional descrito pelo
+        usuário (CPF sempre presente nos atendimentos do Núcleo) torna a questão pouco relevante na
+        prática. Ver a <strong>Opção C</strong>, adicionada abaixo, e a conclusão ao final da seção
+        do boletim.
+      </p>
+    </div>
+
+    <h3>Opção A — Sinalizador independente (mesmo padrão da Situação de Rua)</h3>
+    <p>
+      Reaproveita tudo que já foi construído: <code>CAMPOS_OPCIONAIS</code> ganha
+      <code>"CPF_REGISTRO_CIVIL_AUSENTE"</code> (ou nome parecido), aliases em
+      <code>colunas_aliases.csv</code> (ex.: "Sem CPF", "Sem CPF/Registro Civil", "Pessoa sem
+      Documento"), utilitário S/N (reaproveitando ou copiando <code>SituacaoRuaUtils</code>), novo
+      campo em <code>Paciente</code>, nova coluna na tabela, e
+      <code>GeradorBPAiService</code> lendo o valor real em vez do <code>"N"</code> fixo.
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Ponto</th><th>Como fica</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">Validação de CPF</td>
+            <td><strong>Não muda.</strong> <code>CPF_AUSENTE</code> continua bloqueante para toda linha, independente do valor desta nova coluna.</td>
+          </tr>
+          <tr>
+            <td class="caso">Coluna ausente da planilha</td>
+            <td>Mesmo tratamento de hoje: aviso <code>COLUNA_OPCIONAL_AUSENTE</code> (com o banner já implementado), remessa usa <code>"N"</code>.</td>
+          </tr>
+          <tr>
+            <td class="caso">Coluna presente, linha com CPF preenchido e a coluna diz "S"</td>
+            <td>Registro sai com <code>prd_sem_cpf = "S"</code> mesmo tendo CPF preenchido — o layout permite (a checagem "CPF ou CNS, nunca os dois" é sobre <em>identificação</em>, não sobre este campo), mas é uma contradição de dado que ninguém vai avisar sobre.</td>
+          </tr>
+          <tr>
+            <td class="caso">Coluna presente, linha SEM CPF preenchido</td>
+            <td><code>CPF_AUSENTE</code> bloqueia do mesmo jeito que bloqueia hoje — o paciente real "sem CPF" continua impossível de importar. A coluna nova não resolve o cenário que dá nome a ela.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <p class="kicker">Em uma frase</p>
+      <p>
+        A Opção A implementa literalmente o campo do layout (uma marcação S/N que viaja até o
+        arquivo), mas não muda quem consegue ser importado — é cosmética em relação ao problema de
+        fundo ("como lidar com paciente sem CPF").
+      </p>
+    </div>
+
+    <h3>Opção B — CPF condicionalmente obrigatório (identificação por CNS)</h3>
+    <p>
+      Quando a coluna diz "S" para uma linha, <code>CPF_AUSENTE</code> deixa de bloquear
+      <strong>só aquela linha</strong>, e o paciente passa a ser identificado por CNS — o que o
+      próprio layout já prevê ("identificar o paciente por apenas um documento: ou o CPF ou o
+      CNS"). Mudanças estruturais necessárias:
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Camada</th><th>Mudança</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso"><code>Paciente</code> (modelo)</td>
+            <td><code>cpf</code> precisa virar opcional (<code>nullable = true</code>), com <code>cns</code> assumindo o papel de chave alternativa quando <code>cpf</code> for nulo. Chave natural deixa de ser só CPF.</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>PacienteRepository.buscarPorCpf</code></td>
+            <td>Precisa de um caminho irmão <code>buscarPorCns</code>, e <code>buscarOuCriarPaciente</code> escolhe qual usar conforme a linha tem ou não CPF — mesma ideia que <code>buscarOuCriarMedico</code> já usa para médico sem CPF (chave sintética <code>"SEM_CPF_" + System.nanoTime()</code>), mas de um jeito que sobreviva a reimportação (a chave sintética do médico <strong>não</strong> sobrevive — cada reimportação sem CPF de médico cria um médico novo; não dá pra repetir esse padrão aqui sem duplicar pacientes a cada import).</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>ValidacaoPlanilhaService</code> / <code>AtendimentoProcessor</code></td>
+            <td><code>CPF_AUSENTE</code> vira condicional: bloqueia só quando a coluna "sem CPF" não diz "S" <em>e</em> o CNS também está ausente (sem nenhum documento, a linha continua inválida).</td>
+          </tr>
+          <tr>
+            <td class="caso"><code>GeradorBPAiService.montarRegistro()</code></td>
+            <td>Seq 10 (<code>prd-cnspac</code>) hoje é <strong>sempre</strong> 15 espaços em branco (CLAUDE.md) — precisaria passar a receber o CNS do paciente exatamente nos casos em que ele não tem CPF, senão o registro sai sem nenhum identificador de paciente. Seq 38 (<code>prd_cpf_pcnte</code>) passa a ser zero-padded só quando há CPF; sem CPF, fica em branco.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Por que isso é um projeto à parte, não um ajuste do layout 2026</p>
+      <p>
+        A Opção B muda a chave natural de <code>Paciente</code> — a base de praticamente todo o
+        resto do sistema (findOrCreate, dedup de atendimento, geração de folha, tela de edição por
+        médico/paciente). É uma mudança estrutural com superfície de risco bem maior do que
+        qualquer outra desta análise, e vale uma decisão de negócio explícita: o Núcleo de
+        Telessaúde de fato atende pessoas sem CPF hoje e precisa importá-las, ou o cenário é
+        teórico (a planilha de origem já exige CPF antes de chegar aqui)?
+      </p>
+    </div>
+
+    <h3>Opção C — Derivar direto do próprio campo CPF, como fallback quando não há coluna dedicada</h3>
+    <p>
+      Contexto adicional do usuário: no Núcleo de Telessaúde, todo atendimento é feito com CPF (é
+      como o cadastro do paciente funciona na prática), e o conjunto de códigos SIGTAP usados é
+      pequeno e estável. Nessas condições, o valor de <code>prd_sem_cpf</code> pode ser
+      <strong>derivado diretamente</strong> do campo CPF que a planilha já traz, sem precisar de
+      nenhuma coluna nova. Na versão final (callout "✓ Implementado" ao fim desta seção), esta
+      derivação virou o <em>fallback</em> usado quando a planilha não traz a coluna dedicada,
+      combinando as duas ideias.
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>CPF do paciente (já existente)</th><th><code>prd_sem_cpf</code></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Preenchido (após normalização, não vazio)</td><td><code>"N"</code></td></tr>
+          <tr><td>Vazio/ausente</td><td><code>"S"</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Por que a branch "S" nunca dispara hoje — e por que implementar mesmo assim</p>
+      <p>
+        <code>CPF_AUSENTE</code> já bloqueia qualquer linha com CPF vazio antes de chegar à geração
+        — então, sob as regras de validação atuais, <code>paciente.getCpf()</code> nunca chega vazio
+        em <code>montarRegistro()</code>, e esta derivação sempre resulta em <code>"N"</code> na
+        prática. Mesmo assim, vale implementar como derivação (não como constante fixa
+        <code>"N"</code>): é o mesmo esforço de código, documenta a regra correta do layout
+        (em vez de um valor arbitrário), e passa a funcionar sozinha, sem exigir nova mudança, se um
+        dia a validação de CPF for flexibilizada (Opção B) ou se um caso real de paciente sem CPF
+        aparecer.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <p class="kicker">✓ Implementado — versão final: Opção C + coluna real (híbrido)</p>
+      <p>
+        A implementação final combina o melhor dos dois mundos, a pedido do usuário: a coluna
+        opcional <code>PACIENTE_SEM_CPF</code> foi criada de verdade (mesmo mecanismo de
+        <code>SITUACAO_RUA</code> — aliases, <code>CAMPOS_OPCIONAIS</code>, aviso
+        <code>COLUNA_OPCIONAL_AUSENTE</code> com mensagem própria, aviso
+        <code>PACIENTE_SEM_CPF_INVALIDO</code> por linha), e quando ela não existe na planilha, a
+        Opção C entra como <strong>fallback automático</strong> em
+        <code>GeradorBPAiService.montarRegistro()</code>: deriva "N"/"S" a partir da presença do
+        CPF do paciente. O valor persiste em <code>AtendimentoBPAi.pacienteSemCpf</code> (por
+        atendimento, não por paciente — coerente com o achado do boletim de que a exceção é ligada
+        ao procedimento, não a um traço fixo da pessoa). A Opção B (identificação por CNS) segue
+        registrada acima como projeto separado, para o dia em que houver um caso real de paciente
+        sem CPF a importar.
+      </p>
+    </div>
+  </section>
+
+  <section id="boletim-siasus">
+    <h2>Boletim de versões SIASUS — achados</h2>
+    <p>
+      O usuário trouxe o boletim oficial de notas de versão do SIASUS (suporte técnico DATASUS).
+      Quatro versões recentes têm relevância direta para este projeto — analisadas na ordem em que
+      aparecem no boletim, da mais recente à mais antiga.
+    </p>
+
+    <h3>Versão 05.00 (07/07/2026, obrigatória) — a origem de <code>prd_sem_cpf</code></h3>
+    <blockquote style="margin:0 0 14px; padding:10px 16px; border-left:3px solid var(--line-strong); color:var(--ink-muted); font-size:.92rem; font-style:italic;">
+      "Implementar criar campo Pessoa sem CPF/Registro Civil ('SIM/NÃO'), novo campo para tratar as
+      exceções diante da exigência do CPF dos procedimentos identificados com o atributo
+      complementar '058 - Obrigatório CPF', na Tabela de Procedimentos do SUS."
+    </blockquote>
+    <p>
+      Isto confirma e refina o que a seção anterior levantava por dedução: <code>prd_sem_cpf</code>
+      não é "este paciente, de modo geral, não tem CPF" — é <strong>"este procedimento específico
+      exige CPF (atributo 058 da tabela SIGTAP), e este paciente é uma exceção"</strong>. A
+      obrigatoriedade de CPF é uma propriedade do <em>procedimento</em>, não do paciente. Duas
+      consequências práticas:
     </p>
     <ul class="plain">
       <li>
-        Acrescentar <code>prd_sem_cpf</code> em <code>montarRegistro()</code>, logo após o
-        <code>prd_situacao_rua</code> existente — mesmo padrão: campo fixo <code>"N"</code>, já
-        que a aplicação não rastreia "pessoa sem CPF/registro civil" no modelo de dados, e o CPF
-        do paciente já é obrigatório na validação de importação (<code>CPF_AUSENTE</code>
-        bloqueante) — este caso não deveria ocorrer na prática.
+        O campo é conceitualmente mais próximo de um dado <strong>por atendimento</strong> (a
+        exceção vale para aquele procedimento, naquele registro) do que de um dado
+        <strong>por paciente</strong> — diferente de raça/etnia/situação de rua, que são traços
+        estáveis da pessoa. Guardar em <code>Paciente</code> (como sugerido na Opção A) ainda
+        funciona tecnicamente, mas descreve errado o que o dado representa.
       </li>
       <li>
-        Atualizar o comentário de classe (<code>REGISTRO: 352 caracteres</code> →
-        <code>353 caracteres</code>) e o bloco "Regras de Negócio Principais" do
-        <code>CLAUDE.md</code> (350+CRLF=352 → 351+CRLF=353).
-      </li>
-      <li>
-        Atualizar em <code>CLAUDE.md</code> a referência ao documento de layout — hoje aponta para
-        <code>Layout interface texto do BPA.pdf</code>, arquivo que não existe mais no repositório
-        — para <code>data/Layout_Exportacao_BPA_2026.pdf</code>.
-      </li>
-      <li>
-        Ajustar <code>GeradorBPAiServiceTest</code>: a asserção de tamanho de registro
-        (<code>hasSize(350)</code> → <code>hasSize(351)</code>) e adicionar verificação da posição
-        do novo campo.
+        A nota final do boletim — <em>"Registros com crítica, não são exportados para o SIA"</em> —
+        é um alerta direto: preencher esse campo errado não gera um erro visível na hora, o
+        registro é descartado silenciosamente no processamento do DATASUS. Reforça que qualquer
+        implementação aqui precisa ser conservadora (não impede a Opção A por precaução, é motivo
+        para não adivinhar a regra).
       </li>
     </ul>
+
+    <h3>Versão 04.14 (22/05/2026, obrigatória) — CPF obrigatório x CNS obrigatório</h3>
+    <blockquote style="margin:0 0 14px; padding:10px 16px; border-left:3px solid var(--line-strong); color:var(--ink-muted); font-size:.92rem; font-style:italic;">
+      "Implementar validação no BPA para os atributos 'CPF obrigatório' e 'CNS obrigatório' dos
+      procedimentos. Quando o atributo 'CPF obrigatório', o sistema deve aceitar apenas o CPF como
+      forma de identificação do paciente. Quando o atributo 'CNS obrigatório', o sistema deve
+      aceitar tanto o CNS quanto o CPF para identificação."
+    </blockquote>
+    <p>
+      Cada procedimento SIGTAP carrega um atributo de identificação exigida — não é uma regra
+      única para toda a planilha. Como este sistema <strong>sempre</strong> envia CPF (seq 38) e
+      <strong>nunca</strong> envia CNS do paciente (seq 10, sempre em branco — ver
+      <code>GeradorBPAiService</code>, comportamento documentado no <code>CLAUDE.md</code>), o caso
+      "CNS obrigatório" já está coberto hoje (CPF também é aceito). O único caso não coberto é
+      exatamente "CPF obrigatório" + paciente sem CPF — que é o cenário que <code>prd_sem_cpf</code>
+      existe para resolver, e que hoje termina bloqueado por <code>CPF_AUSENTE</code> antes mesmo de
+      chegar à geração do arquivo.
+    </p>
     <div class="callout aberto">
-      <p class="kicker">Decisão em aberto</p>
+      <p class="kicker">Pergunta em aberto — atributos do SIGTAP não são modelados aqui</p>
       <p>
-        Nada disso foi implementado ainda — combinamos revisar este runbook primeiro antes de
-        tocar no código.
+        Este sistema não importa nem consulta a Tabela de Procedimentos do SUS (SIGTAP) — os
+        códigos SIGTAP usados são fixos por tipo de serviço
+        (<code>TELECONSULTA → 03.01.01.030-7</code>, <code>TELEINTERCONSULTA → 08.04.01.006-4</code>,
+        NUTRICIONISTA/PSICÓLOGO forçado para <code>0301010315</code>). Não sabemos, sem consultar a
+        tabela oficial, se esses códigos específicos carregam o atributo "058 - Obrigatório CPF".
+        Se nenhum carregar, o cenário de <code>prd_sem_cpf</code> é teórico para este sistema hoje
+        (nunca dispararia na prática); se algum carregar, a Opção A sozinha não seria suficiente —
+        o paciente sem CPF continuaria bloqueado antes de chegar à geração.
+      </p>
+    </div>
+
+    <h3>Versão 04.13 (05/05/2026, obrigatória) — janela de competência retroativa</h3>
+    <blockquote style="margin:0 0 14px; padding:10px 16px; border-left:3px solid var(--line-strong); color:var(--ink-muted); font-size:.92rem; font-style:italic;">
+      "Ajustar a crítica de quantidade máxima por CPF/CNS e da data de registro do procedimento.
+      Implementada regra Data de realização do procedimento para a competência atual até 3
+      competências anteriores."
+    </blockquote>
+    <p>
+      Não relacionado a <code>prd_sem_cpf</code>, mas relevante à parte: atendimentos com data mais
+      de 3 competências anteriores à competência de envio podem ser rejeitados pelo DATASUS. Este
+      sistema hoje sempre gera o BPA-I filtrando por competência exata
+      (<code>YEAR/MONTH(dataAgendamento)</code> igual à competência selecionada — ver
+      <code>GeradorBPAiService</code>), então essa regra só se torna um risco se um atendimento for
+      importado e gerado muito tempo depois de ocorrer. Não há validação hoje que avise o usuário
+      disso — fica registrado como achado à parte, sem ação proposta nesta análise.
+    </p>
+
+    <h3>Versão 04.11 (23/01/2026, obrigatória competência 01/2026) — sexo "I" (indeterminado)</h3>
+    <blockquote style="margin:0 0 14px; padding:10px 16px; border-left:3px solid var(--line-strong); color:var(--ink-muted); font-size:.92rem; font-style:italic;">
+      "Incluir 'I' como opção válida para sexo indeterminado, conforme padrão Cartão Nacional de
+      Saúde (CNS). Atualizar tabela de referência para: F - Feminino, M - Masculino, I -
+      Indeterminado."
+    </blockquote>
+    <div class="callout recomendado">
+      <p class="kicker">✓ Já implementado — nenhuma ação necessária</p>
+      <p>
+        <code>AtendimentoProcessor.normalizarSexo()</code> já aceita <code>"I"</code>/"Indeterminado"
+        e normaliza para o código de uma letra; <code>GeradorBPAiService.montarRegistro()</code> já
+        grava o valor do paciente em vez de um fallback fixo. O sistema está alinhado com esta regra
+        desde antes deste boletim ser lido.
+      </p>
+    </div>
+    <p>
+      Vale notar: os dois PDFs de layout (<a href="#mudanca">2024 e 2026</a>) documentam
+      <code>prd-sexo</code> só como "M ou F" — não mencionam "I". Este boletim de versões (uma fonte
+      diferente, mais recente em pontos específicos) é quem revela essa regra. Mesmo padrão do
+      achado sobre <a href="#raca">"99 Sem informação"</a> em raça: o PDF de layout posicional
+      sozinho não é a fonte completa das regras de validação do SIASUS — vale considerar consultar
+      os boletins de versão como fonte complementar antes de decisões de compliance.
+    </p>
+
+    <h3>Versão 04.12 (16/04/2026) — fora do escopo</h3>
+    <p>
+      "Ajuste na rotina de importação do BDSIA" — refere-se à ferramenta de importação do próprio
+      DATASUS (BDSIA), não a este sistema. Sem impacto aqui.
+    </p>
+
+    <div class="callout recomendado">
+      <p class="kicker">Conclusão para <code>prd_sem_cpf</code> — implementada</p>
+      <p>
+        A "Pergunta em aberto" acima (os procedimentos usados aqui carregam o atributo SIGTAP
+        "058 - Obrigatório CPF"?) segue sem resposta confirmada — não está em nenhum arquivo deste
+        repositório. Mas o usuário confirmou o fato operacional que mais importa na prática: no
+        Núcleo de Telessaúde, todo atendimento é feito com CPF, e o CPF já é bloqueante na
+        importação deste sistema. Ou seja, mesmo sem saber se o atributo 058 se aplica, o cenário
+        "paciente sem CPF" não ocorre no fluxo real hoje. A versão implementada combina a coluna
+        opcional <code>PACIENTE_SEM_CPF</code> (para o dia em que a informação vier pronta) com a
+        <strong>Opção C</strong> como fallback (deriva de <code>prd_sem_cpf</code> a partir do CPF
+        já existente quando a coluna não vem) — ver a seção anterior. A Opção B (identificação por
+        CNS) continua registrada como projeto separado, a ser retomado só se esse fluxo mudar (ex.:
+        passar a atender pessoas sem CPF) ou se a resposta sobre o atributo 058 vier "sim" e algum
+        caso real aparecer.
       </p>
     </div>
   </section>

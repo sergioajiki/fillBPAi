@@ -79,6 +79,14 @@ public class AtendimentoBPAi {
 	@Column(name = "cid_consulta", length = 20)
 	private String cidConsulta;
 
+	/**
+	 * "S"/"N"/nulo — paciente sem CPF/registro civil (prd_sem_cpf do BPA-I).
+	 * Nulo = não informado na planilha; nesse caso o gerador deriva o valor
+	 * a partir da presença do CPF do paciente.
+	 */
+	@Column(name = "paciente_sem_cpf", length = 1)
+	private String pacienteSemCpf;
+
 	// ======================
 	// Getters e Setters
 	// ======================
@@ -201,5 +209,13 @@ public class AtendimentoBPAi {
 
 	public void setCidConsulta(String cidConsulta) {
 		this.cidConsulta = cidConsulta;
+	}
+
+	public String getPacienteSemCpf() {
+		return pacienteSemCpf;
+	}
+
+	public void setPacienteSemCpf(String pacienteSemCpf) {
+		this.pacienteSemCpf = pacienteSemCpf;
 	}
 }

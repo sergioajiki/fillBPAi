@@ -1,16 +1,18 @@
 package br.gov.ses.fillbpai.util;
 
 /**
- * Normaliza a informação de "situação de rua" do paciente para o código
- * S/N usado no BPA-I (seq 39, {@code prd_situacao_rua}).
+ * Normaliza campos de resposta binária (S/N) lidos da planilha para o
+ * código de 1 caractere usado no layout BPA-I — hoje usado por
+ * {@code prd_situacao_rua} e {@code prd_sem_cpf}, ambos ALFA de 1 posição
+ * com valores "N" ou "S".
  * <p>
  * Usado tanto por {@code ValidacaoPlanilhaService} (análise pré-importação)
  * quanto por {@code AtendimentoProcessor} (importação), para que os dois
  * caminhos reconheçam exatamente os mesmos valores.
  */
-public class SituacaoRuaUtils {
+public class SimNaoUtils {
 
-	private SituacaoRuaUtils() {
+	private SimNaoUtils() {
 	}
 
 	/**

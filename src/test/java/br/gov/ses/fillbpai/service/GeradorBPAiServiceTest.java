@@ -32,7 +32,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * seq23[156,159) seq24[159,162) seq25[162,165) seq26[165,173) seq27[173,177)
  * seq28[177,191) seq29[191,199) seq30[199,202) seq31[202,232) seq32[232,242)
  * seq33[242,247) seq34[247,277) seq35[277,288) seq36[288,328) seq37[328,338)
- * seq38[338,349) seq39[349,350)
+ * seq38[338,349) seq"38"dup[349,350) seq39[350,351)
  */
 class GeradorBPAiServiceTest {
 
@@ -88,12 +88,12 @@ class GeradorBPAiServiceTest {
 	// ===== TAMANHO E QUEBRA DE LINHA =====
 
 	@Test
-	void gerarConteudoParcialTemHeaderCom130CaracteresERegistroCom350() {
+	void gerarConteudoParcialTemHeaderCom130CaracteresERegistroCom351() {
 		String conteudo = service.gerarConteudoParcial(List.of(criarAtendimentoCompleto()), "202412");
 
 		String[] linhas = conteudo.split("\r\n", -1);
 		assertThat(linhas[0]).hasSize(130);
-		assertThat(linhas[1]).hasSize(350);
+		assertThat(linhas[1]).hasSize(351);
 	}
 
 	@Test
@@ -186,13 +186,14 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(288, 328)).isEqualTo(" ".repeat(40)); // seq 36 prd-email_pcnte
 		assertThat(linha.substring(328, 338)).isEqualTo(" ".repeat(10)); // seq 37 prd-ine
 		assertThat(linha.substring(338, 349)).isEqualTo("12345678900");  // seq 38 prd-cpf_pcnte
-		assertThat(linha.substring(349, 350)).isEqualTo("N");            // seq 39 prd-situacao_rua
+		assertThat(linha.substring(349, 350)).isEqualTo("N");            // seq "38" dup. prd-situacao_rua
+		assertThat(linha.substring(350, 351)).isEqualTo("N");            // seq 39 prd-sem_cpf (CPF preenchido)
 	}
 
-	// ===== SITUAÇÃO DE RUA (seq 39) =====
+	// ===== SITUAÇÃO DE RUA (seq "38" duplicado) =====
 
 	@Test
-	void seq39PrdSituacaoRuaSemInformacaoNaPlanilhaUsaPadraoN() {
+	void seqSituacaoRuaSemInformacaoNaPlanilhaUsaPadraoN() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		// paciente.situacaoRua não definido (planilha sem a coluna, ou coluna em branco)
 
@@ -203,7 +204,7 @@ class GeradorBPAiServiceTest {
 	}
 
 	@Test
-	void seq39PrdSituacaoRuaComValorSNaPlanilhaUsaOValorInformado() {
+	void seqSituacaoRuaComValorSNaPlanilhaUsaOValorInformado() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setSituacaoRua("S");
 
@@ -211,6 +212,42 @@ class GeradorBPAiServiceTest {
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(349, 350)).isEqualTo("S");
+	}
+
+	// ===== PACIENTE SEM CPF (seq 39) =====
+
+	@Test
+	void seq39PrdSemCpfSemInformacaoNaPlanilhaDerivaNQuandoCpfPreenchido() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		// atendimento.pacienteSemCpf não definido (planilha sem a coluna) — paciente tem CPF preenchido
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(350, 351)).isEqualTo("N");
+	}
+
+	@Test
+	void seq39PrdSemCpfSemInformacaoNaPlanilhaDerivaSQuandoCpfVazio() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setCpf(null);
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(350, 351)).isEqualTo("S");
+	}
+
+	@Test
+	void seq39PrdSemCpfComValorInformadoNaPlanilhaPrevaleceSobreADerivacao() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		// paciente TEM CPF preenchido, mas a planilha trouxe explicitamente "S"
+		atendimento.setPacienteSemCpf("S");
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(350, 351)).isEqualTo("S");
 	}
 
 	@Test

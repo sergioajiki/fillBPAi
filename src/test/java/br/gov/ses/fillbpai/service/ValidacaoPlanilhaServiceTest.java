@@ -17,14 +17,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ValidacaoPlanilhaServiceTest {
 
-	/** Cabeçalho com os 25 campos obrigatórios + Situação de Rua (opcional), usando aliases reais de {@code dados/colunas_aliases.csv}. */
+	/** Cabeçalho com os 25 campos obrigatórios + Situação de Rua e Paciente sem CPF (opcionais), usando aliases reais de {@code dados/colunas_aliases.csv}. */
 	private static final String[] CABECALHO_COMPLETO = {
 			"Tipo de Serviço", "DATA DE AGENDAMENTO", "HORA ATENDIMENTO", "ESTABELECIMENTO",
 			"Especialidade", "ESPECIALIDADE/MEDICO", "CPF DO MEDICO", "CBO DO MEDICO",
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
 			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
-			"END. COMPLEMENTOS", "SEXO", "Situação de Rua"
+			"END. COMPLEMENTOS", "SEXO", "Situação de Rua", "Paciente sem CPF"
 	};
 
 	/** Cabeçalho legado: igual ao completo, mas sem a coluna própria "Especialidade". */
@@ -34,7 +34,7 @@ class ValidacaoPlanilhaServiceTest {
 			"MUNICIPIOS", "CPF DO PACIENTE", "PACIENTE", "CNS DO PACIENTE",
 			"RACA DO PACIENTE", "ETNIA DO PACIENTE", "DATA DE NASCIMENTO", "CID DA CONSULTA", "TELEFONE",
 			"TIPO_ZONA", "Log", "RUA", "CEP", "NUM. IMOVEL", "BAIRRO",
-			"END. COMPLEMENTOS", "SEXO", "Situação de Rua"
+			"END. COMPLEMENTOS", "SEXO", "Situação de Rua", "Paciente sem CPF"
 	};
 
 	private static final int COL_CPF_PACIENTE = 9;
@@ -43,6 +43,7 @@ class ValidacaoPlanilhaServiceTest {
 	private static final int COL_ETNIA_PACIENTE = 13;
 	private static final int COL_CEP = 20;
 	private static final int COL_SITUACAO_RUA = 25;
+	private static final int COL_PACIENTE_SEM_CPF = 26;
 
 	private final ValidacaoPlanilhaService service = new ValidacaoPlanilhaService();
 
@@ -56,7 +57,7 @@ class ValidacaoPlanilhaServiceTest {
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
 				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
-				"APTO 1", "F", "N"
+				"APTO 1", "F", "N", "N"
 		};
 	}
 
@@ -68,7 +69,7 @@ class ValidacaoPlanilhaServiceTest {
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
 				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
-				"APTO 1", "F", "N"
+				"APTO 1", "F", "N", "N"
 		};
 	}
 
@@ -340,6 +341,55 @@ class ValidacaoPlanilhaServiceTest {
 		List<ErroValidacao> erros = service.validar(caminho);
 
 		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.SITUACAO_RUA_INVALIDA));
+	}
+
+	@Test
+	void validarComColunaPacienteSemCpfAusenteNaoBloqueiaEGeraAvisoColunaOpcionalAusente() throws IOException {
+		List<String> cabecalhoSemColuna = new java.util.ArrayList<>(java.util.Arrays.asList(CABECALHO_COMPLETO));
+		List<String> linhaSemColuna = new java.util.ArrayList<>(java.util.Arrays.asList(linhaValida()));
+
+		int indice = cabecalhoSemColuna.indexOf("Paciente sem CPF");
+		cabecalhoSemColuna.remove(indice);
+		linhaSemColuna.remove(indice);
+
+		String caminho = salvarPlanilha(
+				cabecalhoSemColuna.toArray(new String[0]),
+				linhaSemColuna.toArray(new String[0]));
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(ErroValidacao::isBloqueante);
+		assertThat(erros).anySatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.COLUNA_OPCIONAL_AUSENTE);
+			assertThat(erro.detalhe()).contains("Paciente sem CPF").contains("derivará");
+		});
+	}
+
+	@Test
+	void validarComPacienteSemCpfNaoReconhecidoGeraAvisoPacienteSemCpfInvalido() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_PACIENTE_SEM_CPF] = "TALVEZ";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.PACIENTE_SEM_CPF_INVALIDO);
+			assertThat(erro.detalhe()).contains("TALVEZ");
+		});
+	}
+
+	@Test
+	void validarComPacienteSemCpfReconhecidoNaoGeraAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_PACIENTE_SEM_CPF] = "Sim";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.PACIENTE_SEM_CPF_INVALIDO));
 	}
 
 	@Test

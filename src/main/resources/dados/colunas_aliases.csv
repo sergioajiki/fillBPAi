@@ -31,3 +31,7 @@ SITUACAO_RUA;Situação de Rua
 SITUACAO_RUA;Pessoa em Situação de Rua
 SITUACAO_RUA;Mora na Rua
 SITUACAO_RUA;Morador de Rua
+PACIENTE_SEM_CPF;Paciente sem CPF
+PACIENTE_SEM_CPF;Sem CPF/Registro Civil
+PACIENTE_SEM_CPF;Pessoa sem CPF/Registro Civil
+PACIENTE_SEM_CPF;Sem CPF

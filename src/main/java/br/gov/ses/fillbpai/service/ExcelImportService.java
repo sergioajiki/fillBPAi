@@ -72,6 +72,7 @@ public class ExcelImportService {
 		dto.setComplemento(getString(row, colunas, "COMPLEMENTO"));
 		dto.setSexoPaciente(getString(row, colunas, "SEXO_PACIENTE"));
 		dto.setSituacaoRua(getString(row, colunas, "SITUACAO_RUA"));
+		dto.setPacienteSemCpf(getString(row, colunas, "PACIENTE_SEM_CPF"));
 
 		return dto;
 	}

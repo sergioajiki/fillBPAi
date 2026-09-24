@@ -53,6 +53,7 @@ public class LinhaImportacaoDTO {
 	private LocalDate dataNascimento;
 	private String telefone;
 	private String situacaoRua;
+	private String pacienteSemCpf;
 
 	// ==============================
 	// Dados do endereço
@@ -245,6 +246,14 @@ public class LinhaImportacaoDTO {
 
 	public void setSituacaoRua(String situacaoRua) {
 		this.situacaoRua = situacaoRua;
+	}
+
+	public String getPacienteSemCpf() {
+		return pacienteSemCpf;
+	}
+
+	public void setPacienteSemCpf(String pacienteSemCpf) {
+		this.pacienteSemCpf = pacienteSemCpf;
 	}
 
 	public String getMunicipio() {
