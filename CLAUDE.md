@@ -40,6 +40,8 @@ Tipos de ERRO (bloqueantes):
 - **CEP_INVALIDO** — CEP presente mas com tamanho incorreto (diferente de 8 dígitos após normalização)
 - **CPF_AUSENTE** — CPF do paciente não informado
 - **CPF_INVALIDO** — CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização)
+- **RACA_AUSENTE** — raça do paciente não informada (campo obrigatório no layout do BPA-I, seq 21 prd-raca)
+- **RACA_INVALIDA** — raça presente mas não reconhecida por `RacaUtils` (grafia incorreta) — mensagem sugere conferir a grafia
 - **ESTRUTURA_INVALIDA** — coluna obrigatória ausente do cabeçalho ou nome de coluna ambíguo (casa com mais de um campo canônico)
 
 Tipos de AVISO (não bloqueantes):
@@ -67,6 +69,7 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 - `CnsUtils` — processa/valida CNS de pacientes (aceita CNS incomum >15 dígitos com aviso `CNS_INCOMUM`)
 - `CepUtils` — normalização de CEP
 - `EtniaUtils` — resolve código oficial de etnia indígena (4 caracteres, numérico ou alfanumérico com prefixo "X") a partir do nome, via `dados/etnias_indigenas.csv` (classpath, somente leitura)
+- `RacaUtils` — resolve código de raça/cor (2 dígitos, seq 21) por substring (tolera "Branco"/"Branca" etc.); usado por `ValidacaoPlanilhaService`/`AtendimentoProcessor` (bloqueia se ausente/não reconhecida) e por `GeradorBPAiService` (fallback branco — Default oficial de `prd-raca` no layout — só para dados legados persistidos antes desta validação existir; "99" nunca foi esse default, é código descontinuado)
 - `SimNaoUtils` — normaliza campos S/N (aceita S/N, Sim/Não, 1/0) usado por `prd_situacao_rua` e `prd_sem_cpf`; mesma lógica usada tanto na análise quanto na importação
 
 ### Geração BPA-I

@@ -39,6 +39,12 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Raça do paciente informada como Indígena — verificação de etnia necessária — AVISO, não bloqueia */
 	public static final String RACA_INDIGENA = "RACA_INDIGENA";
 
+	/** Raça do paciente ausente ou vazia — campo obrigatório no layout do BPA-I (seq 21) — ERRO bloqueante */
+	public static final String RACA_AUSENTE = "RACA_AUSENTE";
+
+	/** Raça do paciente presente mas não reconhecida (grafia incorreta) — ERRO bloqueante */
+	public static final String RACA_INVALIDA = "RACA_INVALIDA";
+
 	/** Estrutura da planilha inválida: coluna ausente, incorreta ou fora de ordem — ERRO bloqueante */
 	public static final String ESTRUTURA_INVALIDA = "ESTRUTURA_INVALIDA";
 

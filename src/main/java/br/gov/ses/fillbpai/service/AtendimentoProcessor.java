@@ -8,9 +8,9 @@ import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 
-import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
@@ -83,6 +83,7 @@ public class AtendimentoProcessor {
 		validarCamposObrigatorios(dto);
 		validarCep(dto);
 		validarCpf(dto);
+		validarRaca(dto);
 		avisos.addAll(validarCns(dto));
 		avisos.addAll(verificarEtniaDoIndigena(dto));
 		avisos.addAll(normalizarSituacaoRua(dto));
@@ -232,6 +233,28 @@ public class AtendimentoProcessor {
 	}
 
 	/**
+	 * Valida a raça do paciente — campo obrigatório no layout do BPA-I
+	 * (seq 21, {@code prd-raca}). Ausente ou não reconhecida por
+	 * {@link RacaUtils#resolverCodigo} (grafia incorreta) é erro bloqueante.
+	 *
+	 * @throws IllegalArgumentException se a raça estiver ausente ou não for reconhecida
+	 */
+	private void validarRaca(LinhaImportacaoDTO dto) {
+
+		String raca = dto.getRacaPaciente();
+
+		if (isNullOrEmpty(raca)) {
+			throw new IllegalArgumentException("Raça do paciente não informada.");
+		}
+
+		if (RacaUtils.resolverCodigo(raca) == null) {
+			throw new IllegalArgumentException(
+					"Raça do paciente \"" + raca.trim() + "\" não reconhecida - verifique a grafia "
+							+ "na planilha (aceito: Branca, Preta, Parda, Amarela, Indígena).");
+		}
+	}
+
+	/**
 	 * Verifica a etnia do paciente — regra de negócio só considera a coluna
 	 * Etnia quando a raça é Indígena (código 5 do BPA-I); para as demais
 	 * raças o conteúdo da coluna é ignorado, mesmo que preenchido com algo
@@ -248,18 +271,7 @@ public class AtendimentoProcessor {
 
 		List<String> avisos = new ArrayList<>();
 
-		String raca = dto.getRacaPaciente();
-
-		if (isNullOrEmpty(raca)) {
-			return avisos;
-		}
-
-		String racaNorm = Normalizer
-				.normalize(raca.trim(), Normalizer.Form.NFD)
-				.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
-				.toUpperCase();
-
-		if (!"INDIGENA".equals(racaNorm)) {
+		if (!RacaUtils.isIndigena(dto.getRacaPaciente())) {
 			return avisos;
 		}
 

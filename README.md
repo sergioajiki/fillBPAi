@@ -101,6 +101,7 @@ fillBPAi/
     │       ├── EtniaUtils.java                      # Resolução de código de etnia indígena
     │       ├── IbgeUtils.java                       # Resolução de código IBGE
     │       ├── LogradouroUtils.java                 # Detecção de tipo de logradouro
+    │       ├── RacaUtils.java                       # Resolução de código de raça/cor
     │       ├── SimNaoUtils.java                     # Normalização S/N (situação de rua, sem CPF)
     │       ├── StringUtils.java                     # Truncamento e split de "código - nome"
     │       ├── TextoUtils.java                      # Normalização de texto para comparação
@@ -161,6 +162,7 @@ Planilha .xlsx
       ├─ AtendimentoProcessor       (valida e normaliza campos)
       ├─ LogradouroUtils            (detecta tipo de logradouro)
       ├─ IbgeUtils                  (resolve código IBGE)
+      ├─ RacaUtils                  (bloqueia se raça ausente/não reconhecida)
       ├─ EtniaUtils                 (resolve código de etnia indígena)
       ├─ SimNaoUtils                (normaliza situação de rua / sem CPF)
       ├─ CnsProfissionalUtils       (resolve CNS pelo nome via CSV)
@@ -199,6 +201,8 @@ na árvore             na árvore
 | CEP com tamanho inválido (≠ 8 dígitos) | `CEP_INVALIDO` | ERRO | Bloqueia importação |
 | CPF não informado | `CPF_AUSENTE` | ERRO | Bloqueia importação |
 | CPF com tamanho inválido (≠ 11 dígitos) | `CPF_INVALIDO` | ERRO | Bloqueia importação |
+| Raça do paciente não informada | `RACA_AUSENTE` | ERRO | Bloqueia importação (campo obrigatório no layout) |
+| Raça do paciente não reconhecida (grafia incorreta) | `RACA_INVALIDA` | ERRO | Bloqueia importação; mensagem sugere conferir a grafia |
 | Raça do paciente = Indígena | `RACA_INDIGENA` | AVISO | Importa com aviso no log |
 | Etnia preenchida mas não encontrada na tabela oficial (só considerada com raça Indígena) | `ETNIA_NAO_ENCONTRADA` | AVISO | Importa com aviso no log |
 | Coluna obrigatória ausente/ambígua no cabeçalho | `ESTRUTURA_INVALIDA` | ERRO | Bloqueia importação (oferece abrir Configurações) |
@@ -229,6 +233,7 @@ O arquivo gerado segue o layout oficial de interface texto do BPA, versão 2026 
 
 | Campo | Regra |
 |-------|-------|
+| `prd-raca` (seq 21) | Obrigatório e validado na importação; para dados legados sem raça reconhecida, usa branco (Default oficial do layout) — nunca "99" |
 | `prd-cnspac` (seq 10) | Sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo |
 | `prd-ibge` (seq 12) | Código IBGE de 7 dígitos truncado para 6 (sem dígito verificador) |
 | `prd-cmp` (seq 3) | Competência = mesmo mês do atendimento (AAAAMM da própria `dataAgendamento`) |
@@ -263,7 +268,7 @@ O arquivo gerado segue o layout oficial de interface texto do BPA, versão 2026 
 | 11 | Paciente | Nome do paciente |
 | 12 | CNS Paciente | Cartão Nacional de Saúde do paciente |
 | 13 | Sexo Paciente | Sexo do paciente |
-| 14 | Raça Paciente | Raça/cor do paciente |
+| 14 | Raça Paciente | Raça/cor do paciente — obrigatória; aceita Branca, Preta, Parda, Amarela ou Indígena (variações de grafia/gênero toleradas) |
 | 15 | Etnia Paciente | Etnia indígena — considerada apenas quando Raça = Indígena |
 | 16 | Data Nascimento | Data de nascimento do paciente |
 | 17 | CID Consulta | Código CID da consulta |
@@ -343,6 +348,7 @@ O banco H2 é criado automaticamente em `database/` e persiste dados entre reini
 - Competência no arquivo = mesmo mês do atendimento (sem deslocamento)
 - Checksum do cabeçalho = (soma dos SIGTAP numéricos + contagem de registros) % 1111 + 1111
 - Folhas na geração completa: especialidades em ordem alfabética → médicos em ordem alfabética → numeração sequencial por competência
+- Raça do paciente é obrigatória e validada (ausente ou grafia não reconhecida bloqueia a importação) — o valor "99 Sem informação" está descontinuado no layout oficial e nunca é aceito como entrada nem gerado como saída; para dados legados (importados antes desta validação existir) sem raça reconhecida, a geração usa branco — o próprio Default declarado pelo layout para `prd-raca`
 - Etnia só é considerada quando a raça do paciente é Indígena; para as demais raças, o conteúdo da coluna é ignorado mesmo se preenchido
 - Situação de Rua é um campo do **paciente** (traço estável da pessoa); reimportar uma planilha sem essa coluna nunca apaga um valor já conhecido de uma importação anterior com a coluna
 - Paciente sem CPF é um campo do **atendimento**, não do paciente — a exceção está ligada ao procedimento específico (atributo SIGTAP "058 - Obrigatório CPF"), não a um traço fixo da pessoa; por isso é sempre sobrescrito pela importação mais recente daquele atendimento

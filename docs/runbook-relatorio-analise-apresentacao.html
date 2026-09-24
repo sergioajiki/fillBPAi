@@ -148,6 +148,21 @@
   }
   .mockup-textarea .linha-mantida{ display:block; }
 
+  .mockup-sev-header{
+    display:flex; align-items:center; gap:7px;
+    font-weight:700; font-size:.78rem;
+    padding:7px 12px;
+    border-radius:6px 6px 0 0;
+    border:1px solid; border-bottom:none;
+  }
+  .mockup-sev-header.erro{ background:var(--sev-erro-soft); color:var(--sev-erro); border-color:var(--sev-erro); }
+  .mockup-sev-header.aviso{ background:var(--sev-aviso-soft); color:var(--sev-aviso); border-color:var(--sev-aviso); }
+
+  .mockup-textarea.sev-erro{ border-color:var(--sev-erro); border-radius:0 0 6px 6px; }
+  .mockup-textarea.sev-aviso{ border-color:var(--sev-aviso); border-radius:0 0 6px 6px; }
+  .mockup-textarea .linha-erro{ display:block; color:var(--sev-erro); }
+  .mockup-textarea .linha-aviso{ display:block; color:var(--sev-aviso); }
+
   .mockup-actions{ display:flex; gap:8px; justify-content:flex-end; margin-top:4px; }
   .mockup-btn{
     font-family:var(--font-body); font-size:.8rem; font-weight:500;
@@ -174,13 +189,14 @@
     </p>
     <div class="meta">
       <span>Área: <strong>MainController (diálogos de análise) · ValidacaoPlanilhaService.gerarLogTxt</strong></span>
-      <span>Status: <strong>Implementado — <code>mvnw.cmd test</code> passando</strong></span>
+      <span>Status: <strong>Implementado (Erros/Avisos, banners e diferenciação visual Erro×Aviso) — <code>mvnw.cmd test</code> passando</strong></span>
       <span>Data: <strong>24/09/2026</strong></span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
       <a href="#contexto">Contexto</a>
       <a href="#erros">"Erros bloqueantes" → "Erros"</a>
       <a href="#opcional">Aviso de coluna opcional no padrão do banner</a>
+      <a href="#diferenciacao">Diferenciar Erros de Avisos visualmente</a>
       <a href="#mudancas">Onde mexer</a>
     </nav>
   </header>
@@ -323,6 +339,150 @@ Linha 9 - RACA_INDIGENA: Raca informada como Indigena - e necessario preencher a
         mesmo tempo são a <em>mesma</em> categoria de aviso — empilhar dois banners quase idênticos
         (mesmo kicker, mesma cor) pesaria mais do que informaria. Um banner com uma lista de
         itens escala para N colunas opcionais sem crescer visualmente feio.
+      </p>
+    </div>
+  </section>
+
+  <section id="diferenciacao">
+    <h2>Diferenciar Erros de Avisos visualmente <span class="pill ok">✓ Implementado (Opção B)</span></h2>
+    <p>
+      Pedido do usuário: hoje, quando a planilha tem <strong>erros e avisos ao mesmo tempo</strong>,
+      o diálogo "Erros de Validação" mostra os dois juntos na mesma <code>TextArea</code> — só o
+      texto ("Linha N - TIPO: detalhe") diz qual é qual. Nenhuma cor, ícone ou agrupamento visual
+      separa "isto bloqueia" de "isto é só um aviso".
+    </p>
+
+    <h3>Antes</h3>
+    <figure class="fig">
+      <div class="mockup-alert">
+        <div class="mockup-alert-title">Erros de Validação</div>
+        <div class="mockup-alert-header">A planilha contém erros que impedem a importação</div>
+        <div class="mockup-alert-body">
+          <div class="mockup-textarea">=== RELATÓRIO DE VALIDAÇÃO DA PLANILHA ===
+Arquivo  : atendimentos_setembro.xlsx
+Erros: 2
+Avisos: 1
+
+--- ERROS (impedem a importação) ---
+Linha 3 - CEP_AUSENTE: CEP do endereço não informado
+Linha 6 - RACA_AUSENTE: Raça do paciente não informada
+
+--- AVISOS (não impedem a importação) ---
+Linha 9 - CNS_INVALIDO: CNS do paciente não informado</div>
+          <div class="mockup-actions">
+            <div class="mockup-btn">Salvar Log TXT</div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        Tudo no mesmo tom de cinza — a única forma de saber que a linha 9 <em>não</em> impede a
+        importação (ao contrário das linhas 3 e 6) é ler o texto da seção com atenção.
+      </figcaption>
+    </figure>
+
+    <h3>Opções</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Opção</th><th>Como funciona</th><th>Esforço</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">A — Cartões coloridos por item (<code>ListView</code>)</td>
+            <td>Troca a <code>TextArea</code> por uma <code>ListView&lt;ErroValidacao&gt;</code> com
+            cell factory própria: cada linha vira um cartão com borda esquerda e fundo tintado —
+            vermelho para ERRO, âmbar para AVISO — mesmas cores que os runbooks deste projeto já
+            usam (<code>--sev-erro</code>/<code>--sev-erro-soft</code>,
+            <code>--sev-aviso</code>/<code>--sev-aviso-soft</code>). É a diferenciação mais rica:
+            cor por <em>linha</em>, não só por bloco.</td>
+            <td>Alto — troca o controle JavaFX inteiro e escreve uma cell factory nova.</td>
+          </tr>
+          <tr>
+            <td class="caso">B — Dois blocos coloridos, um por severidade</td>
+            <td>Mantém <code>TextArea</code>, mas separa fisicamente em dois blocos empilhados,
+            cada um com uma faixa de cabeçalho colorida acima — vermelha "🛑 ERROS" e âmbar
+            "⚠ AVISOS" — reaproveitando exatamente o mesmo padrão visual de cartão com borda
+            colorida já usado nos banners de planilha legado/coluna opcional
+            (<a href="#opcional">implementados nesta mesma análise</a>). Não colore linha a linha,
+            mas a separação física + cor do cabeçalho já deixa óbvio qual bloco bloqueia.</td>
+            <td>Baixo — reaproveita o padrão de banner que já existe em <code>MainController</code>,
+            só aplicado duas vezes (um vermelho, um âmbar) em vez de uma <code>TextArea</code> só.</td>
+          </tr>
+          <tr>
+            <td class="caso">C — Só prefixo/ícone por linha, mesma <code>TextArea</code></td>
+            <td>Muda o formato da linha em <code>gerarLogTxt()</code> de "Linha N - TIPO: detalhe"
+            para "🛑 Linha N — detalhe" (erro) / "⚠ Linha N — detalhe" (aviso), tudo na mesma caixa
+            de texto corrida. Ajuda a escanear, mas não é diferenciação "visual" no sentido de cor —
+            é só um símbolo a mais no texto.</td>
+            <td>Mínimo — uma condicional no formato da linha, sem mexer em UI.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Depois (Opção B, recomendada)</h3>
+    <figure class="fig">
+      <div class="mockup-alert">
+        <div class="mockup-alert-title">Erros de Validação</div>
+        <div class="mockup-alert-header">A planilha contém erros que impedem a importação</div>
+        <div class="mockup-alert-body">
+          <div class="mockup-sev-header erro">🛑 ERROS — impedem a importação (2)</div>
+          <div class="mockup-textarea sev-erro">Linha 3 - CEP_AUSENTE: CEP do endereço não informado
+Linha 6 - RACA_AUSENTE: Raça do paciente não informada</div>
+          <div class="mockup-sev-header aviso" style="margin-top:10px;">⚠ AVISOS — não impedem a importação (1)</div>
+          <div class="mockup-textarea sev-aviso">Linha 9 - CNS_INVALIDO: CNS do paciente não informado</div>
+          <div class="mockup-actions">
+            <div class="mockup-btn">Salvar Log TXT</div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        Dois blocos, cada um com sua cor — impossível confundir "isto trava a importação" com "isto
+        é só um alerta". O botão "Salvar Log TXT" continua exportando o TXT plano de sempre
+        (<code>gerarLogTxt()</code> não muda) — a separação colorida é só na tela.
+      </figcaption>
+    </figure>
+
+    <div class="callout recomendado">
+      <p class="kicker">✓ Implementado — <code>MainController.criarBlocoSeveridade()</code></p>
+      <p>
+        <code>mostrarDialogoErrosValidacao()</code> agora separa <code>demaisErros</code> em
+        bloqueantes/não-bloqueantes e monta um bloco por severidade (cabeçalho colorido +
+        <code>TextArea</code> com borda na mesma cor, mesmas cores dos runbooks: ERRO
+        <code>#B3261E</code>/<code>#F6E1DF</code>, AVISO <code>#93630F</code>/<code>#F3E6D2</code>).
+        O bloco de avisos só aparece quando há avisos não extraídos para banner. O botão
+        "Salvar Log TXT" continua exportando <code>logErros</code> — o TXT completo de
+        <code>gerarLogTxt()</code> — sem nenhuma mudança; só a apresentação em tela foi dividida.
+        A Opção A (cor por linha, <code>ListView</code>) fica registrada para o caso de, no futuro,
+        o volume de erros/avisos por planilha crescer a ponto de precisar de ordenação, filtro ou
+        busca dentro da lista.
+      </p>
+    </div>
+
+    <div class="callout recomendado">
+      <p class="kicker">✓ Ajuste — cantos arredondados uniformizados</p>
+      <p>
+        Depois de implementada, os blocos de ERRO/AVISO (cantos arredondados) ficaram visualmente
+        inconsistentes com os banners de planilha legado e colunas opcionais, que tinham cantos
+        retos (nunca definiam <code>-fx-background-radius</code>/<code>-fx-border-radius</code>).
+        Os dois banners (<code>criarBannerFormatoLegado</code> e
+        <code>criarBannerColunasOpcionaisAusentes</code>) agora usam
+        <code>-fx-background-radius: 6; -fx-border-radius: 6</code> — raio uniforme nos quatro
+        cantos. A primeira tentativa tinha copiado o padrão assimétrico do mockup
+        (<code>.mockup-banner</code>, <code>0 6px 6px 0</code> — reto do lado da borda de
+        destaque), mas o raio uniforme resolve a mesma inconsistência com uma regra mais simples,
+        sem precisar justificar por que um lado é diferente do outro.
+      </p>
+    </div>
+
+    <div class="callout aberto">
+      <p class="kicker">Onde essa mudança se aplica</p>
+      <p>
+        Só faz diferença em <code>mostrarDialogoErrosValidacao()</code> — é o único diálogo onde
+        erros e avisos aparecem juntos hoje (quando há pelo menos um erro bloqueante, os avisos que
+        sobraram continuam na mesma lista). <code>mostrarDialogoAvisosAnalise()</code> já só mostra
+        avisos (nenhum erro bloqueante presente), e <code>mostrarDialogoErroEstrutura()</code> tem
+        formato próprio, sem essa mistura — nenhum dos dois precisaria da divisão em dois blocos.
       </p>
     </div>
   </section>

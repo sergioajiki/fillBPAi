@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.RacaUtils;
 import jakarta.persistence.EntityManager;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -944,20 +945,23 @@ public class GeradorBPAiService {
 		return sb.toString();
 	}
 
+	/**
+	 * Formata o código de raça/cor via {@link RacaUtils}. Sem código
+	 * reconhecido, usa branco — o próprio layout oficial declara "Brancos"
+	 * como Default de {@code prd-raca} (campo NUM), o mesmo padrão de todo
+	 * campo NUM opcional deste layout; "99 Sem informação" nunca foi esse
+	 * default, é (era) só mais uma opção de código, hoje descontinuada.
+	 * Esta branch só é alcançada por dados já persistidos antes da
+	 * validação bloqueante de raça existir — novas importações nunca
+	 * chegam aqui sem raça reconhecida, pois
+	 * {@code ValidacaoPlanilhaService}/{@code AtendimentoProcessor} já
+	 * bloqueiam a linha antes.
+	 */
 	private String formatarRaca(String raca) {
 
-		if (raca == null)
-			return "99";
+		String codigo = RacaUtils.resolverCodigo(raca);
 
-		raca = raca.trim().toUpperCase();
-
-		if (raca.contains("BRANC")) return "01";
-		if (raca.contains("PRET")) return "02";
-		if (raca.contains("PARD")) return "03";
-		if (raca.contains("AMAREL")) return "04";
-		if (raca.contains("IND")) return "05";
-
-		return "99";
+		return codigo != null ? codigo : padRightSpaces("", 2);
 	}
 
 	/**

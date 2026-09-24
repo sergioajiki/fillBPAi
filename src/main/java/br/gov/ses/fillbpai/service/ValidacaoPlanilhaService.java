@@ -5,9 +5,9 @@ import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
-import br.gov.ses.fillbpai.util.TextoUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
@@ -24,9 +24,10 @@ import java.util.Map;
 /**
  * Serviço responsável por validar uma planilha Excel antes da importação.
  * <p>
- * Percorre todas as linhas da planilha e aplica 3 regras de validação
- * bloqueantes sobre os dados brutos. Nenhum dado é persistido — o objetivo
- * é apenas identificar e reportar inconsistências para correção manual.
+ * Percorre todas as linhas da planilha e aplica regras de validação
+ * bloqueantes e não bloqueantes sobre os dados brutos. Nenhum dado é
+ * persistido — o objetivo é apenas identificar e reportar inconsistências
+ * para correção manual.
  * <p>
  * Regras validadas:
  * <ul>
@@ -34,6 +35,7 @@ import java.util.Map;
  *   <li>CNS do paciente com mais de 15 dígitos: AVISO (não bloqueia)</li>
  *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
  *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
+ *   <li>Raça do paciente ausente ou não reconhecida (grafia incorreta): ERRO bloqueante</li>
  *   <li>Coluna opcional (ex.: COD_LOGRADOURO, SITUACAO_RUA, PACIENTE_SEM_CPF) ausente do cabeçalho: AVISO (não bloqueia)</li>
  *   <li>Situação de rua preenchida mas não reconhecida (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
  *   <li>Paciente sem CPF preenchido mas não reconhecido (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
@@ -198,30 +200,42 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
-		// Regra 4: Etnia do paciente — só é considerada quando a raça é
-		// Indígena (código 5 do BPA-I); para as demais raças o conteúdo da
-		// coluna Etnia é ignorado, mesmo que preenchido. AVISO, não bloqueia.
+		// Regra 4: Raça do paciente — campo obrigatório no layout do BPA-I
+		// (seq 21 prd-raca). Ausente ou não reconhecida (grafia incorreta) é
+		// ERRO bloqueante.
 		// -------------------------------------------------------
 		String raca = dto.getRacaPaciente();
 		String etnia = dto.getEtniaPaciente();
 
-		if (raca != null && !raca.trim().isEmpty()) {
-			String racaNorm = TextoUtils.normalizar(raca);
-			if ("INDIGENA".equals(racaNorm)) {
-				if (etnia == null || etnia.trim().isEmpty()) {
-					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-							ErroValidacao.RACA_INDIGENA,
-							"Raca informada como Indigena - e necessario preencher a etnia do paciente"));
-				} else if (EtniaUtils.resolver(etnia) == null) {
-					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-							ErroValidacao.ETNIA_NAO_ENCONTRADA,
-							"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado"));
-				}
+		if (raca == null || raca.trim().isEmpty()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.RACA_AUSENTE, "Raca do paciente nao informada"));
+		} else if (RacaUtils.resolverCodigo(raca) == null) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.RACA_INVALIDA,
+					"Raca do paciente \"" + raca.trim() + "\" nao reconhecida - verifique a grafia "
+							+ "na planilha (aceito: Branca, Preta, Parda, Amarela, Indigena)"));
+		}
+
+		// -------------------------------------------------------
+		// Regra 5: Etnia do paciente — só é considerada quando a raça é
+		// Indígena (código 5 do BPA-I); para as demais raças o conteúdo da
+		// coluna Etnia é ignorado, mesmo que preenchido. AVISO, não bloqueia.
+		// -------------------------------------------------------
+		if (RacaUtils.isIndigena(raca)) {
+			if (etnia == null || etnia.trim().isEmpty()) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.RACA_INDIGENA,
+						"Raca informada como Indigena - e necessario preencher a etnia do paciente"));
+			} else if (EtniaUtils.resolver(etnia) == null) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.ETNIA_NAO_ENCONTRADA,
+						"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado"));
 			}
 		}
 
 		// -------------------------------------------------------
-		// Regra 5: Situação de rua — valor presente mas não reconhecido
+		// Regra 6: Situação de rua — valor presente mas não reconhecido
 		// (coluna ausente ou célula em branco não geram aviso aqui; a
 		// ausência da própria coluna já é avisada uma única vez em
 		// reportarEstrutura()). AVISO, não bloqueia.
@@ -234,7 +248,7 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
-		// Regra 6: Paciente sem CPF/Registro Civil — valor presente mas não
+		// Regra 7: Paciente sem CPF/Registro Civil — valor presente mas não
 		// reconhecido (coluna ausente ou célula em branco não geram aviso
 		// aqui — nesse caso o valor é derivado automaticamente a partir do
 		// CPF do paciente na geração do BPA-I). AVISO, não bloqueia.

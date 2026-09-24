@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
@@ -190,6 +191,47 @@ class AtendimentoProcessorTest {
 
 		assertThat(dto.getCpfPaciente()).isEqualTo("12345678900");
 		assertThat(dto.getCep()).isEqualTo("79003020");
+	}
+
+	// ===== RAÇA (obrigatória, ERRO bloqueante) =====
+
+	@Test
+	void processarSemRacaLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setRacaPaciente(null);
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Raça do paciente não informada");
+	}
+
+	@Test
+	void processarComRacaEmBrancoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setRacaPaciente("   ");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Raça do paciente não informada");
+	}
+
+	@Test
+	void processarComRacaNaoReconhecidaLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setRacaPaciente("XYZ");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("XYZ")
+				.hasMessageContaining("não reconhecida");
+	}
+
+	@Test
+	void processarComVariacaoDeGrafiaDaRacaNaoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setRacaPaciente("Pardo");
+
+		assertThatCode(() -> processor.processar(dto)).doesNotThrowAnyException();
 	}
 
 	// ===== CAMPOS OBRIGATÓRIOS =====

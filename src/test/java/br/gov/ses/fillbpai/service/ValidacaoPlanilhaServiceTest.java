@@ -250,6 +250,48 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarComRacaAusenteGeraErroRacaAusente() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_RACA_PACIENTE] = null;
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).anySatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.RACA_AUSENTE);
+		});
+		assertThat(erros).anyMatch(ErroValidacao::isBloqueante);
+	}
+
+	@Test
+	void validarComRacaNaoReconhecidaGeraErroRacaInvalida() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_RACA_PACIENTE] = "XYZ";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).anySatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.RACA_INVALIDA);
+			assertThat(erro.detalhe()).contains("XYZ");
+		});
+	}
+
+	@Test
+	void validarComVariacaoDeGrafiaDaRacaNaoGeraErroDeRaca() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_RACA_PACIENTE] = "Pardo";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.RACA_AUSENTE)
+				|| erro.tipoErro().equals(ErroValidacao.RACA_INVALIDA));
+	}
+
+	@Test
 	void validarComColunaObrigatoriaAusenteNoCabecalhoParaAntesDeValidarLinhas() throws IOException {
 		List<String> cabecalhoIncompleto = new java.util.ArrayList<>(java.util.Arrays.asList(CABECALHO_COMPLETO));
 		List<String> linhaComErrosDeLinha = new java.util.ArrayList<>(java.util.Arrays.asList(linhaValida()));

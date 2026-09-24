@@ -264,6 +264,35 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(162, 165)).isEqualTo("006");      // seq 25 prd-clf segue o código forçado
 	}
 
+	// ===== RAÇA (seq 21) — fallback "99" só para dados legados =====
+
+	@Test
+	void seq21PrdRacaComRacaNulaUsaBrancoConformeDefaultOficialDoLayout() {
+		// Cenário só alcançável por dados já persistidos antes da validação
+		// bloqueante de raça existir — novas importações nunca chegam aqui
+		// sem raça reconhecida (ValidacaoPlanilhaService/AtendimentoProcessor
+		// já bloqueiam a linha antes). O layout oficial declara "Brancos"
+		// como Default de prd-raca (campo NUM) — "99" nunca foi esse default.
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setRaca(null);
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(150, 152)).isEqualTo("  ");
+	}
+
+	@Test
+	void seq21PrdRacaComVariacaoDeGeneroReconheceMesmoCodigo() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setRaca("Pardo");
+
+		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String linha = registro(conteudo, 0);
+
+		assertThat(linha.substring(150, 152)).isEqualTo("03");
+	}
+
 	// ===== ETNIA (seq 22) =====
 
 	@Test

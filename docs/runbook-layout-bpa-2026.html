@@ -136,6 +136,14 @@
     font-size:1.02rem;
     margin:32px 0 12px;
   }
+  section > h4{
+    font-family:var(--font-mono);
+    font-weight:600;
+    font-size:.82rem;
+    letter-spacing:.02em;
+    color:var(--ink-muted);
+    margin:24px 0 8px;
+  }
   p{ line-height:1.7; font-size:1.02rem; max-width:68ch; }
   ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
   ul.plain li, ol.plain li{ margin-bottom:6px; }
@@ -255,7 +263,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>GeradorBPAiService — registro BPA-I</strong></span>
-      <span>Status: <strong>prd_sem_cpf: implementado (Opção C) · Situação de Rua: implementado</strong></span>
+      <span>Status: <strong>prd_sem_cpf: implementado (Opção C) · Situação de Rua: implementado · prd-raca/"99": implementado (ERRO bloqueante)</strong></span>
       <span>Data: <strong>23/09/2026 (criação) · 24/09/2026 (boletim SIASUS + implementação)</strong></span>
       <span>Fontes: <strong>data/Layout_Exportacao_BPA_2024.pdf, data/Layout_Exportacao_BPA_2026.pdf</strong></span>
     </div>
@@ -266,7 +274,7 @@
       <a href="#proposta">Proposta de implementação</a>
       <a href="#sem-cpf-verificacao">prd_sem_cpf — como verificar na planilha</a>
       <a href="#boletim-siasus">Boletim de versões SIASUS — achados</a>
-      <a href="#raca">Achado à parte — prd-raca / "99"</a>
+      <a href="#raca">Achado à parte — prd-raca / "99" ✓</a>
       <a href="#situacao-rua">Situação de Rua — validação na planilha ✓</a>
     </nav>
   </header>
@@ -679,7 +687,7 @@
   </section>
 
   <section id="raca">
-    <h2>Achado à parte — <code>prd-raca</code> / "99 Sem informação"</h2>
+    <h2>Achado à parte — <code>prd-raca</code> / "99 Sem informação" <span class="pill ok" style="margin-left:8px;">✓ Implementado (ERRO)</span></h2>
     <p>
       Durante a leitura atenta dos dois PDFs, o campo <code>prd-raca</code> (seq 21) mostra o
       valor <code>99 Sem informação</code> com formatação de <strong>tachado</strong> — indicando
@@ -688,25 +696,120 @@
       estávamos auditando o documento com cuidado.
     </p>
     <p>
-      <code>GeradorBPAiService.formatarRaca()</code> usa <code>"99"</code> como valor padrão
-      quando a raça do paciente é nula, desconhecida ou não reconhecida:
+      Antes desta análise, <code>GeradorBPAiService.formatarRaca()</code> usava <code>"99"</code>
+      como valor padrão quando a raça do paciente era nula, desconhecida ou não reconhecida:
     </p>
     <div class="tbl-wrap">
       <table>
         <tbody>
-          <tr><td class="caso">Caso 1</td><td><code>raca == null</code></td><td>retorna <code>"99"</code></td></tr>
-          <tr><td class="caso">Caso 2</td><td>raça informada mas não reconhecida (não contém BRANC/PRET/PARD/AMAREL/IND)</td><td>retorna <code>"99"</code></td></tr>
+          <tr><td class="caso">Caso 1</td><td><code>raca == null</code></td><td class="antes">retornava <code>"99"</code> sempre</td></tr>
+          <tr><td class="caso">Caso 2</td><td>raça informada mas não reconhecida (não contém BRANC/PRET/PARD/AMAREL/IND)</td><td class="antes">retornava <code>"99"</code> sempre</td></tr>
         </tbody>
       </table>
     </div>
-    <div class="callout aberto">
-      <p class="kicker">Risco, não urgência</p>
+    <div class="callout recomendado">
+      <p class="kicker">✓ Resolvido — os dois casos agora bloqueiam a importação (ERRO)</p>
       <p>
-        Se <code>99</code> de fato não é mais aceito pelo SIA/SUS, os dois casos acima podem gerar
-        rejeição do arquivo pelo DATASUS. Como o valor já está marcado como descontinuado desde a
-        versão 2024 (que está em produção hoje), não é uma regressão causada por este runbook —
-        mas vale decidir em algum momento o que colocar no lugar (deixar em branco? outro código
-        de fallback?). Registrado aqui para não se perder; tratar em conversa separada.
+        <code>prd-raca</code> é campo <strong>obrigatório</strong> no layout (coluna "Obr"
+        marcada) — os dois casos acima agora impedem a importação em vez de silenciosamente virar
+        "99". O fallback em <code>GeradorBPAiService.formatarRaca()</code> continua existindo para
+        dados já persistidos <strong>antes</strong> desta validação existir, mas não é mais
+        <code>"99"</code> — ver <a href="#raca-default-oficial">correção do valor padrão</a>
+        abaixo. Novas importações nunca chegam à geração com raça ausente ou não reconhecida.
+      </p>
+    </div>
+
+    <h3>O que foi feito</h3>
+    <p>
+      Ideia do usuário: como raça é obrigatória no layout, o sistema deveria avisar (bloqueando)
+      sempre que não conseguir determinar a raça a partir do que foi digitado — célula vazia
+      (esquecida) ou texto que não bate com nenhuma categoria oficial (pode ser erro de grafia).
+      Antes, essa checagem só existia dentro do gerador, nunca antes da importação.
+    </p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead>
+          <tr><th>Passo</th><th>O que foi feito</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="caso">1. Régua de reconhecimento extraída</td>
+            <td>Nova classe <code>util/RacaUtils</code> — <code>resolverCodigo(String raca)</code>
+            devolve o código de 2 dígitos ou <code>null</code> quando ausente/não reconhecido
+            (mesma lógica por substring de antes: "BRANC"/"PRET"/"PARD"/"AMAREL"/"IND", agora via
+            <code>TextoUtils.normalizar</code>); <code>isIndigena(String raca)</code> para o
+            atalho usado na regra de etnia. Mesmo padrão de <code>EtniaUtils</code>/<code>SimNaoUtils</code>:
+            uma única régua usada tanto para validar quanto para gerar.
+            <code>GeradorBPAiService.formatarRaca()</code> agora só delega para
+            <code>RacaUtils.resolverCodigo</code>, com fallback em branco (ver
+            <a href="#raca-default-oficial">correção do valor padrão</a> abaixo — não é mais
+            <code>"99"</code>).</td>
+          </tr>
+          <tr>
+            <td class="caso">2. Validação bloqueante por linha (dois caminhos)</td>
+            <td><code>ValidacaoPlanilhaService.validarLinha()</code> (Analisar Planilha) e
+            <code>AtendimentoProcessor.validarRaca()</code> (importação real, lança
+            <code>IllegalArgumentException</code>): quando <code>RacaUtils.resolverCodigo(raca)</code>
+            devolve <code>null</code>, bloqueia a linha. Mensagem distingue os dois casos: "Raça
+            do paciente não informada" (célula vazia) vs. "Raça do paciente '&lt;texto&gt;' não
+            reconhecida - verifique a grafia na planilha (aceito: Branca, Preta, Parda, Amarela,
+            Indígena)" (célula preenchida com algo que não bate).</td>
+          </tr>
+          <tr>
+            <td class="caso">3. Novas constantes em <code>ErroValidacao</code></td>
+            <td><code>RACA_AUSENTE</code> e <code>RACA_INVALIDA</code>, ambas ERRO bloqueante —
+            no padrão de <code>CPF_AUSENTE</code>/<code>CPF_INVALIDO</code>.</td>
+          </tr>
+          <tr>
+            <td class="caso">4. Reaproveitamento na regra de etnia indígena</td>
+            <td>A checagem "raça é Indígena?" em <code>ValidacaoPlanilhaService</code> e
+            <code>AtendimentoProcessor.verificarEtniaDoIndigena()</code> — antes cada uma tinha
+            sua própria normalização ad-hoc (uma com <code>TextoUtils.normalizar</code> +
+            <code>.equals</code> exato, outra com <code>Normalizer</code> manual) — agora as duas
+            usam <code>RacaUtils.isIndigena()</code>, eliminando a duplicação e uma pequena
+            inconsistência entre elas (uma exigia igualdade exata, a outra tolerava substring).</td>
+          </tr>
+          <tr>
+            <td class="caso">5. Testes</td>
+            <td>Novo <code>RacaUtilsTest</code> (régua isolada) + casos novos em
+            <code>AtendimentoProcessorTest</code>, <code>ValidacaoPlanilhaServiceTest</code> e
+            <code>GeradorBPAiServiceTest</code> (raça ausente, não reconhecida, variação de gênero
+            tolerada, fallback em branco documentado como só para dados legados).
+            <code>mvnw.cmd test</code> passando sem nenhuma regressão — todas as planilhas de
+            teste já usavam raças válidas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout recomendado">
+      <p class="kicker">Decisão: ERRO (bloqueante), não AVISO</p>
+      <p>
+        A recomendação original desta análise era começar como AVISO (mesmo padrão de
+        <code>CNS_INVALIDO</code>) para não travar a rotina do Núcleo. O usuário optou por
+        implementar direto como <strong>ERRO</strong>, coerente com raça ser campo obrigatório no
+        layout oficial — mesmo tratamento de <code>CPF_AUSENTE</code>. Não houve impacto retroativo
+        em nenhum teste ou dado de exemplo do repositório; se alguma planilha real do Núcleo tiver
+        raça ausente/mal escrita, ela passará a ser bloqueada na importação a partir de agora, com
+        mensagem indicando a linha e o que corrigir.
+      </p>
+    </div>
+
+    <div class="callout recomendado" id="raca-default-oficial">
+      <p class="kicker">✓ Resolvido — fallback trocado de "99" para branco (Default oficial)</p>
+      <p>
+        Conferindo a coluna "Default" do próprio layout: <code>prd-raca</code> tem
+        <code>Default = Brancos</code> — o mesmo padrão de praticamente todo campo NUM opcional
+        deste layout (já documentado em <code>CLAUDE.md</code>: "Campos NUM opcionais: brancos
+        quando vazio"). <code>"99"</code> nunca foi esse default — era só mais uma opção de código,
+        hoje descontinuada. <code>GeradorBPAiService.formatarRaca()</code> agora usa branco
+        (<code>padRightSpaces("", 2)</code>) em vez de <code>"99"</code> quando não há código
+        reconhecido. Como a validação já bloqueia toda importação nova sem raça válida, esta
+        branch só é alcançada por atendimentos já persistidos antes da validação existir — e agora,
+        em vez de emitir o código descontinuado, emite exatamente o que o layout pede para esse
+        caso. Não foi preciso nenhuma migração de dados: só mudar o que o gerador produz a partir
+        de agora.
       </p>
     </div>
   </section>

@@ -304,7 +304,7 @@ public class MainController {
 			mostrarDialogoErroEstrutura(mapeamento, logErros, nomePlanilha, stage);
 		} else if (temBloqueantes) {
 			// Erros — sem botão de importação
-			mostrarDialogoErrosValidacao(logErros, nomePlanilha, stage, avisosColunaOpcional);
+			mostrarDialogoErrosValidacao(demaisErros, logErros, nomePlanilha, stage, avisosColunaOpcional);
 		} else {
 			// Apenas avisos — exibe com botão de importação direta
 			mostrarDialogoAvisosAnalise(logErros, nomePlanilha, caminho, stage, avisoLegado, avisosColunaOpcional);
@@ -332,7 +332,7 @@ public class MainController {
 		banner.setMaxWidth(468);
 		banner.setPadding(new Insets(12, 14, 12, 14));
 		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
-				+ "-fx-border-width: 0 0 0 3;");
+				+ "-fx-border-width: 0 0 0 3; -fx-background-radius: 6; -fx-border-radius: 6;");
 
 		return banner;
 	}
@@ -360,7 +360,7 @@ public class MainController {
 		banner.setMaxWidth(468);
 		banner.setPadding(new Insets(12, 14, 12, 14));
 		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
-				+ "-fx-border-width: 0 0 0 3;");
+				+ "-fx-border-width: 0 0 0 3; -fx-background-radius: 6; -fx-border-radius: 6;");
 
 		return banner;
 	}
@@ -598,18 +598,33 @@ public class MainController {
 
 	/**
 	 * Exibe diálogo com erros de validação e botão para download do log TXT.
+	 * <p>
+	 * É o único diálogo de análise onde erros bloqueantes e avisos podem
+	 * aparecer juntos — por isso {@code demaisErros} é separado em dois
+	 * blocos coloridos (vermelho para ERRO, âmbar para AVISO), em vez de uma
+	 * única lista corrida. O log salvo em disco/exportado continua o TXT
+	 * completo de {@code logErros}, sem essa separação — só a apresentação
+	 * na tela muda.
 	 */
-	private void mostrarDialogoErrosValidacao(String logErros, String nomePlanilha, Stage stage,
-			List<ErroValidacao> avisosColunaOpcional) {
+	private void mostrarDialogoErrosValidacao(List<ErroValidacao> demaisErros, String logErros,
+			String nomePlanilha, Stage stage, List<ErroValidacao> avisosColunaOpcional) {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Erros de Validação");
 		alert.setHeaderText("A planilha contém erros que impedem a importação");
 
-		TextArea areaLog = new TextArea(logErros);
-		areaLog.setEditable(false);
-		areaLog.setWrapText(true);
-		areaLog.setPrefHeight(400);
+		List<ErroValidacao> bloqueantes = demaisErros.stream()
+				.filter(ErroValidacao::isBloqueante)
+				.collect(java.util.stream.Collectors.toList());
+
+		List<ErroValidacao> naoBloqueantes = demaisErros.stream()
+				.filter(e -> !e.isBloqueante())
+				.collect(java.util.stream.Collectors.toList());
+
+		VBox blocoErros = criarBlocoSeveridade(
+				"🛑 ERROS — impedem a importação (" + bloqueantes.size() + ")",
+				formatarLinhas(bloqueantes),
+				"#B3261E", "#F6E1DF");
 
 		Button btnSalvarLog = new Button("Salvar Log TXT");
 		btnSalvarLog.setOnAction(e -> {
@@ -639,11 +654,60 @@ public class MainController {
 			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
 		}
 
-		layout.getChildren().addAll(areaLog, btnSalvarLog);
+		layout.getChildren().add(blocoErros);
+
+		if (!naoBloqueantes.isEmpty()) {
+			VBox blocoAvisos = criarBlocoSeveridade(
+					"⚠ AVISOS — não impedem a importação (" + naoBloqueantes.size() + ")",
+					formatarLinhas(naoBloqueantes),
+					"#93630F", "#F3E6D2");
+			layout.getChildren().add(blocoAvisos);
+		}
+
+		layout.getChildren().add(btnSalvarLog);
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);
 		alert.showAndWait();
+	}
+
+	/**
+	 * Monta um bloco severidade — faixa de cabeçalho colorida (fundo suave,
+	 * texto na cor forte) seguida de uma {@code TextArea} com borda na mesma
+	 * cor, sem espaço entre as duas partes. Mesmas cores usadas nos runbooks
+	 * do projeto para ERRO (<code>#B3261E</code>/<code>#F6E1DF</code>) e
+	 * AVISO (<code>#93630F</code>/<code>#F3E6D2</code>).
+	 */
+	private VBox criarBlocoSeveridade(String titulo, String conteudo, String corForte, String corSuave) {
+
+		Label header = new Label(titulo);
+		header.setMaxWidth(Double.MAX_VALUE);
+		header.setStyle(
+				"-fx-background-color: " + corSuave + "; -fx-text-fill: " + corForte + "; "
+						+ "-fx-font-weight: bold; -fx-padding: 7 12 7 12; "
+						+ "-fx-background-radius: 6 6 0 0;");
+
+		TextArea area = new TextArea(conteudo);
+		area.setEditable(false);
+		area.setWrapText(true);
+		area.setPrefHeight(Math.min(220, 60 + conteudo.lines().count() * 22));
+		area.setStyle(
+				"-fx-border-color: " + corForte + "; -fx-border-width: 1; "
+						+ "-fx-border-radius: 0 0 6 6; -fx-background-radius: 0 0 6 6;");
+
+		return new VBox(0, header, area);
+	}
+
+	/** Formata cada {@link ErroValidacao} no mesmo padrão "Linha N - TIPO: detalhe" do log TXT. */
+	private String formatarLinhas(List<ErroValidacao> erros) {
+
+		StringBuilder sb = new StringBuilder();
+
+		for (ErroValidacao erro : erros) {
+			sb.append(String.format("Linha %d - %s: %s%n", erro.linha(), erro.tipoErro(), erro.detalhe()));
+		}
+
+		return sb.toString().stripTrailing();
 	}
 
 	/** Extrai o nome do arquivo da planilha sem extensão, sanitizado para uso em nomes de arquivo. */
