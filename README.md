@@ -9,24 +9,27 @@ Aplicação desktop JavaFX utilizada pelo **Núcleo de Telessaúde de MS** para 
 ### Importação
 - **Análise prévia da planilha** (`[Analisar Planilha]`) — valida erros bloqueantes (CNS, CEP, CPF, estrutura de colunas) e avisos; ao não encontrar erros bloqueantes, o próprio diálogo de resultado oferece o botão **"Importar Planilha"** para concluir a importação, com leitura, validação e normalização de todos os campos
 - **Configuração de mapeamento de colunas** (`[Configurações]`) — permite cadastrar/remover aliases de nomes de cabeçalho aceitos para cada campo canônico da planilha, para acomodar variações de nomenclatura entre planilhas; acessível também diretamente a partir do erro de estrutura de planilha
+- **Cadastro de CNS de médicos** (`[Configurações]` → aba "CNS de Médicos") — adicionar, editar e remover profissionais e seus apelidos/variações de nome reconhecidas na resolução automática de CNS
+- **Colunas opcionais com aviso, não erro** — `Código Logradouro`, `Situação de Rua` e `Paciente sem CPF` seguem a importação normalmente quando ausentes do cabeçalho, com aviso explicando o fallback usado em cada caso
 - **Detecção de tipo de logradouro** — identifica automaticamente o prefixo do endereço (Rua → 081, Avenida/Av./Av → 008, Travessa/Trav./TV → 100) e preenche o código do logradouro
+- **Detecção de planilha em formato legado** — reconhece coluna combinada "Especialidade/Médico" e separa os dois valores automaticamente, com aviso dedicado
+- **Resolução de etnia indígena** — código oficial de 4 caracteres via `dados/etnias_indigenas.csv`, considerado apenas quando a raça do paciente é Indígena
 - **Resolução de CNS do profissional** — busca por nome no arquivo `dados/medicos_cns.csv` (escopo estadual)
 - **Resolução de código IBGE** — via CSV por nome do município, cache do banco ou API ViaCEP
 - **Log de importação persistido** — salvo em `database/log_importacao.txt` para consulta a qualquer momento
 
 ### Visualização e Edição
-- **Tabela com 28 colunas** — exibição completa dos registros importados
-- **Busca livre por nome do médico** — correspondência parcial, case-insensitive
-- **Filtro por especialidade e médico** — combo de especialidade revela combo de médico; mutuamente exclusivo com a busca livre
-- **Edição em lote** — atualiza CNS do profissional e define folha para todos os registros do médico/especialidade selecionados
+- **Tabela com 29 colunas** — exibição completa dos registros importados, incluindo Situação de Rua
+- **Navegação lateral por árvore** — especialidades e médicos organizados em árvore, com busca embutida que filtra por nome de médico ou especialidade em tempo real
+- **Modo de exibição da tabela** — alterna entre "Competência" (mês selecionado), "Período" (intervalo de competências) e "Completo" (todos os registros), sem afetar a competência usada na geração do BPA-I
+- **Edição em lote** — atualiza CNS do profissional e define folha para todos os registros do médico/especialidade selecionados na árvore
 
 ### Geração BPA-I
-- **Seleção de competência** — seletor de mês/ano na barra de ações; auto-detectado na primeira carga de dados
+- **Badge de competência único** — clicável, na barra fixa inferior; abre o seletor de mês/ano; auto-detectado na primeira carga de dados
+- **Botão de geração único e adaptativo** — texto e ação mudam conforme a seleção da árvore: `Gerar BPA-I — Completo (todos os médicos)` quando nada está selecionado, ou `Gerar BPA-I — <médico> (<especialidade>)` quando um médico está selecionado
 - **Geração completa** — todos os médicos do mês de competência selecionado, folhas atribuídas automaticamente (especialidade alfabética → médico alfabético → folha sequencial)
-- **Geração parcial** — filtrada por especialidade e médico selecionados
-- **Pré-validações bloqueantes**:
-  - BPA-I completo: bloqueia se qualquer atendimento estiver sem CNS do profissional (botão `⚠ Pendências CNS`)
-  - BPA-I parcial: bloqueia se houver atendimentos sem folha ou sem CNS do profissional (botão `⚠`)
+- **Geração parcial** — filtrada pelo médico selecionado na árvore
+- **Pré-validação bloqueante** — bloqueia a geração (completa ou parcial) se qualquer atendimento do escopo estiver sem CNS do profissional, com chip de aviso contextual (`⚠ Pendências`) que abre o relatório de pendências
 
 ---
 
@@ -85,9 +88,9 @@ fillBPAi/
     │   │   ├── PlanilhaColumnMapper.java           # Mapeia cabeçalhos → campos canônicos via aliases
     │   │   └── ValidacaoPlanilhaService.java       # Validação pré-importação
     │   ├── ui/
-    │   │   ├── ConfiguracoesDialog.java            # Diálogo de aliases de colunas da planilha
+    │   │   ├── ConfiguracoesDialog.java            # Aliases de colunas + cadastro de CNS de médicos
     │   │   ├── FileChooserService.java             # Diálogo de seleção de arquivo
-    │   │   └── RelatorioController.java            # Tabela, filtros, ações de geração
+    │   │   └── RelatorioController.java            # Sidebar de navegação, tabela, barra de geração
     │   └── util/
     │       ├── CepUtils.java                       # Normalização de CEP
     │       ├── CnsProfissionalUtils.java           # Resolução de CNS por nome
@@ -95,39 +98,48 @@ fillBPAi/
     │       ├── ColunaAliasUtils.java                # Gerencia aliases de nomes de coluna de cabeçalho
     │       ├── CpfUtils.java                        # Normalização/validação de CPF (11 dígitos)
     │       ├── DateUtils.java                       # Parse de data em múltiplos formatos aceitos
+    │       ├── EtniaUtils.java                      # Resolução de código de etnia indígena
     │       ├── IbgeUtils.java                       # Resolução de código IBGE
     │       ├── LogradouroUtils.java                 # Detecção de tipo de logradouro
+    │       ├── SimNaoUtils.java                     # Normalização S/N (situação de rua, sem CPF)
     │       ├── StringUtils.java                     # Truncamento e split de "código - nome"
     │       ├── TextoUtils.java                      # Normalização de texto para comparação
     │       └── TimeUtils.java                       # Parse de hora em múltiplos formatos aceitos
     └── resources/
         └── dados/
             ├── colunas_aliases.csv                 # Aliases padrão de nomes de coluna de cabeçalho
-            └── medicos_cns.csv                     # Cache local CNS dos profissionais
+            ├── etnias_indigenas.csv                # Tabela oficial de códigos de etnia indígena
+            ├── medicos_cns.csv                     # Cache local CNS dos profissionais
+            └── municipios_ibge.csv                 # Tabela de municípios → código IBGE
 ```
 
 ---
 
 ## Layout da Interface
 
+Layout em `BorderPane` — sidebar de navegação à esquerda e barra de geração fixa embaixo, separando fisicamente "visualizar tabela" de "gerar BPA-I":
+
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│ [Analisar Planilha] [Ver Log Importação] [Configurações]   Comp:MM/AAAA│  ← Linha 1 (topBar)
-├────────────────────────────────────────────────────────────────────────┤
-│ [Selecionar Mês] [Gerar BPA-I Completo] [⚠ Pendências CNS]            │  ← Linha 2 (barra de ações)
-├────────────────────────────────────────────────────────────────────────┤
-│ Buscar médico: [________] [Buscar]  Especialidade[▼]  (Médico[▼])     │  ← Linha 3 (barra de filtros)
-│                                        [Gerar BPA-I] [⚠] [Limpar]      │
-├────────────────────────────────────────────────────────────────────────┤
-│ (aparece ao selecionar médico ou usar busca)                           │  ← Linha 4 (barra de edição)
-│ CNS: [___________] [Atualizar CNS] [Definir Folha]                    │
-├────────────────────────────────────────────────────────────────────────┤
-│                         Tabela de Atendimentos                         │  ← Linha 5
-│                              Total: N                                  │
-└────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│ [Analisar Planilha] [Ver Log Importação] [Configurações]                 │  ← topBar (MainController)
+├──────────────────────────────────────────────────────────────────────────┤
+│ Exibir tabela: [Competência|Período|Completo]     Competência selecionada│  ← criarBarraExibicao()
+├───────────────────────────┬──────────────────────────────────────────────┤
+│ ESPECIALIDADES E MÉDICOS  │ Cardiologia › Dr. João Silva — 14 atendimento│
+│ [Buscar...      ] [Limpar]│ (CNS/Folha aparece só com médico selecionado)│
+│ ▾ Cardiologia (12)        │ CNS: [_______] [Atualizar CNS] [Definir Folha│
+│   ● Dr. João Silva        │ ┌──────────────────────────────────────────┐│
+│   ○ Dra. Ana Prado        │ │           Tabela de Atendimentos          ││
+│ ▸ Dermatologia (5)        │ └──────────────────────────────────────────┘│
+│                           │                Total: N                     │
+├───────────────────────────┴──────────────────────────────────────────────┤
+│ 📅 Competência: MM/AAAA    ⚠ Pendências    [Gerar BPA-I — <contexto>]    │  ← criarBarraGeracao()
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-O botão **"Importar Planilha"** não fica fixo na barra superior — ele aparece dentro do diálogo de resultado exibido após `[Analisar Planilha]`, quando não há erros bloqueantes.
+- O botão de geração é **único e adaptativo**: mostra `Completo (todos os médicos)` quando nada está selecionado na árvore, ou `<médico> (<especialidade>)` quando um médico está selecionado — nunca há dois botões de geração ao mesmo tempo.
+- O toggle "Exibir tabela" controla **apenas o que a tabela mostra**; nunca afeta a competência usada na geração.
+- O botão **"Importar Planilha"** não fica fixo na barra superior — ele aparece dentro do diálogo de resultado exibido após `[Analisar Planilha]`, quando não há erros bloqueantes.
 
 ---
 
@@ -149,6 +161,8 @@ Planilha .xlsx
       ├─ AtendimentoProcessor       (valida e normaliza campos)
       ├─ LogradouroUtils            (detecta tipo de logradouro)
       ├─ IbgeUtils                  (resolve código IBGE)
+      ├─ EtniaUtils                 (resolve código de etnia indígena)
+      ├─ SimNaoUtils                (normaliza situação de rua / sem CPF)
       ├─ CnsProfissionalUtils       (resolve CNS pelo nome via CSV)
       └─ AtendimentoImportacaoService (persiste no banco H2)
               │
@@ -156,18 +170,21 @@ Planilha .xlsx
         Banco H2 (database/)
               │
               ▼
-[Selecionar Mês] ──► competência para geração
+📅 Competência (badge da barra de geração) ──► seletor de mês/ano
+              │
+              ▼
+   [Gerar BPA-I — <contexto>]  (botão único, adaptativo)
               │
     ┌─────────┴──────────┐
     ▼                    ▼
-[Gerar BPA-I]      [Gerar BPA-I Completo]
-(especialidade      (todos os médicos do
- + médico)           mês selecionado)
+Médico selecionado   Nada selecionado
+na árvore             na árvore
+(gera parcial)        (gera completo)
     │                    │
     └─────────┬──────────┘
               ▼
     Arquivo .txt BPA-I
-    (ISO-8859-1, 352 chars/linha)
+    (ISO-8859-1, 353 chars/linha)
 ```
 
 ---
@@ -183,16 +200,21 @@ Planilha .xlsx
 | CPF não informado | `CPF_AUSENTE` | ERRO | Bloqueia importação |
 | CPF com tamanho inválido (≠ 11 dígitos) | `CPF_INVALIDO` | ERRO | Bloqueia importação |
 | Raça do paciente = Indígena | `RACA_INDIGENA` | AVISO | Importa com aviso no log |
+| Etnia preenchida mas não encontrada na tabela oficial (só considerada com raça Indígena) | `ETNIA_NAO_ENCONTRADA` | AVISO | Importa com aviso no log |
 | Coluna obrigatória ausente/ambígua no cabeçalho | `ESTRUTURA_INVALIDA` | ERRO | Bloqueia importação (oferece abrir Configurações) |
+| Coluna "Especialidade/Médico" combinada (formato legado) | `FORMATO_LEGADO_ESPECIALIDADE_MEDICO` | AVISO | Separa os dois campos automaticamente; importa normalmente |
+| Coluna opcional ausente (`Código Logradouro`, `Situação de Rua` ou `Paciente sem CPF`) | `COLUNA_OPCIONAL_AUSENTE` | AVISO | Importa normalmente; mensagem explica o fallback usado para o campo específico |
+| Situação de Rua preenchida mas valor não reconhecido (aceita S/N, Sim/Não, 1/0) | `SITUACAO_RUA_INVALIDA` | AVISO | Importa com aviso; remessa usa "N" |
+| Paciente sem CPF preenchido mas valor não reconhecido | `PACIENTE_SEM_CPF_INVALIDO` | AVISO | Importa com aviso; valor é derivado automaticamente a partir do CPF |
 
 ---
 
 ## Layout do Arquivo BPA-I
 
-O arquivo gerado segue o layout oficial de interface texto do BPA:
+O arquivo gerado segue o layout oficial de interface texto do BPA, versão 2026 (`data/Layout_Exportacao_BPA_2026.pdf`):
 
 - **Cabeçalho** — 132 caracteres (competência, totais, checksum, órgão emissor)
-- **Registros** — 352 caracteres cada (350 de conteúdo + CRLF), 39 campos posicionais
+- **Registros** — 353 caracteres cada (351 de conteúdo + CRLF), 40 campos posicionais (numeração oficial repete o "38" para dois campos consecutivos)
 - **Codificação** — ISO-8859-1
 - **Quebra de linha** — CRLF
 
@@ -211,6 +233,8 @@ O arquivo gerado segue o layout oficial de interface texto do BPA:
 | `prd-ibge` (seq 12) | Código IBGE de 7 dígitos truncado para 6 (sem dígito verificador) |
 | `prd-cmp` (seq 3) | Competência = mesmo mês do atendimento (AAAAMM da própria `dataAgendamento`) |
 | `prd-cpf-pcnte` (seq 38) | CPF do paciente, 11 dígitos zero-padded — é aqui, não na seq 10, que o CPF do paciente entra no registro |
+| `prd_situacao_rua` (seq "38" duplicado) | "S"/"N" — vem da coluna "Situação de Rua" da planilha; sem essa coluna, mantém o padrão "N" |
+| `prd_sem_cpf` (seq 39, novo em 2026) | "S"/"N" — vem da coluna "Paciente sem CPF" da planilha; sem essa coluna, deriva automaticamente do CPF do paciente (preenchido → "N", vazio → "S") |
 
 ### Códigos de logradouro
 
@@ -240,16 +264,26 @@ O arquivo gerado segue o layout oficial de interface texto do BPA:
 | 12 | CNS Paciente | Cartão Nacional de Saúde do paciente |
 | 13 | Sexo Paciente | Sexo do paciente |
 | 14 | Raça Paciente | Raça/cor do paciente |
-| 15 | Data Nascimento | Data de nascimento do paciente |
-| 16 | CID Consulta | Código CID da consulta |
-| 17 | Telefone | Telefone do paciente |
-| 18 | Tipo Zona | Zona (urbana/rural) |
-| 19 | CEP | CEP do paciente |
-| 20 | Código Logradouro | Preenchido automaticamente pelo sistema |
+| 15 | Etnia Paciente | Etnia indígena — considerada apenas quando Raça = Indígena |
+| 16 | Data Nascimento | Data de nascimento do paciente |
+| 17 | CID Consulta | Código CID da consulta |
+| 18 | Telefone | Telefone do paciente |
+| 19 | Tipo Zona | Zona (urbana/rural) |
+| 20 | CEP | CEP do paciente |
 | 21 | Endereço | Endereço do paciente (com ou sem prefixo de tipo) |
 | 22 | Complemento | Complemento do endereço |
 | 23 | Número | Número do endereço |
 | 24 | Bairro | Bairro do paciente |
+
+### Colunas opcionais
+
+Ausência não bloqueia a importação — gera aviso `COLUNA_OPCIONAL_AUSENTE` explicando o fallback.
+
+| Coluna | Descrição | Sem a coluna |
+|--------|-----------|--------------|
+| Código Logradouro | Código do tipo de logradouro | Derivado automaticamente do prefixo do endereço (Rua/Avenida/Travessa); default "081" se não reconhecido |
+| Situação de Rua | Paciente em situação de rua (S/N) | Remessa BPA-I usa "N" |
+| Paciente sem CPF | Exceção para paciente sem CPF/registro civil (S/N) | Remessa BPA-I deriva automaticamente do CPF: preenchido → "N", vazio → "S" |
 
 ---
 
@@ -259,7 +293,7 @@ Acessível pelo botão `[Configurações]` na barra superior, ou diretamente a p
 
 O diálogo tem duas abas:
 - **Colunas da Planilha** — para cada campo canônico do sistema (ex.: `CPF_PACIENTE`, `MEDICO`), permite cadastrar aliases adicionais de nome de cabeçalho aceitos na planilha, remover aliases customizados e restaurar os aliases padrão de uma coluna. Aliases padrão vêm de `src/main/resources/dados/colunas_aliases.csv`; os customizados são persistidos separadamente.
-- **CNS de Médicos** — reservada para gerenciar `medicos_cns.csv` pela interface; ainda não implementada (placeholder "Em breve").
+- **CNS de Médicos** — adicionar, editar e remover profissionais (nome + CNS) e cadastrar apelidos/variações de nome que devem resolver para o mesmo CNS, persistidos em `medicos_cns.csv`.
 
 ---
 
@@ -309,6 +343,9 @@ O banco H2 é criado automaticamente em `database/` e persiste dados entre reini
 - Competência no arquivo = mesmo mês do atendimento (sem deslocamento)
 - Checksum do cabeçalho = (soma dos SIGTAP numéricos + contagem de registros) % 1111 + 1111
 - Folhas na geração completa: especialidades em ordem alfabética → médicos em ordem alfabética → numeração sequencial por competência
+- Etnia só é considerada quando a raça do paciente é Indígena; para as demais raças, o conteúdo da coluna é ignorado mesmo se preenchido
+- Situação de Rua é um campo do **paciente** (traço estável da pessoa); reimportar uma planilha sem essa coluna nunca apaga um valor já conhecido de uma importação anterior com a coluna
+- Paciente sem CPF é um campo do **atendimento**, não do paciente — a exceção está ligada ao procedimento específico (atributo SIGTAP "058 - Obrigatório CPF"), não a um traço fixo da pessoa; por isso é sempre sobrescrito pela importação mais recente daquele atendimento
 
 ---
 

@@ -45,12 +45,14 @@ Tipos de ERRO (bloqueantes):
 Tipos de AVISO (não bloqueantes):
 - **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização (não bloqueia a importação)
 - **CNS_INCOMUM** — CNS do paciente com mais de 15 dígitos (formato incomum)
-- **RACA_INDIGENA** — raça do paciente informada como Indígena
+- **RACA_INDIGENA** — raça do paciente informada como Indígena — exige preenchimento da etnia
+- **ETNIA_NAO_ENCONTRADA** — etnia preenchida mas não encontrada na tabela oficial (`EtniaUtils`); só é considerada quando a raça é Indígena, ignorada para as demais raças mesmo se preenchida
+- **FORMATO_LEGADO_ESPECIALIDADE_MEDICO** — planilha antiga com coluna "Especialidade/Médico" combinada numa única célula; separado automaticamente na importação
 - **COLUNA_OPCIONAL_AUSENTE** — coluna opcional (`COD_LOGRADOURO`, `SITUACAO_RUA` ou `PACIENTE_SEM_CPF`) não encontrada no cabeçalho; mensagem específica por campo (`ValidacaoPlanilhaService.mensagemColunaOpcionalAusente`) explica o fallback usado
 - **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
 - **PACIENTE_SEM_CPF_INVALIDO** — coluna "Paciente sem CPF" presente mas valor da célula não reconhecido (mesmas regras de `SimNaoUtils`) — valor será derivado automaticamente a partir do CPF do paciente
 
-O botão **"Analisar Planilha"** (topBar, à esquerda de "Importar Planilha") permite validar sem importar.
+O botão **"Analisar Planilha"** (topBar) permite validar sem importar; o botão "Importar Planilha" não fica fixo na UI — aparece dentro do diálogo de resultado quando não há erros bloqueantes.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 
 ### Fluxo de Importação
@@ -64,6 +66,8 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 - `CnsProfissionalUtils` — resolve CNS do profissional por **nome** (normalizado: uppercase, sem acentos). Fonte única: `dados/medicos_cns.csv` (classpath + arquivo externo `src/main/resources/dados/medicos_cns.csv`, formato `nome;cns`). Sem consulta ao DATASUS. Profissional não encontrado gera aviso no log de importação.
 - `CnsUtils` — processa/valida CNS de pacientes (aceita CNS incomum >15 dígitos com aviso `CNS_INCOMUM`)
 - `CepUtils` — normalização de CEP
+- `EtniaUtils` — resolve código oficial de etnia indígena (4 caracteres, numérico ou alfanumérico com prefixo "X") a partir do nome, via `dados/etnias_indigenas.csv` (classpath, somente leitura)
+- `SimNaoUtils` — normaliza campos S/N (aceita S/N, Sim/Não, 1/0) usado por `prd_situacao_rua` e `prd_sem_cpf`; mesma lógica usada tanto na análise quanto na importação
 
 ### Geração BPA-I
 - Geração individual (filtrada por especialidade/médico selecionados)
