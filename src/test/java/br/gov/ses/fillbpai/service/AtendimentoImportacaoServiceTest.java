@@ -175,7 +175,7 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
 		assertThat(resultado.getTotalErro()).isEqualTo(0);
 		assertThat(resultado.getAvisos())
-				.anySatisfy(aviso -> assertThat(aviso).startsWith("Linha 2").contains("Hora de atendimento não reconhecida"));
+				.anySatisfy(aviso -> assertThat(aviso).startsWith("Linha 2").contains("Horário de atendimento não reconhecido"));
 
 		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
 		assertThat(atendimento.getHoraAtendimento()).isNull();

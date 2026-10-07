@@ -296,8 +296,9 @@ public class ValidacaoPlanilhaService {
 			} catch (IllegalArgumentException e) {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 						ErroValidacao.HORA_INVALIDA,
-						"Hora de atendimento \"" + hora.trim() + "\" nao reconhecida (use HH:mm, ex.: 08:30)"
-								+ " - o atendimento sera importado sem hora"));
+						"Horario de atendimento \"" + hora.trim() + "\" nao reconhecido (use HH:mm, ex.: 08:30)"
+								+ " - como a remessa BPA-I nao utiliza o horario, o atendimento podera ser"
+								+ " importado com o horario vazio"));
 			}
 		}
 	}

@@ -546,8 +546,9 @@ class AtendimentoProcessorTest {
 
 		assertThat(dto.getHoraAtendimento()).isNull();
 		assertThat(avisos).anySatisfy(aviso -> assertThat(aviso)
-				.contains("Hora de atendimento não reconhecida")
-				.contains("25h99"));
+				.contains("Horário de atendimento não reconhecido")
+				.contains("25h99")
+				.contains("remessa BPA-I não utiliza o horário"));
 	}
 
 	@Test
@@ -558,7 +559,7 @@ class AtendimentoProcessorTest {
 		List<String> avisos = processor.processar(dto);
 
 		assertThat(dto.getHoraAtendimento()).isNull();
-		assertThat(avisos).anySatisfy(aviso -> assertThat(aviso).contains("Hora de atendimento não reconhecida"));
+		assertThat(avisos).anySatisfy(aviso -> assertThat(aviso).contains("Horário de atendimento não reconhecido"));
 	}
 
 	@Test
@@ -569,7 +570,7 @@ class AtendimentoProcessorTest {
 		List<String> avisos = processor.processar(dto);
 
 		assertThat(dto.getHoraAtendimento()).isNull();
-		assertThat(avisos).noneMatch(aviso -> aviso.contains("Hora de atendimento"));
+		assertThat(avisos).noneMatch(aviso -> aviso.contains("Horário de atendimento"));
 	}
 
 	@Test

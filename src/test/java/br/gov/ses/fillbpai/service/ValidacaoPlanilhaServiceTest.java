@@ -484,7 +484,7 @@ class ValidacaoPlanilhaServiceTest {
 		assertThat(erros).singleElement().satisfies(erro -> {
 			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
 			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.HORA_INVALIDA);
-			assertThat(erro.detalhe()).contains("\"-\"");
+			assertThat(erro.detalhe()).contains("\"-\"").contains("remessa BPA-I nao utiliza o horario");
 		});
 	}
 

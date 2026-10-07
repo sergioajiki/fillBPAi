@@ -265,7 +265,7 @@
         <p>
           Depois da correção, a linha não é mais descartada. Em
           <code>=== AVISOS (linhas importadas com ressalvas) ===</code>, procure por
-          <code>Hora de atendimento não reconhecida: "&lt;valor&gt;"</code>. O número da linha é o mesmo
+          <code>Horário de atendimento não reconhecido: "&lt;valor&gt;"</code>. O número da linha é o mesmo
           da planilha (o cabeçalho é a linha 1). O mesmo caso aparece antes, no "Analisar Planilha",
           como <code>HORA_INVALIDA</code>.
         </p>
@@ -295,7 +295,7 @@
     <p>
       Em <code>AtendimentoProcessor.converterDatas()</code>, quando o <code>TimeUtils.parse</code>
       falhar, deixar <code>horaAtendimento = null</code> e devolver um aviso
-      ("Hora de atendimento não reconhecida: '-' — atendimento importado sem hora") em vez de lançar
+      ("Horário de atendimento não reconhecido: '-' — como a remessa BPA-I não utiliza o horário, o atendimento foi importado com o horário vazio") em vez de lançar
       a exceção. Justificativa: a hora não vai para o BPA-I, então não deveria bloquear a linha.
     </p>
 
@@ -344,7 +344,7 @@
         <h4>A · <code>AtendimentoProcessor.converterHora()</code></h4>
         <p>
           Hora preenchida e não reconhecida deixa <code>horaAtendimento = null</code> e devolve o aviso
-          <code>Hora de atendimento não reconhecida: "&lt;valor&gt;" — atendimento importado sem hora</code>,
+          <code>Horário de atendimento não reconhecido: "&lt;valor&gt;" — como a remessa BPA-I não utiliza o horário, o atendimento foi importado com o horário vazio</code>,
           que vai para a seção de AVISOS do log de importação. Datas continuam bloqueando a linha.
         </p>
       </li>

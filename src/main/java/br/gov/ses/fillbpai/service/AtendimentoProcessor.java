@@ -454,9 +454,10 @@ public class AtendimentoProcessor {
 			return List.of();
 		} catch (IllegalArgumentException e) {
 			dto.setHoraAtendimento(null);
-			return List.of("Hora de atendimento não reconhecida: \""
+			return List.of("Horário de atendimento não reconhecido: \""
 					+ dto.getHoraAtendimentoString().trim()
-					+ "\" — atendimento importado sem hora");
+					+ "\" — como a remessa BPA-I não utiliza o horário, o atendimento"
+					+ " foi importado com o horário vazio");
 		}
 	}
 
