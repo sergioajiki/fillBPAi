@@ -42,6 +42,21 @@ class EtniaUtilsTest {
 	}
 
 	@Test
+	void resolverAceitaNomePrincipalENomesAlternativosEntreParenteses() {
+		// CSV: "0001;ACONA (WAKONAS, NACONAS, JAKONA, ACORANES)"
+		assertThat(EtniaUtils.resolver("Acona")).isEqualTo("0001");
+		assertThat(EtniaUtils.resolver("Wakonas")).isEqualTo("0001");
+		assertThat(EtniaUtils.resolver("NACONAS")).isEqualTo("0001");
+		assertThat(EtniaUtils.resolver("jakona")).isEqualTo("0001");
+		assertThat(EtniaUtils.resolver(" Acoranes ")).isEqualTo("0001");
+	}
+
+	@Test
+	void resolverAceitaNomeCompletoComParenteses() {
+		assertThat(EtniaUtils.resolver("ACONA (WAKONAS, NACONAS, JAKONA, ACORANES)")).isEqualTo("0001");
+	}
+
+	@Test
 	void normalizarRemoveAcentosEMaiusculiza() {
 		assertThat(EtniaUtils.normalizar("Baniwa")).isEqualTo("BANIWA");
 		assertThat(EtniaUtils.normalizar("Ñañaguas")).isEqualTo("NANAGUAS");

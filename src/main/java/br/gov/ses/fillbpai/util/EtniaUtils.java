@@ -5,7 +5,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -28,6 +30,10 @@ import org.slf4j.LoggerFactory;
  * ocorrência no arquivo vence, e o arquivo lista {@code 0001}–{@code 0264}
  * antes de {@code 0265}–{@code 0334}, então a faixa principal tem
  * precedência sobre a suplementar.
+ * <p>
+ * Um nome pode listar nomes alternativos entre parênteses, separados por
+ * vírgula (ex.: {@code ACONA (WAKONAS, NACONAS, JAKONA, ACORANES)}): o nome
+ * principal e cada alternativo resolvem para o mesmo código.
  */
 public class EtniaUtils {
 
@@ -100,7 +106,9 @@ public class EtniaUtils {
 
 					if (!codigo.isEmpty() && !nome.isEmpty()) {
 						// putIfAbsent: primeira ocorrência no arquivo vence (ver javadoc da classe)
-						mapaEtnias.putIfAbsent(normalizar(nome), codigo);
+						for (String variante : variantesDoNome(nome)) {
+							mapaEtnias.putIfAbsent(normalizar(variante), codigo);
+						}
 					}
 				}
 			}
@@ -110,6 +118,34 @@ public class EtniaUtils {
 		} catch (Exception e) {
 			log.error("Erro ao carregar CSV de etnias indígenas: {}", e.getMessage());
 		}
+	}
+
+	/**
+	 * Expande um nome do CSV no formato {@code "NOME (ALT1, ALT2, ...)"} em
+	 * todas as formas aceitas na busca: o nome completo como está no arquivo,
+	 * o nome principal (antes dos parênteses) e cada nome alternativo.
+	 * Nomes sem parênteses retornam apenas a si mesmos.
+	 */
+	static List<String> variantesDoNome(String nome) {
+
+		List<String> variantes = new ArrayList<>();
+		variantes.add(nome);
+
+		int abre = nome.indexOf('(');
+		int fecha = nome.lastIndexOf(')');
+
+		if (abre > 0 && fecha > abre) {
+
+			variantes.add(nome.substring(0, abre).trim());
+
+			for (String alternativo : nome.substring(abre + 1, fecha).split(",")) {
+				if (!alternativo.isBlank()) {
+					variantes.add(alternativo.trim());
+				}
+			}
+		}
+
+		return variantes;
 	}
 
 	/**
