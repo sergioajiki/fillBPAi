@@ -163,6 +163,25 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarComHoraNaoReconhecidaImportaALinhaSemHoraEComAviso() throws IOException {
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[2] = "-"; // HORA ATENDIMENTO
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		ImportacaoResultado resultado = service.importar(caminho);
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+		assertThat(resultado.getTotalErro()).isEqualTo(0);
+		assertThat(resultado.getAvisos())
+				.anySatisfy(aviso -> assertThat(aviso).startsWith("Linha 2").contains("Hora de atendimento não reconhecida"));
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getHoraAtendimento()).isNull();
+	}
+
+	@Test
 	void importarComEstabelecimentoSemCodigoReaproveitaEstabelecimentoJaCadastradoPeloNome() throws IOException {
 
 		Estabelecimento existente = new Estabelecimento();

@@ -86,12 +86,50 @@ class ExcelImportServiceTest {
 	}
 
 	@Test
-	void importarLinhaComCelulaDeFormulaMantemAFormulaComoTexto() {
-		celula(0).setCellFormula("A1+B1");
+	void importarLinhaComCelulaDeFormulaUsaResultadoCalculadoNaoOTextoDaFormula() {
+		Cell cell = celula(0);
+		cell.setCellFormula("CONCATENATE(\"6799\",\"9999999\")");
+		cell.setCellValue("67999999999"); // resultado em cache, como o Excel salva
 
 		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("TELEFONE", 0));
 
-		assertThat(dto.getTelefone()).isEqualTo("A1+B1");
+		assertThat(dto.getTelefone()).isEqualTo("67999999999");
+	}
+
+	@Test
+	void importarLinhaComFormulaQueResultaEmVazioRetornaVazio() {
+		Cell cell = celula(0);
+		cell.setCellFormula("IF(1=1,\"\",\"x\")");
+		cell.setCellValue("");
+
+		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("HORA_ATENDIMENTO", 0));
+
+		assertThat(dto.getHoraAtendimentoString()).isEmpty();
+	}
+
+	@Test
+	void importarLinhaComFormulaDeHoraUsaHoraCalculada() {
+		Cell cell = celula(0);
+		CellStyle estiloHora = workbook.createCellStyle();
+		estiloHora.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("hh:mm"));
+		cell.setCellStyle(estiloHora);
+		cell.setCellFormula("TIME(8,30,0)");
+		cell.setCellValue(LocalDateTime.of(1899, 12, 31, 8, 30));
+
+		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("HORA_ATENDIMENTO", 0));
+
+		assertThat(dto.getHoraAtendimentoString()).isEqualTo("08:30");
+	}
+
+	@Test
+	void importarLinhaComEspacoNaoSeparavelTrataComoEspacoComum() {
+		celula(0).setCellValue(" MARIA SILVA ");
+		celula(1).setCellValue(" ");
+
+		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("PACIENTE", 0, "HORA_ATENDIMENTO", 1));
+
+		assertThat(dto.getPaciente()).isEqualTo("MARIA SILVA");
+		assertThat(dto.getHoraAtendimentoString()).isEmpty();
 	}
 
 	@Test

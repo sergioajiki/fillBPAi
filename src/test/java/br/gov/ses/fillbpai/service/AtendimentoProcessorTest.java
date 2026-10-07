@@ -536,13 +536,40 @@ class AtendimentoProcessorTest {
 	}
 
 	@Test
-	void processarComHoraDeAtendimentoInvalidaLancaExcecaoComMensagemEspecifica() {
+	void processarComHoraDeAtendimentoInvalidaImportaSemHoraComAviso() {
+		// A hora não vai para o BPA-I — valor não reconhecido não pode
+		// descartar a linha inteira (produção perdida); vira aviso.
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setHoraAtendimentoString("25h99");
 
-		assertThatThrownBy(() -> processor.processar(dto))
-				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("Hora de atendimento inválida");
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getHoraAtendimento()).isNull();
+		assertThat(avisos).anySatisfy(aviso -> assertThat(aviso)
+				.contains("Hora de atendimento não reconhecida")
+				.contains("25h99"));
+	}
+
+	@Test
+	void processarComHoraDeAtendimentoHifenImportaSemHoraComAviso() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setHoraAtendimentoString("-");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getHoraAtendimento()).isNull();
+		assertThat(avisos).anySatisfy(aviso -> assertThat(aviso).contains("Hora de atendimento não reconhecida"));
+	}
+
+	@Test
+	void processarComHoraDeAtendimentoVaziaNaoGeraAviso() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setHoraAtendimentoString(null);
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getHoraAtendimento()).isNull();
+		assertThat(avisos).noneMatch(aviso -> aviso.contains("Hora de atendimento"));
 	}
 
 	@Test

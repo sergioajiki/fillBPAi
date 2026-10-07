@@ -8,6 +8,7 @@ import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
+import br.gov.ses.fillbpai.util.TimeUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
@@ -279,6 +280,25 @@ public class ValidacaoPlanilhaService {
 							+ "(formato esperado: \"codigo - nome\") - sera vinculado por nome, se ja "
 							+ "houver um estabelecimento cadastrado com esse nome; caso contrario, o "
 							+ "atendimento ficara sem estabelecimento"));
+		}
+
+		// -------------------------------------------------------
+		// Regra 9: Hora de atendimento — célula preenchida mas não
+		// reconhecida como horário (ex.: "-", "--:--", "SEM HORARIO").
+		// AVISO, não bloqueia — a hora não vai para o BPA-I, então o
+		// atendimento é importado sem hora (AtendimentoProcessor).
+		// -------------------------------------------------------
+		String hora = dto.getHoraAtendimentoString();
+
+		if (hora != null && !hora.isBlank()) {
+			try {
+				TimeUtils.parse(hora);
+			} catch (IllegalArgumentException e) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.HORA_INVALIDA,
+						"Hora de atendimento \"" + hora.trim() + "\" nao reconhecida (use HH:mm, ex.: 08:30)"
+								+ " - o atendimento sera importado sem hora"));
+			}
 		}
 	}
 

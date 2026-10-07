@@ -105,7 +105,8 @@ public class ExcelImportService {
 	 * - Datas
 	 * - Horas (incluindo padrão 1899 do Excel)
 	 * - Booleanos
-	 * - Fórmulas
+	 * - Fórmulas (pelo resultado calculado em cache)
+	 * - Espaço não separável (U+00A0) tratado como espaço comum
 	 */
 	private String getString(Cell cell) {
 
@@ -113,13 +114,43 @@ public class ExcelImportService {
 			return null;
 		}
 
-		switch (cell.getCellType()) {
+		// ===============================
+		// FÓRMULA
+		// ===============================
+		/*
+		 * Usa o resultado calculado que o Excel salva junto com a fórmula
+		 * (ex.: =SE(A2="";"";A2) resultando em vazio), e não o texto da
+		 * fórmula — antes o texto "IF(...)" era lido como valor da célula.
+		 * Fórmula com erro (#N/D, #REF!...) é tratada como célula vazia.
+		 */
+		if (cell.getCellType() == CellType.FORMULA) {
+
+			CellType resultado = cell.getCachedFormulaResultType();
+
+			if (resultado == CellType.ERROR) {
+				return null;
+			}
+
+			return getString(cell, resultado);
+		}
+
+		return getString(cell, cell.getCellType());
+	}
+
+	/**
+	 * Converte o valor da célula em String de acordo com o tipo informado —
+	 * o tipo da própria célula, ou o tipo do resultado em cache quando a
+	 * célula é uma fórmula.
+	 */
+	private String getString(Cell cell, CellType tipo) {
+
+		switch (tipo) {
 
 			// ===============================
 			// TEXTO NORMAL
 			// ===============================
 			case STRING:
-				return cell.getStringCellValue().trim();
+				return limparTexto(cell.getStringCellValue());
 
 			// ===============================
 			// NÚMEROS (incluindo datas/horas)
@@ -162,17 +193,6 @@ public class ExcelImportService {
 				return String.valueOf(cell.getBooleanCellValue());
 
 			// ===============================
-			// FÓRMULA
-			// ===============================
-			case FORMULA:
-				/*
-				 * Mantemos a fórmula como texto.
-				 * Se quiser futuramente avaliar o resultado da fórmula,
-				 * podemos usar FormulaEvaluator.
-				 */
-				return cell.getCellFormula();
-
-			// ===============================
 			// CÉLULA EM BRANCO
 			// ===============================
 			case BLANK:
@@ -182,7 +202,17 @@ public class ExcelImportService {
 			// OUTROS TIPOS
 			// ===============================
 			default:
-				return cell.toString().trim();
+				return limparTexto(cell.toString());
 		}
+	}
+
+	/**
+	 * Troca o espaço não separável (U+00A0, comum em dados copiados de
+	 * sistemas web) por espaço comum e remove espaços das pontas — o
+	 * {@code trim()} do Java não remove o U+00A0, e uma célula só com ele
+	 * parecia vazia na tela mas chegava preenchida ao processamento.
+	 */
+	private String limparTexto(String texto) {
+		return texto.replace(' ', ' ').strip();
 	}
 }

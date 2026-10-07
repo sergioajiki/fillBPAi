@@ -98,7 +98,7 @@ public class AtendimentoProcessor {
 		// em tipos Java (LocalDate/LocalTime)
 		// ===============================
 
-		converterDatas(dto);
+		converterDatas(dto, avisos);
 
 		return avisos;
 	}
@@ -397,13 +397,13 @@ public class AtendimentoProcessor {
 	 *
 	 * Campos convertidos:
 	 * - dataAgendamentoString → dataAgendamento (LocalDate)
-	 * - horaAtendimentoString → horaAtendimento (LocalTime)
+	 * - horaAtendimentoString → horaAtendimento (LocalTime) — não reconhecida vira aviso, não erro
 	 * - dataNascimentoString  → dataNascimento (LocalDate)
 	 *
 	 * Formatos suportados por DateUtils: dd/MM/yyyy, yyyy-MM-dd, dd-MM-yyyy
 	 * Formatos suportados por TimeUtils: HH:mm, H:mm, HH:mm:ss, HHmm
 	 */
-	private void converterDatas(LinhaImportacaoDTO dto) {
+	private void converterDatas(LinhaImportacaoDTO dto, List<String> avisos) {
 
 		if (!isNullOrEmpty(dto.getDataAgendamentoString())) {
 			try {
@@ -418,18 +418,7 @@ public class AtendimentoProcessor {
 			}
 		}
 
-		if (!isNullOrEmpty(dto.getHoraAtendimentoString())) {
-			try {
-				LocalTime hora =
-						TimeUtils.parse(dto.getHoraAtendimentoString());
-				dto.setHoraAtendimento(hora);
-			} catch (IllegalArgumentException e) {
-				throw new IllegalArgumentException(
-						"Hora de atendimento inválida: "
-								+ dto.getHoraAtendimentoString()
-				);
-			}
-		}
+		avisos.addAll(converterHora(dto));
 
 		if (!isNullOrEmpty(dto.getDataNascimentoString())) {
 			try {
@@ -442,6 +431,32 @@ public class AtendimentoProcessor {
 								+ dto.getDataNascimentoString()
 				);
 			}
+		}
+	}
+
+	/**
+	 * Converte a hora de atendimento. Diferente das datas, hora não reconhecida
+	 * (ex.: "-", "--:--", "SEM HORARIO") NÃO descarta a linha: a hora não é
+	 * enviada no BPA-I, então o atendimento é importado sem hora e com aviso
+	 * (mesma regra de {@code ValidacaoPlanilhaService}, aviso HORA_INVALIDA).
+	 *
+	 * @return lista com um aviso quando a hora está preenchida mas não é reconhecida
+	 */
+	private List<String> converterHora(LinhaImportacaoDTO dto) {
+
+		if (isNullOrEmpty(dto.getHoraAtendimentoString())) {
+			return List.of();
+		}
+
+		try {
+			LocalTime hora = TimeUtils.parse(dto.getHoraAtendimentoString());
+			dto.setHoraAtendimento(hora);
+			return List.of();
+		} catch (IllegalArgumentException e) {
+			dto.setHoraAtendimento(null);
+			return List.of("Hora de atendimento não reconhecida: \""
+					+ dto.getHoraAtendimentoString().trim()
+					+ "\" — atendimento importado sem hora");
 		}
 	}
 

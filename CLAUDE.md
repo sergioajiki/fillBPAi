@@ -54,6 +54,9 @@ Tipos de AVISO (não bloqueantes):
 - **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
 - **PACIENTE_SEM_CPF_INVALIDO** — coluna "Paciente sem CPF" presente mas valor da célula não reconhecido (mesmas regras de `SimNaoUtils`) — valor será derivado automaticamente a partir do CPF do paciente
 - **ESTABELECIMENTO_SEM_CODIGO** — célula "Estabelecimento" preenchida mas sem separador "código - nome" reconhecido; a importação tenta vincular por nome a um estabelecimento já cadastrado, senão o atendimento fica sem estabelecimento
+- **HORA_INVALIDA** — hora de atendimento preenchida mas não reconhecida por `TimeUtils` (ex.: "-", "--:--"); o atendimento é importado sem hora (a hora não vai para o BPA-I) e `AtendimentoProcessor` registra aviso no log de importação em vez de descartar a linha
+
+Leitura de células (`ExcelImportService.getString`): fórmulas são lidas pelo resultado em cache (não pelo texto da fórmula; fórmula com erro → vazio) e o espaço não separável U+00A0 é tratado como espaço comum, em todas as colunas.
 
 O botão **"Analisar Planilha"** (topBar) permite validar sem importar; o botão "Importar Planilha" não fica fixo na UI — aparece dentro do diálogo de resultado quando não há erros bloqueantes.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.

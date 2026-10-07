@@ -37,6 +37,7 @@ class ValidacaoPlanilhaServiceTest {
 			"END. COMPLEMENTOS", "SEXO", "Situação de Rua", "Paciente sem CPF"
 	};
 
+	private static final int COL_HORA_ATENDIMENTO = 2;
 	private static final int COL_ESTABELECIMENTO = 3;
 	private static final int COL_CPF_PACIENTE = 9;
 	private static final int COL_CNS_PACIENTE = 11;
@@ -470,6 +471,43 @@ class ValidacaoPlanilhaServiceTest {
 		List<ErroValidacao> erros = service.validar(caminho);
 
 		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.ESTABELECIMENTO_SEM_CODIGO));
+	}
+
+	@Test
+	void validarComHoraNaoReconhecidaGeraAvisoHoraInvalida() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_HORA_ATENDIMENTO] = "-";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.HORA_INVALIDA);
+			assertThat(erro.detalhe()).contains("\"-\"");
+		});
+	}
+
+	@Test
+	void validarComHoraVaziaNaoGeraAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_HORA_ATENDIMENTO] = null;
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).isEmpty();
+	}
+
+	@Test
+	void validarComHoraSoComEspacoNaoSeparavelNaoGeraAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_HORA_ATENDIMENTO] = " ";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).isEmpty();
 	}
 
 	@Test

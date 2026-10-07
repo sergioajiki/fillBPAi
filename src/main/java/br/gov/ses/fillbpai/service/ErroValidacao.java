@@ -66,6 +66,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Estabelecimento preenchido mas sem separador "código - nome" reconhecido — código não identificado. AVISO, não bloqueia. */
 	public static final String ESTABELECIMENTO_SEM_CODIGO = "ESTABELECIMENTO_SEM_CODIGO";
 
+	/** Hora de atendimento preenchida mas não reconhecida como horário (ex.: "-", "--:--") — atendimento importado sem hora. AVISO, não bloqueia. */
+	public static final String HORA_INVALIDA = "HORA_INVALIDA";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;
