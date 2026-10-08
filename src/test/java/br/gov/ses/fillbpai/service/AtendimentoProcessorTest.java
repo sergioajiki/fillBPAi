@@ -27,6 +27,7 @@ class AtendimentoProcessorTest {
 		LinhaImportacaoDTO dto = new LinhaImportacaoDTO();
 		dto.setPaciente("MARIA SILVA");
 		dto.setCpfPaciente("12345678900");
+		dto.setCpfMedico("98765432100");
 		dto.setDataAgendamentoString("25/12/2024");
 		dto.setTipoServico("TELECONSULTA");
 		dto.setCep("79003020");
@@ -68,13 +69,41 @@ class AtendimentoProcessorTest {
 	}
 
 	@Test
-	void processarComTipoServicoNuloNaoDefineSigtapNemLancaExcecao() {
+	void processarComTipoServicoVazioLancaExcecao() {
+		// Tipo vazio deixava o SIGTAP nulo: procedimento 0000000000 no BPA-I e
+		// duplicação na reimportação (chave compara o SIGTAP)
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setTipoServico(null);
+		dto.setEspecialidadeMedico("CARDIOLOGIA");
 
-		processor.processar(dto);
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Tipo de serviço não informado");
+	}
 
-		assertThat(dto.getSigtap()).isNull();
+	@Test
+	void processarComTipoServicoEmBrancoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setTipoServico("   ");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Tipo de serviço não informado");
+	}
+
+	@Test
+	void processarComTipoServicoVazioParaNutricionistaOuPsicologoMantemComportamentoAtual() {
+		// Decisão 08/10/2026: não mexer por enquanto — essas especialidades usam
+		// procedimento fixo (0301010315) na geração, qualquer que seja o tipo
+		for (String especialidade : List.of("NUTRICIONISTA", "Psicólogo", "Médico Psicólogo")) {
+			LinhaImportacaoDTO dto = dtoValido();
+			dto.setTipoServico(null);
+			dto.setEspecialidadeMedico(especialidade);
+
+			processor.processar(dto);
+
+			assertThat(dto.getSigtap()).as(especialidade).isNull();
+		}
 	}
 
 	// ===== ESTABELECIMENTO =====
@@ -234,6 +263,38 @@ class AtendimentoProcessorTest {
 		assertThatThrownBy(() -> processor.processar(dto))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("CPF com tamanho inválido");
+	}
+
+	@Test
+	void processarSemCpfDoMedicoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfMedico(null);
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CPF do médico não informado");
+	}
+
+	@Test
+	void processarComCpfDoMedicoDeTamanhoInvalidoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfMedico("123456789012345");
+		dto.setMedico("JOAO DA SILVA");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CPF do médico com tamanho inválido")
+				.hasMessageContaining("JOAO DA SILVA");
+	}
+
+	@Test
+	void processarNormalizaMascaraDoCpfDoMedico() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfMedico("987.654.321-00");
+
+		processor.processar(dto);
+
+		assertThat(dto.getCpfMedico()).isEqualTo("98765432100");
 	}
 
 	@Test

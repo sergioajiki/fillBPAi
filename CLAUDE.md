@@ -26,7 +26,7 @@ Arquitetura em camadas: `controller → service → repository → model`, com `
 ### Modelo de Dados (normalizado)
 - `Paciente` — chave natural: CPF (único). @OneToOne com Endereco. Campo `situacaoRua` ("S"/"N"/nulo, opcional) — só preenchido quando a planilha traz a coluna "Situação de Rua"; nulo = não informado (a geração do BPA-I usa "N" como padrão nesse caso).
 - `Endereco` — 1:1 com Paciente. Inclui campo `codigoIbge` (7 dígitos).
-- `Medico` — chave natural: CPF (único). Campos: id, cpf, nome.
+- `Medico` — chave natural: CPF (único, obrigatório — linha sem CPF do médico é rejeitada). Campos: id, cpf, nome, cns. `cns` = último CNS conhecido do médico, usado como reserva quando a grafia do nome na linha não está em `medicos_cns.csv` (ver `CnsProfissionalUtils`). O CPF fica só no banco local — nunca no CSV, que é versionado num repositório público.
 - `Estabelecimento` — chave natural: codigo (único). Campos: id, codigo, nome. Quando a célula "Estabelecimento" da planilha não traz um código reconhecido (formato esperado `"código - nome"`), a importação tenta vincular por nome a um estabelecimento já cadastrado (`EstabelecimentoRepository.buscarPorNome`); se não encontrar, o atendimento fica sem estabelecimento vinculado (`AVISO`, não bloqueia).
 - `AtendimentoBPAi` — @ManyToOne para Paciente, Medico, Estabelecimento. Campos próprios: tipoServico, sigtap, dataAgendamento, horaAtendimento, especialidadeMedico, cboMedico, cidConsulta, cnsProfissional, cnesNts, codIne, folha, pacienteSemCpf ("S"/"N"/nulo — ver Geração BPA-I).
 
@@ -40,6 +40,9 @@ Tipos de ERRO (bloqueantes):
 - **CEP_INVALIDO** — CEP presente mas com tamanho incorreto (diferente de 8 dígitos após normalização)
 - **CPF_AUSENTE** — CPF do paciente não informado
 - **CPF_INVALIDO** — CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização)
+- **DATA_AUSENTE** / **DATA_INVALIDA** — data de agendamento (= data do atendimento; define `prd-dtaten` e a competência) vazia ou em formato não aceito por `DateUtils.parse` (dd/MM/yyyy, yyyy-MM-dd, dd-MM-yyyy). Outros nomes de cabeçalho para essa data entram como alias de `DATA_AGENDAMENTO` em Configurações
+- **TIPO_SERVICO_AUSENTE** / **TIPO_SERVICO_INVALIDO** — tipo de serviço vazio ou diferente de Teleconsulta/Teleinterconsulta (únicos aceitos, por decisão). Vazio é aceito só para nutricionista/psicólogo (`EspecialidadeUtils.usaProcedimentoFixo` — procedimento fixo 0301010315 na geração), e nesse caso a análise indica a coluna vazia com o AVISO **TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO** (valor = especialidade); para os demais, tipo vazio deixava o SIGTAP nulo (procedimento `0000000000` no BPA-I e duplicação na reimportação). Mesma regra em `AtendimentoProcessor.definirSigtap`/`codigoSigtap`
+- **CPF_MEDICO_AUSENTE** / **CPF_MEDICO_INVALIDO** — CPF do médico ausente ou diferente de 11 dígitos; também rejeitado por `AtendimentoProcessor` antes de gravar (antes, um CPF fictício maior que a coluna derrubava a transação da planilha inteira)
 - **RACA_AUSENTE** — raça do paciente não informada (campo obrigatório no layout do BPA-I, seq 21 prd-raca)
 - **RACA_INVALIDA** — raça presente mas não reconhecida por `RacaUtils` (grafia incorreta) — mensagem sugere conferir a grafia
 - **ESTRUTURA_INVALIDA** — coluna obrigatória ausente do cabeçalho ou nome de coluna ambíguo (casa com mais de um campo canônico)
@@ -54,12 +57,15 @@ Tipos de AVISO (não bloqueantes):
 - **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
 - **PACIENTE_SEM_CPF_INVALIDO** — coluna "Paciente sem CPF" presente mas valor da célula não reconhecido (mesmas regras de `SimNaoUtils`) — valor será derivado automaticamente a partir do CPF do paciente
 - **ESTABELECIMENTO_SEM_CODIGO** — célula "Estabelecimento" preenchida mas sem separador "código - nome" reconhecido; a importação tenta vincular por nome a um estabelecimento já cadastrado, senão o atendimento fica sem estabelecimento
+- **CNS_PROFISSIONAL_NAO_CADASTRADO** — grafia de médico não encontrada em Configurações → CNS de Médicos; um aviso por linha, com o mesmo `valor` para a grafia (agrupada sem acento/caixa) — a tela e o log juntam as linhas. Se o mesmo CPF tem CNS conhecido (outra grafia cadastrada na planilha, ou `Medico.cns` no banco — `MainController` passa a consulta via construtor `ValidacaoPlanilhaService(Function<String,String>)`), diz que o CNS será herdado e sugere cadastrar o apelido; senão, avisa que a geração do BPA-I ficará bloqueada
 - **HORA_INVALIDA** — hora de atendimento preenchida mas não reconhecida por `TimeUtils` (ex.: "-", "--:--"); o atendimento é importado sem hora (a hora não vai para o BPA-I) e `AtendimentoProcessor` registra aviso no log de importação em vez de descartar a linha
 
 Leitura de células (`ExcelImportService.getString`): fórmulas são lidas pelo resultado em cache (não pelo texto da fórmula; fórmula com erro → vazio) e o espaço não separável U+00A0 é tratado como espaço comum, em todas as colunas.
 
 O botão **"Analisar Planilha"** (topBar) permite validar sem importar; o botão "Importar Planilha" não fica fixo na UI — aparece dentro do diálogo de resultado quando não há erros bloqueantes.
 Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
+
+Exibição agrupada: `ErroValidacao` tem campo opcional `valor` (o que varia entre ocorrências — valor da célula entre aspas, nome do paciente ou do médico), separado do `detalhe`. `AgrupamentoValidacao` mantém título legível, explicação e prioridade por tipo e agrupa por tipo (ERRO antes de AVISO) e, dentro do tipo, por valor (`valor — N linhas: ...`). Usado pela tela do "Analisar Planilha" (`MainController.criarBlocoSeveridade`: chips de filtro por tipo + `TitledPane` por grupo) e pelo log TXT (`gerarLogTxt`). Ao criar um tipo novo de erro/aviso, cadastrar título/explicação/prioridade em `AgrupamentoValidacao` e preencher o `valor`.
 
 ### Fluxo de Importação
 1. `ValidacaoPlanilhaService` — valida regras bloqueantes (CNS, CEP, CPF). Se erros → bloqueia importação
@@ -69,7 +75,9 @@ Log de erros salvo automaticamente em `database/log_erros_validacao.txt`.
 
 ### Utilitários
 - `IbgeUtils` — resolve código IBGE em cascata: 1) CSV por nome do município, 2) cache pré-carregado do banco (CEP → codigoIbge de `Endereco`), 3) API ViaCEP como último recurso. `preCarregarCacheDb()` chamado em `AtendimentoImportacaoService` antes do loop de importação.
-- `CnsProfissionalUtils` — resolve CNS do profissional por **nome** (normalizado: uppercase, sem acentos). Fonte única: `dados/medicos_cns.csv` (classpath + arquivo externo `src/main/resources/dados/medicos_cns.csv`, formato `nome;cns`). Sem consulta ao DATASUS. Profissional não encontrado gera aviso no log de importação.
+- `CnsProfissionalUtils` — resolve CNS do profissional por **nome** (normalizado: uppercase, sem acentos). Fonte única: `dados/medicos_cns.csv` (classpath + arquivo externo `src/main/resources/dados/medicos_cns.csv`, formato `nome;cns`). Sem consulta ao DATASUS. Busca por nome é intencional (o mesmo médico chega com grafias diferentes; apelidos ligam as grafias ao CNS). Na importação (`AtendimentoImportacaoService.resolverCnsProfissional`): nome encontrado → CNS no atendimento e em `Medico.cns` (aviso se diferir do CNS já associado ao CPF); nome não encontrado mas `Medico.cns` conhecido → CNS herdado do mesmo CPF, com aviso para cadastrar a grafia como apelido (decidido no fim da planilha, então vale mesmo se a grafia cadastrada vier em linha posterior); nenhum dos dois → aviso "CNS do profissional não encontrado".
+
+Importação grava linha a linha (`flush` por linha). Erro do banco numa linha marca a transação única da planilha para rollback — a importação é então cancelada com mensagem explícita ("nenhuma linha foi importada"), em vez de o commit desfazer tudo em silêncio com o log dizendo "Sucesso".
 - `CnsUtils` — processa/valida CNS de pacientes (aceita CNS incomum >15 dígitos com aviso `CNS_INCOMUM`)
 - `CepUtils` — normalização de CEP
 - `EtniaUtils` — resolve código oficial de etnia indígena (4 caracteres, numérico ou alfanumérico com prefixo "X") a partir do nome, via `dados/etnias_indigenas.csv` (classpath, somente leitura)

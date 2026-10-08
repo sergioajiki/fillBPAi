@@ -1,5 +1,8 @@
 package br.gov.ses.fillbpai.controller;
 
+import br.gov.ses.fillbpai.model.Medico;
+import br.gov.ses.fillbpai.repository.MedicoRepository;
+import br.gov.ses.fillbpai.service.AgrupamentoValidacao;
 import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
 import br.gov.ses.fillbpai.service.ErroValidacao;
 import br.gov.ses.fillbpai.service.ImportacaoResultado;
@@ -257,7 +260,11 @@ public class MainController {
 
 		String nomePlanilha = nomePlanilhaSemExtensao(caminho);
 
-		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService();
+		// CNS já conhecido por CPF de médico no banco local — permite à análise
+		// dizer quando uma grafia não cadastrada vai herdar o CNS do mesmo CPF.
+		MedicoRepository medicoRepository = new MedicoRepository(entityManager);
+		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService(
+				cpf -> medicoRepository.buscarPorCpf(cpf).map(Medico::getCns).orElse(null));
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
 
 		// Os avisos de formato legado e de coluna opcional ausente são tratados
@@ -321,15 +328,13 @@ public class MainController {
 		Label kicker = new Label("⚠ Formato de planilha legado detectado");
 		kicker.setStyle("-fx-font-weight: bold; -fx-text-fill: #2F6F5E;");
 
-		Label texto = new Label(aviso.detalhe());
-		texto.setWrapText(true);
-		// setWrapText só quebra linha se a largura for limitada — sem isto o
+		// setWrapText só quebra linha se a largura for limitada — sem o limite o
 		// Label cresce para caber o texto inteiro numa linha só, e o diálogo
 		// (que se ajusta ao conteúdo) ultrapassa a tela.
-		texto.setMaxWidth(440);
+		Label texto = labelQuebrado(aviso.detalhe());
 
 		VBox banner = new VBox(6, kicker, texto);
-		banner.setMaxWidth(468);
+		banner.setMaxWidth(Double.MAX_VALUE);
 		banner.setPadding(new Insets(12, 14, 12, 14));
 		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
 				+ "-fx-border-width: 0 0 0 3; -fx-background-radius: 6; -fx-border-radius: 6;");
@@ -350,14 +355,11 @@ public class MainController {
 
 		VBox itens = new VBox(4);
 		for (ErroValidacao aviso : avisos) {
-			Label item = new Label("•  " + aviso.detalhe());
-			item.setWrapText(true);
-			item.setMaxWidth(440);
-			itens.getChildren().add(item);
+			itens.getChildren().add(labelQuebrado("•  " + aviso.detalhe()));
 		}
 
 		VBox banner = new VBox(6, kicker, itens);
-		banner.setMaxWidth(468);
+		banner.setMaxWidth(Double.MAX_VALUE);
 		banner.setPadding(new Insets(12, 14, 12, 14));
 		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
 				+ "-fx-border-width: 0 0 0 3; -fx-background-radius: 6; -fx-border-radius: 6;");
@@ -397,6 +399,8 @@ public class MainController {
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);
+		// Largura definida: os banners quebram linha dentro dela (labelQuebrado)
+		alert.getDialogPane().setPrefWidth(620);
 		alert.showAndWait();
 	}
 
@@ -405,7 +409,7 @@ public class MainController {
 	 * Usado apenas no fluxo de análise — no fluxo de importação os avisos são exibidos
 	 * sem botão, pois a importação prossegue automaticamente.
 	 * <p>
-	 * Mesmo bloco âmbar de {@link #criarBlocoSeveridade} usado em
+	 * Mesmo bloco âmbar (chips de filtro + grupos por tipo) de {@link #criarBlocoSeveridade} usado em
 	 * {@link #mostrarDialogoErrosValidacao} para os avisos não bloqueantes —
 	 * antes esta tela usava um {@code TextArea} plano, inconsistente com o
 	 * restante da apresentação de erros/avisos.
@@ -419,7 +423,7 @@ public class MainController {
 
 		VBox blocoAvisos = criarBlocoSeveridade(
 				"⚠ AVISOS — não impedem a importação (" + avisos.size() + ")",
-				formatarLinhas(avisos),
+				avisos,
 				"#93630F", "#F3E6D2");
 
 		Button btnSalvarLog = new Button("Salvar Log TXT");
@@ -458,8 +462,7 @@ public class MainController {
 		layout.getChildren().addAll(blocoAvisos, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
 		layout.setPadding(new Insets(10));
 
-		alert.getDialogPane().setContent(layout);
-		alert.showAndWait();
+		exibirComRolagem(alert, layout);
 	}
 
 	/**
@@ -628,7 +631,7 @@ public class MainController {
 
 		VBox blocoErros = criarBlocoSeveridade(
 				"🛑 ERROS — impedem a importação (" + bloqueantes.size() + ")",
-				formatarLinhas(bloqueantes),
+				bloqueantes,
 				"#B3261E", "#F6E1DF");
 
 		Button btnSalvarLog = new Button("Salvar Log TXT");
@@ -664,7 +667,7 @@ public class MainController {
 		if (!naoBloqueantes.isEmpty()) {
 			VBox blocoAvisos = criarBlocoSeveridade(
 					"⚠ AVISOS — não impedem a importação (" + naoBloqueantes.size() + ")",
-					formatarLinhas(naoBloqueantes),
+					naoBloqueantes,
 					"#93630F", "#F3E6D2");
 			layout.getChildren().add(blocoAvisos);
 		}
@@ -672,18 +675,25 @@ public class MainController {
 		layout.getChildren().add(btnSalvarLog);
 		layout.setPadding(new Insets(10));
 
-		alert.getDialogPane().setContent(layout);
-		alert.showAndWait();
+		exibirComRolagem(alert, layout);
 	}
 
 	/**
-	 * Monta um bloco severidade — faixa de cabeçalho colorida (fundo suave,
-	 * texto na cor forte) seguida de uma {@code TextArea} com borda na mesma
-	 * cor, sem espaço entre as duas partes. Mesmas cores usadas nos runbooks
-	 * do projeto para ERRO (<code>#B3261E</code>/<code>#F6E1DF</code>) e
-	 * AVISO (<code>#93630F</code>/<code>#F3E6D2</code>).
+	 * Monta um bloco de severidade — faixa de cabeçalho colorida (fundo suave,
+	 * texto na cor forte) e, abaixo, os itens organizados por
+	 * {@link AgrupamentoValidacao}:
+	 * <ul>
+	 *   <li>fileira de chips de filtro ("Todos N" + um por tipo, com a contagem) —
+	 *       clicar num chip mostra só aquele grupo;</li>
+	 *   <li>um {@code TitledPane} recolhível por tipo, com a explicação uma única
+	 *       vez e as ocorrências iguais juntas ({@code valor — N linhas: ...}).
+	 *       O primeiro grupo (o mais prioritário) abre expandido.</li>
+	 * </ul>
+	 * Mesmas cores usadas nos runbooks do projeto para ERRO
+	 * (<code>#B3261E</code>/<code>#F6E1DF</code>) e AVISO
+	 * (<code>#93630F</code>/<code>#F3E6D2</code>).
 	 */
-	private VBox criarBlocoSeveridade(String titulo, String conteudo, String corForte, String corSuave) {
+	private VBox criarBlocoSeveridade(String titulo, List<ErroValidacao> erros, String corForte, String corSuave) {
 
 		Label header = new Label(titulo);
 		header.setMaxWidth(Double.MAX_VALUE);
@@ -692,27 +702,177 @@ public class MainController {
 						+ "-fx-font-weight: bold; -fx-padding: 7 12 7 12; "
 						+ "-fx-background-radius: 6 6 0 0;");
 
-		TextArea area = new TextArea(conteudo);
-		area.setEditable(false);
-		area.setWrapText(true);
-		area.setPrefHeight(Math.min(220, 60 + conteudo.lines().count() * 22));
-		area.setStyle(
+		List<AgrupamentoValidacao.Grupo> grupos = AgrupamentoValidacao.agrupar(erros);
+
+		// ---- Grupos recolhíveis ----
+		VBox listaGrupos = new VBox(6);
+		List<TitledPane> paineis = new java.util.ArrayList<>();
+
+		for (AgrupamentoValidacao.Grupo grupo : grupos) {
+
+			VBox conteudo = new VBox(6);
+
+			if (!grupo.explicacao().isEmpty()) {
+				Label explicacao = labelQuebrado(grupo.explicacao());
+				explicacao.setStyle("-fx-text-fill: #57645C; -fx-font-style: italic;");
+				conteudo.getChildren().add(explicacao);
+			}
+
+			String itens = grupo.itens().stream()
+					.map(AgrupamentoValidacao::formatarItem)
+					.collect(java.util.stream.Collectors.joining("\n"));
+
+			TextArea areaItens = new TextArea(itens);
+			areaItens.setEditable(false);
+			areaItens.setWrapText(true);
+			areaItens.setPrefRowCount(Math.min(Math.max(grupo.itens().size(), 1), 8));
+			conteudo.getChildren().add(areaItens);
+
+			TitledPane painel = new TitledPane(
+					grupo.titulo() + "  (" + grupo.ocorrencias() + ")", conteudo);
+			painel.setAnimated(false);
+			painel.setExpanded(paineis.isEmpty());
+
+			paineis.add(painel);
+			listaGrupos.getChildren().add(painel);
+		}
+
+		// Sem rolagem própria: o bloco cresce e encolhe com os grupos abertos;
+		// quem rola é a janela inteira (exibirComRolagem). Uma altura fixa aqui
+		// deixava espaço em branco com os grupos recolhidos.
+
+		// ---- Chips de filtro (só quando há mais de um tipo) ----
+		VBox corpo = new VBox(8);
+		corpo.setPadding(new Insets(8));
+		corpo.setStyle(
 				"-fx-border-color: " + corForte + "; -fx-border-width: 1; "
 						+ "-fx-border-radius: 0 0 6 6; -fx-background-radius: 0 0 6 6;");
 
-		return new VBox(0, header, area);
-	}
+		if (grupos.size() > 1) {
 
-	/** Formata cada {@link ErroValidacao} no mesmo padrão "Linha N - TIPO: detalhe" do log TXT. */
-	private String formatarLinhas(List<ErroValidacao> erros) {
+			javafx.scene.layout.FlowPane chips = new javafx.scene.layout.FlowPane(6, 6);
+			ToggleGroup filtro = new ToggleGroup();
 
-		StringBuilder sb = new StringBuilder();
+			ToggleButton todos = criarChipFiltro("Todos  " + erros.size(), filtro, corForte, corSuave);
+			todos.setUserData(-1);
+			chips.getChildren().add(todos);
 
-		for (ErroValidacao erro : erros) {
-			sb.append(String.format("Linha %d - %s: %s%n", erro.linha(), erro.tipoErro(), erro.detalhe()));
+			for (int i = 0; i < grupos.size(); i++) {
+				AgrupamentoValidacao.Grupo grupo = grupos.get(i);
+				ToggleButton chip = criarChipFiltro(
+						grupo.titulo() + "  " + grupo.ocorrencias(), filtro, corForte, corSuave);
+				chip.setUserData(i);
+				chips.getChildren().add(chip);
+			}
+
+			filtro.selectedToggleProperty().addListener((obs, anterior, atual) -> {
+
+				// Um chip sempre selecionado: clicar no já selecionado não desmarca
+				if (atual == null) {
+					filtro.selectToggle(anterior);
+					return;
+				}
+
+				int indice = (int) atual.getUserData();
+
+				for (int i = 0; i < paineis.size(); i++) {
+					boolean visivel = indice < 0 || indice == i;
+					paineis.get(i).setVisible(visivel);
+					paineis.get(i).setManaged(visivel);
+					if (indice == i) {
+						paineis.get(i).setExpanded(true);
+					}
+				}
+			});
+
+			filtro.selectToggle(todos);
+			corpo.getChildren().add(chips);
 		}
 
-		return sb.toString().stripTrailing();
+		corpo.getChildren().add(listaGrupos);
+
+		return new VBox(0, header, corpo);
+	}
+
+	/**
+	 * Mostra o diálogo com o conteúdo dentro de uma área rolável e a janela
+	 * limitada a 85% da altura e 90% da largura útil do monitor (largura padrão 1100 px),
+	 * centralizada na vertical.
+	 * <p>
+	 * Sem isso, uma análise com muitos avisos fazia a janela passar do tamanho
+	 * da tela; o sistema a encolhia e o JavaFX espremia os textos com quebra
+	 * de linha até uma linha só, cortando-os com reticências.
+	 */
+	private void exibirComRolagem(Alert alert, javafx.scene.layout.Region conteudo) {
+
+		ScrollPane rolagem = new ScrollPane(conteudo);
+		rolagem.setFitToWidth(true);
+		rolagem.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+		// Só o fundo da borda fica transparente. Não usar "-fx-background:
+		// transparent": o JavaFX escolhe a cor do texto por contraste com
+		// -fx-background, e com ele transparente os textos ficavam brancos.
+		rolagem.setStyle("-fx-background-color: transparent;");
+
+		alert.getDialogPane().setContent(rolagem);
+		alert.setResizable(true);
+
+		javafx.geometry.Rectangle2D tela = javafx.stage.Screen.getPrimary().getVisualBounds();
+
+		// Largura: 1100 px, limitada a 90% da largura útil do monitor
+		alert.getDialogPane().setPrefWidth(Math.min(1100, tela.getWidth() * 0.9));
+		double alturaMaxima = tela.getHeight() * 0.85;
+
+		alert.setOnShown(e -> {
+			javafx.stage.Window janela = alert.getDialogPane().getScene().getWindow();
+			if (janela.getHeight() > alturaMaxima) {
+				janela.setHeight(alturaMaxima);
+				janela.setY(tela.getMinY() + (tela.getHeight() - alturaMaxima) / 2);
+			}
+		});
+
+		alert.showAndWait();
+	}
+
+	/**
+	 * Label com quebra de linha que ocupa toda a largura disponível e nunca é
+	 * cortado com reticências: a altura mínima passa a ser a altura necessária
+	 * para o texto inteiro (por padrão o JavaFX deixa encolher até uma linha
+	 * quando falta espaço). A quebra depende de a janela ter largura definida
+	 * ({@code setPrefWidth} no {@code DialogPane}) — sem ela o Label cresce
+	 * para caber o texto numa linha só.
+	 * <p>
+	 * Cor do texto explícita (escura): a cor padrão do JavaFX é calculada por
+	 * contraste com o fundo do contêiner e pode sair branca.
+	 */
+	private static Label labelQuebrado(String texto) {
+		Label label = new Label(texto);
+		label.setWrapText(true);
+		label.setMaxWidth(Double.MAX_VALUE);
+		label.setMinHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+		label.setStyle("-fx-text-fill: #1E2521;");
+		return label;
+	}
+
+	/**
+	 * Chip de filtro arredondado; selecionado fica com o fundo suave e o texto
+	 * na cor forte da severidade (estilo trocado via listener porque o estilo
+	 * inline não tem pseudo-classe {@code :selected}).
+	 */
+	private ToggleButton criarChipFiltro(String texto, ToggleGroup grupo, String corForte, String corSuave) {
+
+		ToggleButton chip = new ToggleButton(texto);
+		chip.setToggleGroup(grupo);
+
+		String base = "-fx-background-radius: 100; -fx-border-radius: 100; -fx-border-width: 1; "
+				+ "-fx-padding: 3 10 3 10; -fx-font-size: 11px; ";
+		String desmarcado = base + "-fx-background-color: white; -fx-border-color: #9FAC9B; -fx-text-fill: #57645C;";
+		String marcado = base + "-fx-background-color: " + corSuave + "; -fx-border-color: " + corForte
+				+ "; -fx-text-fill: " + corForte + "; -fx-font-weight: bold;";
+
+		chip.setStyle(desmarcado);
+		chip.selectedProperty().addListener((obs, antes, agora) -> chip.setStyle(agora ? marcado : desmarcado));
+
+		return chip;
 	}
 
 	/** Extrai o nome do arquivo da planilha sem extensão, sanitizado para uso em nomes de arquivo. */

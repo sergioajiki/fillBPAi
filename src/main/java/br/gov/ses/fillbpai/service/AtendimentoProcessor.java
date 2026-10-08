@@ -64,7 +64,7 @@ public class AtendimentoProcessor {
 		// para o código SIGTAP correspondente
 		// ===============================
 
-		dto.setSigtap(definirSigtap(dto.getTipoServico()));
+		dto.setSigtap(definirSigtap(dto.getTipoServico(), dto.getEspecialidadeMedico()));
 
 		// ===============================
 		// 3. Normalizações
@@ -86,6 +86,7 @@ public class AtendimentoProcessor {
 		validarCamposObrigatorios(dto);
 		validarCep(dto);
 		validarCpf(dto);
+		validarCpfMedico(dto);
 		validarRaca(dto);
 		avisos.addAll(validarCns(dto));
 		avisos.addAll(verificarEtniaDoIndigena(dto));
@@ -130,27 +131,56 @@ public class AtendimentoProcessor {
 	 * - TELECONSULTA       → 03.01.01.030-7
 	 * - TELEINTERCONSULTA   → 08.04.01.006-4
 	 *
-	 * @throws IllegalArgumentException se o tipo de serviço não for reconhecido
+	 * Tipo vazio é erro, exceto para as especialidades de procedimento fixo
+	 * (NUTRICIONISTA/PSICÓLOGO — {@link EspecialidadeUtils#usaProcedimentoFixo}),
+	 * que mantêm o comportamento anterior (SIGTAP nulo) por decisão de
+	 * 08/10/2026. Antes, tipo vazio passava para todas: o BPA-I saía com
+	 * procedimento 0000000000 e a reimportação duplicava o atendimento.
+	 *
+	 * @throws IllegalArgumentException se o tipo de serviço estiver vazio ou não for reconhecido
 	 */
-	private String definirSigtap(String tipoServico) {
+	private String definirSigtap(String tipoServico, String especialidade) {
+
+		if (isNullOrEmpty(tipoServico)) {
+
+			if (EspecialidadeUtils.usaProcedimentoFixo(especialidade)) {
+				return null;
+			}
+
+			throw new IllegalArgumentException(
+					"Tipo de serviço não informado (aceitos: " + TIPOS_SERVICO_ACEITOS + ").");
+		}
+
+		String sigtap = codigoSigtap(tipoServico);
+
+		if (sigtap == null) {
+			throw new IllegalArgumentException(
+					"Tipo de serviço inválido para SIGTAP: " + tipoServico
+							+ " (aceitos: " + TIPOS_SERVICO_ACEITOS + ")");
+		}
+
+		return sigtap;
+	}
+
+	/** Tipos de serviço aceitos, para as mensagens (decisão de 08/10/2026: só estes, por enquanto). */
+	static final String TIPOS_SERVICO_ACEITOS = "Teleconsulta, Teleinterconsulta";
+
+	/**
+	 * Código SIGTAP do tipo de serviço (sem diferença de caixa e sem espaços
+	 * nas pontas), ou {@code null} se o tipo não for reconhecido. Usado também
+	 * pelo {@code ValidacaoPlanilhaService}, para a análise aplicar a mesma regra.
+	 */
+	static String codigoSigtap(String tipoServico) {
 
 		if (tipoServico == null) {
 			return null;
 		}
 
-		switch (tipoServico.trim().toUpperCase()) {
-
-			case "TELECONSULTA":
-				return "03.01.01.030-7";
-
-			case "TELEINTERCONSULTA":
-				return "08.04.01.006-4";
-
-			default:
-				throw new IllegalArgumentException(
-						"Tipo de serviço inválido para SIGTAP: " + tipoServico
-				);
-		}
+		return switch (tipoServico.trim().toUpperCase()) {
+			case "TELECONSULTA" -> "03.01.01.030-7";
+			case "TELEINTERCONSULTA" -> "08.04.01.006-4";
+			default -> null;
+		};
 	}
 
 	/**
@@ -250,6 +280,30 @@ public class AtendimentoProcessor {
 		if (!isNullOrEmpty(cpf) && !CpfUtils.isValido(cpf)) {
 			throw new IllegalArgumentException(
 					"CPF com tamanho inválido (" + cpf.length() + " dígitos, esperado 11): " + cpf);
+		}
+	}
+
+	/**
+	 * Valida o CPF do médico — chave do cadastro de {@code Medico}. Ausente ou
+	 * com tamanho diferente de 11 dígitos é erro bloqueante da linha, lançado
+	 * aqui (antes de qualquer gravação) para não chegar ao banco: um CPF
+	 * fora do tamanho da coluna derrubava a transação da planilha inteira.
+	 *
+	 * @throws IllegalArgumentException se o CPF do médico estiver ausente ou inválido
+	 */
+	private void validarCpfMedico(LinhaImportacaoDTO dto) {
+
+		String cpf = dto.getCpfMedico();
+
+		if (isNullOrEmpty(cpf)) {
+			throw new IllegalArgumentException(
+					"CPF do médico não informado (médico: " + dto.getMedico() + ").");
+		}
+
+		if (!CpfUtils.isValido(cpf)) {
+			throw new IllegalArgumentException(
+					"CPF do médico com tamanho inválido (" + cpf.length() + " dígitos, esperado 11): " + cpf
+							+ " (médico: " + dto.getMedico() + ").");
 		}
 	}
 

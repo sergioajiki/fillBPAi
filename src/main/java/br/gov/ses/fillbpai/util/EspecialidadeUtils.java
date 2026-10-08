@@ -41,4 +41,25 @@ public class EspecialidadeUtils {
 
 		return PREFIXO_MEDICO.matcher(trimmed).replaceFirst("");
 	}
+
+	/**
+	 * Especialidades que usam procedimento fixo ({@code 0301010315}) no BPA-I,
+	 * qualquer que seja o tipo de serviço: NUTRICIONISTA e PSICÓLOGO (após
+	 * {@link #normalizar}, sem diferença de caixa). Regra única usada pela
+	 * geração ({@code prd-pa}) e pela exigência do tipo de serviço na análise
+	 * e na importação — para essas especialidades o tipo vazio continua aceito
+	 * (decisão de 08/10/2026).
+	 */
+	public static boolean usaProcedimentoFixo(String especialidade) {
+
+		String normalizada = normalizar(especialidade);
+
+		if (normalizada == null) {
+			return false;
+		}
+
+		String upper = normalizada.toUpperCase();
+
+		return upper.equals("NUTRICIONISTA") || upper.equals("PSICÓLOGO");
+	}
 }

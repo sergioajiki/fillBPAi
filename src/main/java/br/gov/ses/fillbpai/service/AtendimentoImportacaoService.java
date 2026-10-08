@@ -87,6 +87,9 @@ public class AtendimentoImportacaoService {
 			Map<String, String> mapaFolhas =
 					atendimentoRepository.buscarMapaFolhaPorEspecialidadeMedico();
 
+			// Linhas sem CNS resolvido, decididas no fim da planilha (herança pelo CPF)
+			List<PendenciaCns> pendentesCns = new ArrayList<>();
+
 			transaction.begin();
 
 			for (Row row : sheet) {
@@ -115,7 +118,11 @@ public class AtendimentoImportacaoService {
 					// 4. Cria/encontra entidades normalizadas e monta o atendimento
 					// findOrUpdate: se já existe atendimento idêntico, atualiza (evita duplicatas)
 					AtendimentoBPAi atendimento =
-							criarOuAtualizarAtendimento(dto, resultado, row.getRowNum() + 1, mapaFolhas);
+							criarOuAtualizarAtendimento(dto, resultado, row.getRowNum() + 1, mapaFolhas, pendentesCns);
+
+					// Grava a linha agora: um erro do banco (ex.: valor maior que a
+					// coluna) aparece nesta linha, e não numa linha seguinte ou no commit.
+					entityManager.flush();
 
 					importados.add(atendimento);
 
@@ -130,8 +137,20 @@ public class AtendimentoImportacaoService {
 									+ " -> " + e.getMessage();
 
 					resultado.adicionarErro(mensagemErro);
+
+					// Erro do banco deixa a transação (única para a planilha) marcada
+					// para rollback: o commit desfaria TODAS as linhas sem lançar erro,
+					// e o log diria "Sucesso". Interrompe e avisa em vez de mentir.
+					if (transaction.getRollbackOnly()) {
+						transaction.rollback();
+						throw new IllegalStateException(
+								mensagemErro + " — erro ao gravar no banco; a importação foi cancelada"
+										+ " e nenhuma linha foi importada. Corrija a linha e importe novamente.");
+					}
 				}
 			}
+
+			resolverCnsPendentes(pendentesCns, resultado);
 
 			transaction.commit();
 
@@ -171,7 +190,7 @@ public class AtendimentoImportacaoService {
 	 * Isso evita duplicatas quando a mesma planilha é reimportada
 	 * (ex: após configurar o DATASUS para preencher CNS profissional).
 	 */
-	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel, Map<String, String> mapaFolhas) {
+	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel, Map<String, String> mapaFolhas, List<PendenciaCns> pendentesCns) {
 
 		// ==============================
 		// Paciente (findOrCreate por CPF)
@@ -256,22 +275,95 @@ public class AtendimentoImportacaoService {
 		}
 
 		// ==============================
-		// CNS do profissional (lookup por nome via cache/DATASUS)
+		// CNS do profissional (nome no cadastro, reserva pelo CPF)
 		// ==============================
+
+		String avisoCns = resolverCnsProfissional(dto, medico, atendimento, linhaExcel, pendentesCns);
+
+		if (avisoCns != null) {
+			resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: " + avisoCns);
+		}
+
+		return atendimento;
+	}
+
+	/**
+	 * Resolve o CNS do profissional da linha e grava no atendimento.
+	 * <p>
+	 * Fonte principal: o cadastro por nome ({@code medicos_cns.csv}, com
+	 * apelidos) — o mesmo médico chega com grafias diferentes, por isso a
+	 * busca é por nome e não por CPF. Quando o nome é encontrado, o CNS também
+	 * fica guardado no {@link Medico} (chave CPF, só no banco local).
+	 * <p>
+	 * Reserva: grafia não cadastrada, mas o mesmo CPF já tem CNS conhecido
+	 * → usa esse CNS e avisa para cadastrar a grafia como apelido.
+	 *
+	 * @return aviso para o log de importação, ou {@code null}
+	 */
+	private String resolverCnsProfissional(LinhaImportacaoDTO dto, Medico medico, AtendimentoBPAi atendimento,
+			int linhaExcel, List<PendenciaCns> pendentesCns) {
 
 		CnsProfissionalUtils.CnsResultado cnsResultado =
 				CnsProfissionalUtils.buscar(dto.getMedico());
 
-		if (cnsResultado.getCns() != null) {
-			atendimento.setCnsProfissional(cnsResultado.getCns());
+		String cnsPorNome = cnsResultado.getCns();
+		String cnsDoCpf = medico.getCns();
+
+		if (cnsPorNome != null) {
+
+			atendimento.setCnsProfissional(cnsPorNome);
+			medico.setCns(cnsPorNome);
+
+			if (cnsDoCpf != null && !cnsDoCpf.equals(cnsPorNome)) {
+				return "CNS do cadastro para \"" + dto.getMedico() + "\" (" + cnsPorNome
+						+ ") difere do CNS já associado a este CPF de médico (" + cnsDoCpf
+						+ ") — usado o CNS do cadastro. Confira se são o mesmo médico"
+						+ " em Configurações → CNS de Médicos.";
+			}
+
+			return null;
 		}
 
-		if (cnsResultado.getAviso() != null) {
-			resultado.adicionarAviso(
-					"Linha " + linhaExcel + " - Aviso: " + cnsResultado.getAviso());
+		if (cnsDoCpf != null) {
+			atendimento.setCnsProfissional(cnsDoCpf);
+			return avisoCnsHerdado(dto.getMedico(), cnsDoCpf);
 		}
 
-		return atendimento;
+		// CPF ainda sem CNS conhecido: uma linha mais abaixo, com grafia
+		// cadastrada do mesmo CPF, pode preenchê-lo — decide no fim da planilha
+		// (resolverCnsPendentes), para a herança não depender da ordem das linhas.
+		pendentesCns.add(new PendenciaCns(linhaExcel, dto.getMedico(), medico, atendimento, cnsResultado.getAviso()));
+		return null;
+	}
+
+	/**
+	 * Fim da planilha: linhas cuja grafia não estava cadastrada e cujo CPF não
+	 * tinha CNS no momento. Se outra linha do mesmo CPF trouxe o CNS depois,
+	 * herda; senão, mantém o aviso "CNS do profissional não encontrado".
+	 */
+	private void resolverCnsPendentes(List<PendenciaCns> pendentes, ImportacaoResultado resultado) {
+
+		for (PendenciaCns p : pendentes) {
+
+			String cnsDoCpf = p.medico().getCns();
+
+			if (cnsDoCpf != null) {
+				p.atendimento().setCnsProfissional(cnsDoCpf);
+				resultado.adicionarAviso("Linha " + p.linha() + " - Aviso: " + avisoCnsHerdado(p.nome(), cnsDoCpf));
+			} else if (p.avisoNaoEncontrado() != null) {
+				resultado.adicionarAviso("Linha " + p.linha() + " - Aviso: " + p.avisoNaoEncontrado());
+			}
+		}
+	}
+
+	private String avisoCnsHerdado(String nome, String cns) {
+		return "Grafia \"" + nome + "\" não cadastrada — CNS herdado do mesmo CPF ("
+				+ cns + "). Considere cadastrá-la como apelido em Configurações → CNS de Médicos.";
+	}
+
+	/** Linha aguardando o fim da planilha para decidir a herança de CNS pelo CPF. */
+	private record PendenciaCns(int linha, String nome, Medico medico, AtendimentoBPAi atendimento,
+			String avisoNaoEncontrado) {
 	}
 
 	/**
@@ -350,17 +442,12 @@ public class AtendimentoImportacaoService {
 	/**
 	 * Busca médico pelo CPF. Se não existir, cria novo.
 	 * Se existir, atualiza o nome.
+	 * <p>
+	 * O CPF já chega validado (11 dígitos) por
+	 * {@code AtendimentoProcessor.validarCpfMedico} — linha sem CPF do médico
+	 * é rejeitada antes de chegar aqui.
 	 */
 	private Medico buscarOuCriarMedico(LinhaImportacaoDTO dto) {
-
-		if (dto.getCpfMedico() == null || dto.getCpfMedico().isBlank()) {
-			// Médico sem CPF — cria registro mínimo com nome
-			Medico novo = new Medico();
-			novo.setCpf("SEM_CPF_" + System.nanoTime());
-			novo.setNome(dto.getMedico());
-			medicoRepository.salvar(novo);
-			return novo;
-		}
 
 		return medicoRepository.buscarPorCpf(dto.getCpfMedico())
 				.map(medico -> {

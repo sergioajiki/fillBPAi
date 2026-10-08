@@ -44,6 +44,16 @@ class EspecialidadeUtilsTest {
 	}
 
 	@Test
+	void usaProcedimentoFixoParaNutricionistaEPsicologoComOuSemPrefixoECaixa() {
+		assertThat(EspecialidadeUtils.usaProcedimentoFixo("NUTRICIONISTA")).isTrue();
+		assertThat(EspecialidadeUtils.usaProcedimentoFixo("nutricionista")).isTrue();
+		assertThat(EspecialidadeUtils.usaProcedimentoFixo("Psicólogo")).isTrue();
+		assertThat(EspecialidadeUtils.usaProcedimentoFixo("Médico Psicólogo")).isTrue();
+		assertThat(EspecialidadeUtils.usaProcedimentoFixo("CARDIOLOGIA")).isFalse();
+		assertThat(EspecialidadeUtils.usaProcedimentoFixo(null)).isFalse();
+	}
+
+	@Test
 	void normalizarNaoRemovePrefixoNoMeioDoTexto() {
 		// "Médico" no meio do nome não é removido — só quando é prefixo no início.
 		assertThat(EspecialidadeUtils.normalizar("Auxiliar de Médico")).isEqualTo("Auxiliar de Médico");

@@ -578,9 +578,7 @@ public class GeradorBPAiService {
 		 * importação; novas importações já chegam limpas, então esta chamada
 		 * é um no-op na prática para dados novos.
 		 */
-		String especialidade = EspecialidadeUtils.normalizar(a.getEspecialidadeMedico());
-		especialidade = especialidade != null ? especialidade.trim().toUpperCase() : "";
-		String prdPa = (especialidade.equals("NUTRICIONISTA") || especialidade.equals("PSICÓLOGO"))
+		String prdPa = EspecialidadeUtils.usaProcedimentoFixo(a.getEspecialidadeMedico())
 				? "0301010315"
 				: sigtap;
 		sb.append(padLeftZeros(prdPa, 10));

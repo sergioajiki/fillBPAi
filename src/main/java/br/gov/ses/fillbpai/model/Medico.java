@@ -21,6 +21,16 @@ public class Medico {
 	@Column(name = "nome", length = 200)
 	private String nome;
 
+	/**
+	 * Último CNS conhecido deste médico (CPF). Fonte principal do CNS continua
+	 * sendo o cadastro por nome ({@code medicos_cns.csv}); este campo é a
+	 * reserva usada quando a grafia da linha não está cadastrada — o mesmo
+	 * médico chega com grafias diferentes (sem acento, sobrenome abreviado).
+	 * Fica só no banco local: o CPF nunca vai para o CSV versionado.
+	 */
+	@Column(name = "cns", length = 15)
+	private String cns;
+
 	// ======================
 	// Getters e Setters
 	// ======================
@@ -47,5 +57,13 @@ public class Medico {
 
 	public void setNome(String nome) {
 		this.nome = nome;
+	}
+
+	public String getCns() {
+		return cns;
+	}
+
+	public void setCns(String cns) {
+		this.cns = cns;
 	}
 }

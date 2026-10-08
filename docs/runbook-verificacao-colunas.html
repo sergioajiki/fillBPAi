@@ -1,0 +1,515 @@
+<title>Verificação por Coluna</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+      --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+      --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+    --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+    --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:840px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 14px; }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(2.1rem, 4.4vw, 2.9rem); line-height:1.08; letter-spacing:-.01em; margin:0 0 16px; text-wrap:balance; }
+  .lede{ font-size:1.1rem; line-height:1.6; color:var(--ink-muted); max-width:64ch; margin:0 0 22px; }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px 18px; font-family:var(--font-mono); font-size:.78rem; color:var(--ink-muted); padding-top:18px; border-top:1px solid var(--line); }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{ display:flex; flex-wrap:wrap; gap:8px; margin:26px 0 0; }
+  nav.toc a{ font-family:var(--font-mono); font-size:.74rem; color:var(--ink-muted); text-decoration:none; padding:6px 12px; border:1px solid var(--line); border-radius:100px; transition:border-color .15s ease, color .15s ease; }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{ font-family:var(--font-display); font-weight:600; font-size:1.5rem; letter-spacing:-.005em; margin:0 0 18px; text-wrap:balance; }
+  section > h3{ font-family:var(--font-body); font-weight:600; font-size:1rem; margin:28px 0 10px; }
+  p{ line-height:1.7; font-size:1.02rem; max-width:66ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{ font-family:var(--font-mono); font-size:.88em; background:var(--accent-soft); color:var(--ink); padding:.12em .38em; border-radius:4px; }
+  pre{ font-family:var(--font-mono); font-size:.84rem; line-height:1.6; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; overflow-x:auto; box-shadow:var(--shadow); }
+  pre code{ background:none; padding:0; }
+
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:480px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }
+  td.caso{ font-weight:500; }
+  td.antes{ color:var(--ink-muted); text-decoration:line-through; }
+  td.depois{ color:var(--accent); font-weight:600; }
+
+  ol.plano{ list-style:none; padding:0; margin:20px 0 0; counter-reset:passo; }
+  ol.plano li{ counter-increment:passo; position:relative; padding:2px 0 22px 46px; border-left:1px solid var(--line); margin-left:15px; }
+  ol.plano li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  ol.plano li::before{
+    content: counter(passo); position:absolute; left:-15px; top:0; width:30px; height:30px;
+    background:var(--paper-raised); border:1.5px solid var(--accent); color:var(--accent);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:.82rem;
+  }
+  ol.plano li p{ margin:0; font-size:.98rem; }
+  ol.plano li h4{ margin:0 0 6px; font-family:var(--font-body); font-weight:600; font-size:.98rem; }
+
+  .callout{ margin-top:18px; border:1px solid var(--line); border-left:3px solid var(--accent); background:var(--paper-raised); border-radius:0 10px 10px 0; padding:18px 22px; }
+  .callout.aberto{ border-left-color:var(--sev-aviso); }
+  .callout.recomendado{ border-left-color:var(--accent); }
+  .callout.risco{ border-left-color:var(--sev-erro); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  .pill{ font-family:var(--font-mono); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; padding:4px 10px; border-radius:100px; border:1px solid var(--line-strong); color:var(--ink-muted); white-space:nowrap; display:inline-block; margin-bottom:8px; }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.aberto{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+  .pill.risco{ border-color:var(--sev-erro); color:var(--sev-erro); }
+
+  footer.doc-foot{ margin-top:72px; padding-top:20px; border-top:1px solid var(--line); font-family:var(--font-mono); font-size:.76rem; color:var(--ink-muted); }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+  .col-status{ display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:8px; margin-top:16px; }
+  .col-status span{ font-family:var(--font-mono); font-size:.74rem; padding:6px 10px; border:1px solid var(--line); border-radius:8px; color:var(--ink-muted); }
+  .col-status span.feito{ border-color:var(--accent); color:var(--accent); font-weight:600; }
+  td.ok{ color:var(--accent); font-weight:600; }
+  td.falha{ color:var(--sev-erro); font-weight:600; }
+  td.atencao{ color:var(--sev-aviso); font-weight:600; }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Verificação por coluna da planilha <span class="pill aberto">Em andamento</span></h1>
+    <p class="lede">
+      Revisão, coluna por coluna, de como cada campo da planilha é lido, verificado no "Analisar
+      Planilha", tratado na importação e usado na geração do BPA-I. Para cada coluna: o caminho do dado,
+      o comportamento confirmado por teste, os problemas e as recomendações.
+    </p>
+    <div class="meta">
+      <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
+      <span>Status: <strong>2 de 27 colunas revisadas — recomendações 1 e 2 implementadas (<code>mvnw.cmd test</code>: 321 testes)</strong></span>
+      <span>Data: <strong>08/10/2026</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#andamento">Andamento</a>
+      <a href="#data">Data de agendamento</a>
+      <a href="#tipo">Tipo de serviço</a>
+      <a href="#padrao">Padrão encontrado</a>
+      <a href="#implementado">O que mudou</a>
+      <a href="#recomendacoes">Recomendações</a>
+      <a href="#abertas">Decisões em aberto</a>
+    </nav>
+  </header>
+
+  <section id="andamento">
+    <h2>Andamento</h2>
+    <p>
+      Campos reconhecidos pelo <code>PlanilhaColumnMapper</code> (nomes de cabeçalho em
+      <code>dados/colunas_aliases.csv</code> e em Configurações). Destacados: já revisados.
+    </p>
+    <div class="col-status">
+      <span class="feito">DATA_AGENDAMENTO ✓</span>
+      <span class="feito">TIPO_SERVICO ✓</span>
+      <span>HORA_ATENDIMENTO (ver runbook próprio)</span>
+      <span>ESTABELECIMENTO (ver runbook próprio)</span>
+      <span>ESPECIALIDADE_MEDICO</span>
+      <span>MEDICO (ver runbook próprio)</span>
+      <span>CPF_MEDICO (ver runbook próprio)</span>
+      <span>CBO_MEDICO</span>
+      <span>MUNICIPIO</span>
+      <span>CPF_PACIENTE</span>
+      <span>PACIENTE</span>
+      <span>CNS_PACIENTE</span>
+      <span>RACA_PACIENTE</span>
+      <span>ETNIA_PACIENTE</span>
+      <span>DATA_NASCIMENTO</span>
+      <span>CID_CONSULTA</span>
+      <span>TELEFONE</span>
+      <span>TIPO_ZONA</span>
+      <span>COD_LOGRADOURO</span>
+      <span>ENDERECO</span>
+      <span>CEP</span>
+      <span>NUMERO</span>
+      <span>BAIRRO</span>
+      <span>COMPLEMENTO</span>
+      <span>SEXO_PACIENTE</span>
+      <span>SITUACAO_RUA</span>
+      <span>PACIENTE_SEM_CPF</span>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Método</p>
+      <p>
+        Leitura do código e um teste de sondagem: planilha de uma linha, válida em tudo menos na célula
+        estudada, passada pelo <code>ValidacaoPlanilhaService.validar()</code> ("Analisar Planilha") e pelo
+        <code>AtendimentoImportacaoService.importar()</code> (H2 em memória). O teste é temporário e foi
+        removido depois da análise.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="data">
+    <h2>Data de agendamento (<code>DATA_AGENDAMENTO</code>)</h2>
+
+    <div class="callout recomendado">
+      <p class="kicker">Nome da coluna — decidido</p>
+      <p>
+        A única data do atendimento é a coluna <code>DATA_AGENDAMENTO</code> (cabeçalho padrão
+        <code>DATA DE AGENDAMENTO</code>), e ela <strong>é</strong> a data em que o atendimento aconteceu.
+        Outros nomes de cabeçalho para essa mesma data (ex.: "Data de Solicitação") são cadastrados como
+        alias em Configurações. Ver <a href="#abertas">Decisão 1</a>.
+      </p>
+    </div>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Leitura — <code>ExcelImportService.getString()</code></h4>
+        <p>
+          Célula formatada como data (inclusive com hora) → <code>yyyy-MM-dd</code>. Texto → o texto,
+          sem alteração. Número sem formato de data (ex.: <code>45651</code>, o número interno de uma
+          data no Excel) → o número como texto.
+        </p>
+      </li>
+      <li>
+        <h4>Validação — <code>AtendimentoProcessor</code></h4>
+        <p>
+          Vazia → erro "Data de agendamento não informada". Preenchida → <code>DateUtils.parse()</code>,
+          que só aceita <code>dd/MM/yyyy</code>, <code>yyyy-MM-dd</code> e <code>dd-MM-yyyy</code>; qualquer
+          outra forma → erro "Data de agendamento inválida". Nos dois casos a <strong>linha é
+          descartada</strong>. Não há verificação de data futura ou muito antiga.
+        </p>
+      </li>
+      <li>
+        <h4>Uso — o campo mais importante da linha</h4>
+        <p>
+          É a data do atendimento no BPA-I (<code>prd-dtaten</code>, seq 6) e define a competência do
+          registro (<code>prd-cmp</code>, seq 3) e em qual arquivo mensal ele entra (filtro por mês/ano
+          da geração e da tabela). Também faz parte da chave que evita duplicar atendimentos na
+          reimportação (paciente + médico + data + SIGTAP).
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada formato</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">Texto <code>25/12/2024</code></td><td>sem alerta</td><td class="ok">importada (25/12/2024)</td></tr>
+          <tr><td class="caso">Célula de data do Excel</td><td>sem alerta</td><td class="ok">importada</td></tr>
+          <tr><td class="caso">Célula de data com hora (<code>25/12/2024 14:30</code>)</td><td>sem alerta</td><td class="ok">importada (hora ignorada)</td></tr>
+          <tr><td class="caso">Texto sem zero à esquerda <code>5/3/2024</code></td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso">Texto com ano de 2 dígitos <code>25/12/24</code></td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso">Texto com ponto <code>25.12.2024</code></td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso">Texto com hora <code>25/12/2024 08:30</code></td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso">Número sem formato de data (<code>45651</code>)</td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso">Vazia</td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso">Data futura (<code>25/12/2099</code>)</td><td>sem alerta</td><td class="atencao">importada sem aviso</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">A análise não olha a data</p>
+      <p>
+        O "Analisar Planilha" não tem nenhuma regra para a data: diz que a planilha está pronta, e a linha
+        só é recusada na importação, com o erro no log. É o mesmo padrão da hora de atendimento antes da
+        correção, mas aqui a data é obrigatória, então a linha é de fato perdida.
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">Formatos comuns recusados</p>
+      <p>
+        <code>5/3/2024</code> (sem zero à esquerda) é uma forma comum de digitar datas quando a célula
+        está como texto, e <code>45651</code> aparece quando a coluna perde o formato de data (ex.:
+        dado colado de outro sistema). Os dois descartam a linha.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Datas improváveis passam</p>
+      <p>
+        Uma data futura ou muito antiga (erro de digitação no ano, ex.: <code>2204</code>) é aceita e cria
+        um atendimento numa competência que ninguém vai gerar — o atendimento "some" da produção do mês
+        certo, sem aviso.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="tipo">
+    <h2>Tipo de serviço (<code>TIPO_SERVICO</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Leitura</h4>
+        <p>Cabeçalho <code>Tipo de Serviço</code>. Valor lido como texto.</p>
+      </li>
+      <li>
+        <h4>Conversão — <code>AtendimentoProcessor.definirSigtap()</code></h4>
+        <p>
+          Sem diferença de maiúsculas/minúsculas e sem espaços nas pontas:
+          <code>TELECONSULTA</code> → <code>03.01.01.030-7</code>;
+          <code>TELEINTERCONSULTA</code> → <code>08.04.01.006-4</code>. Qualquer outro texto → erro
+          "Tipo de serviço inválido para SIGTAP" e a <strong>linha é descartada</strong>. Vazio →
+          <strong>SIGTAP fica vazio, sem erro</strong>.
+        </p>
+      </li>
+      <li>
+        <h4>Uso</h4>
+        <p>
+          O SIGTAP é o procedimento do BPA-I (<code>prd-pa</code>, seq 9), entra no campo de controle do
+          cabeçalho (soma dos códigos) e na chave contra duplicação. Exceção: especialidade
+          NUTRICIONISTA ou PSICÓLOGO usa sempre <code>0301010315</code>, qualquer que seja o tipo de
+          serviço. O texto original fica gravado só para exibição na tabela.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>TELECONSULTA</code> / <code>Teleconsulta</code></td><td>sem alerta</td><td class="ok">SIGTAP 03.01.01.030-7</td></tr>
+          <tr><td class="caso"><code>TELEINTERCONSULTA</code></td><td>sem alerta</td><td class="ok">SIGTAP 08.04.01.006-4</td></tr>
+          <tr><td class="caso"><code>Tele-consulta</code>, <code>TELE CONSULTA</code></td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso"><code>Consulta</code> (outro serviço)</td><td>sem alerta</td><td class="falha">linha descartada</td></tr>
+          <tr><td class="caso">Vazia</td><td>sem alerta</td><td class="falha">importada com SIGTAP vazio</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Tipo vazio gera procedimento inválido no BPA-I <span class="pill risco">Grave</span></p>
+      <p>
+        Com a célula vazia, o atendimento é importado sem SIGTAP e sem nenhum aviso. Na geração, o campo
+        de procedimento sai como <code>0000000000</code>, que não é um procedimento válido — o registro
+        tende a ser rejeitado no SIA/SUS. (A exceção são nutricionistas e psicólogos, que usam o código
+        fixo.)
+      </p>
+      <p>
+        Além disso, a chave contra duplicação compara o SIGTAP, e no banco "vazio" nunca é igual a
+        "vazio": <strong>cada reimportação da mesma planilha duplica esses atendimentos</strong>
+        (confirmado no teste — duas importações, dois registros).
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">A análise não olha o tipo de serviço</p>
+      <p>
+        Valores não reconhecidos só aparecem na importação, como linha descartada. A análise deveria
+        apontar antes, já que a correção (grafia) é simples.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Variações de grafia</p>
+      <p>
+        A comparação é exata, depois de maiúsculas e espaços das pontas. "Tele-consulta", "Tele consulta"
+        ou com espaço entre as palavras falham. Acentos não são problema hoje (as duas
+        palavras não têm acento), mas um "Teleconsúlta" digitado errado também falharia.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="padrao">
+    <h2>Padrão encontrado</h2>
+    <p>
+      As duas colunas repetem o padrão já visto na hora de atendimento e no CPF do médico: <strong>a
+      regra existe só na importação</strong>. O "Analisar Planilha" — que é justamente a etapa feita
+      para achar problemas antes — não sabe dela, então a planilha é aprovada e as linhas somem depois,
+      com o motivo enterrado no log. Vale considerar, ao longo desta revisão, que toda regra que descarta
+      linha na importação tenha a regra equivalente na análise.
+    </p>
+  </section>
+
+  <section id="implementado">
+    <h2>O que mudou <span class="pill ok">✓ Implementado</span></h2>
+    <p>
+      As seções de cada coluna acima descrevem o comportamento <strong>antes</strong> desta correção.
+      Agora:
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Situação</th><th>Antes</th><th>Agora</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">Data vazia</td><td class="antes">análise aprovava; linha descartada na importação</td><td class="depois"><code>ERRO</code> <code>DATA_AUSENTE</code> na análise</td></tr>
+          <tr><td class="caso">Data em formato não aceito (<code>5/3/2024</code>, <code>25.12.2024</code>, …)</td><td class="antes">análise aprovava; linha descartada na importação</td><td class="depois"><code>ERRO</code> <code>DATA_INVALIDA</code> na análise, com o valor e o formato esperado</td></tr>
+          <tr><td class="caso">Tipo de serviço vazio</td><td class="antes">importado sem SIGTAP: procedimento <code>0000000000</code> e duplicação na reimportação</td><td class="depois"><code>ERRO</code> <code>TIPO_SERVICO_AUSENTE</code> na análise; linha rejeitada na importação</td></tr>
+          <tr><td class="caso">Tipo vazio para nutricionista/psicólogo</td><td class="antes">importado sem nenhum alerta</td><td class="depois">continua importado (procedimento fixo, Decisão 3), com <code>AVISO</code> <code>TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO</code> na análise indicando a coluna vazia, agrupado por especialidade</td></tr>
+          <tr><td class="caso">Tipo não reconhecido (<code>Consulta</code>)</td><td class="antes">análise aprovava; linha descartada na importação</td><td class="depois"><code>ERRO</code> <code>TIPO_SERVICO_INVALIDO</code> na análise, com o valor e os aceitos</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ol class="plano">
+      <li>
+        <h4><code>ValidacaoPlanilhaService</code> — regras 0a (data) e 0b (tipo)</h4>
+        <p>
+          Usam exatamente a mesma conversão da importação: <code>DateUtils.parse()</code> para a data e
+          <code>AtendimentoProcessor.codigoSigtap()</code> para o tipo, para análise e importação não
+          divergirem. Na planilha legado, a especialidade é separada do nome do médico antes de checar a
+          exceção de nutricionista/psicólogo.
+        </p>
+      </li>
+      <li>
+        <h4><code>AtendimentoProcessor.definirSigtap()</code></h4>
+        <p>
+          Tipo vazio passa a lançar "Tipo de serviço não informado", exceto para nutricionista/psicólogo.
+          As mensagens de erro agora listam os tipos aceitos.
+        </p>
+      </li>
+      <li>
+        <h4><code>EspecialidadeUtils.usaProcedimentoFixo()</code></h4>
+        <p>
+          A regra "nutricionista/psicólogo usa 0301010315", que estava escrita só dentro do
+          <code>GeradorBPAiService</code>, virou um método único usado pela geração, pela análise e pela
+          importação — o comportamento da geração não mudou.
+        </p>
+      </li>
+      <li>
+        <h4>Exibição</h4>
+        <p>
+          Os quatro tipos novos aparecem no topo dos erros da análise (logo depois de estrutura), com título
+          e explicação em <code>AgrupamentoValidacao</code>. O valor de cada item é o nome do paciente
+          (ausentes) ou o valor da célula (inválidos).
+        </p>
+      </li>
+    </ol>
+    <div class="callout aberto">
+      <p class="kicker">Ainda vale conferir o banco</p>
+      <p>
+        A correção impede novos casos, mas atendimentos importados <strong>antes</strong> com tipo vazio
+        continuam no banco sem SIGTAP (e possivelmente duplicados). Ver Recomendação 6.
+      </p>
+    </div>
+  </section>
+
+  <section id="recomendacoes">
+    <h2>Recomendações</h2>
+    <ol class="plano">
+      <li>
+        <h4>Tipo de serviço vazio: bloquear <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Tratar tipo vazio como erro no <code>AtendimentoProcessor</code> (igual ao tipo inválido) e criar
+          <code>TIPO_SERVICO_AUSENTE</code> / <code>TIPO_SERVICO_INVALIDO</code> como <code>ERRO</code> na
+          análise, com o valor encontrado e os aceitos (Teleconsulta, Teleinterconsulta —
+          <a href="#abertas">Decisão 2</a>). Nutricionista e psicólogo ficam de fora desta regra por
+          enquanto (<a href="#abertas">Decisão 3</a>).
+        </p>
+      </li>
+      <li>
+        <h4>Data na análise <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>DATA_AUSENTE</code> e <code>DATA_INVALIDA</code> como <code>ERRO</code> no "Analisar
+          Planilha", usando o mesmo <code>DateUtils.parse()</code> da importação, com o valor encontrado.
+        </p>
+      </li>
+      <li>
+        <h4>Aceitar mais formatos de data</h4>
+        <p>
+          Em <code>DateUtils</code>: <code>d/M/yyyy</code> (sem zero à esquerda), <code>dd.MM.yyyy</code>,
+          data com hora no texto (ignorando a hora) e número de série do Excel sem formato. Ano de 2 dígitos
+          é ambíguo — melhor continuar recusando, agora com mensagem clara na análise.
+        </p>
+      </li>
+      <li>
+        <h4>Aviso de data fora do esperado</h4>
+        <p>
+          <code>AVISO</code> na análise para data futura ou anterior a um limite (ex.: mais de 2 anos), para
+          pegar erro de digitação no ano antes de o atendimento cair numa competência errada.
+        </p>
+      </li>
+      <li>
+        <h4>Tolerar variações de grafia do tipo</h4>
+        <p>
+          Comparar ignorando acentos, hífens e espaços (<code>Tele-consulta</code>, <code>TELE CONSULTA</code>
+          → <code>TELECONSULTA</code>). Alternativa: uma tabela de tipos aceitos editável em Configurações,
+          como os aliases de coluna.
+        </p>
+      </li>
+      <li>
+        <h4>Corrigir os atendimentos já gravados sem SIGTAP</h4>
+        <p>
+          Se o banco já tiver atendimentos importados com tipo vazio, eles podem estar duplicados e gerar
+          procedimento <code>0000000000</code>. Vale uma consulta antes da próxima geração
+          (<code>SELECT … WHERE sigtap IS NULL</code>) e, se houver, limpar os duplicados.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="abertas">
+    <h2>Decisões em aberto</h2>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 1 · Data de agendamento = data do atendimento</span>
+      <p>
+        Decidido (08/10/2026): a coluna "Data de agendamento" é a data em que o atendimento aconteceu, e é
+        ela que vai para o BPA-I. Se uma planilha trouxer essa data com outro cabeçalho (ex.: "Data de
+        Solicitação", "Data do Atendimento"), basta cadastrar o nome como alias do campo
+        <code>DATA_AGENDAMENTO</code> em Configurações — sem mudança de código.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 2 · Só Teleconsulta e Teleinterconsulta, por enquanto</span>
+      <p>
+        Decidido (08/10/2026): os tipos aceitos continuam sendo apenas Teleconsulta
+        (<code>03.01.01.030-7</code>) e Teleinterconsulta (<code>08.04.01.006-4</code>). Qualquer outro
+        valor segue sendo recusado. Um tipo novo exigirá o código SIGTAP correspondente.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">3 · Nutricionista e psicólogo sem tipo — adiado</span>
+      <p>
+        Decidido não mexer por enquanto (08/10/2026). O comportamento atual fica: essas especialidades
+        usam o código fixo <code>0301010315</code> qualquer que seja o tipo de serviço, inclusive vazio. Se
+        a Recomendação 1 for implementada, ela deve deixar essas duas especialidades de fora, para não
+        mudar o comportamento delas. Observação que continua valendo: com tipo vazio, a reimportação
+        duplica esses atendimentos também (a chave contra duplicação compara o SIGTAP gravado, que fica
+        vazio).
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-verificacao-colunas.html
+  </footer>
+
+</div>

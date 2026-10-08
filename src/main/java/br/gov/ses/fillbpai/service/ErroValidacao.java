@@ -12,11 +12,20 @@ package br.gov.ses.fillbpai.service;
  * @param linha      número da linha na planilha (1-based, considerando cabeçalho)
  * @param severidade severidade do problema (ERRO ou AVISO)
  * @param tipoErro   tipo do problema (CNS_INVALIDO, CEP_AUSENTE, CPF_AUSENTE, CNS_LEGADO)
- * @param detalhe    mensagem descritiva do problema
+ * @param detalhe    mensagem descritiva do problema (frase completa, usada quando não há {@code valor})
+ * @param valor      o que varia de uma ocorrência para outra (ex.: o valor da célula entre aspas, ou o
+ *                   nome do paciente), separado da explicação fixa do tipo — permite agrupar
+ *                   ocorrências iguais na tela e no log ({@link AgrupamentoValidacao}); {@code null}
+ *                   quando não se aplica
  */
-public record ErroValidacao(int linha, Severidade severidade, String tipoErro, String detalhe) {
+public record ErroValidacao(int linha, Severidade severidade, String tipoErro, String detalhe, String valor) {
 
 	public enum Severidade { ERRO, AVISO }
+
+	/** Sem valor separado — o item aparece pelo {@code detalhe} completo. */
+	public ErroValidacao(int linha, Severidade severidade, String tipoErro, String detalhe) {
+		this(linha, severidade, tipoErro, detalhe, null);
+	}
 
 	/** CNS do paciente ausente ou com menos de 15 dígitos — AVISO, não bloqueia */
 	public static final String CNS_INVALIDO = "CNS_INVALIDO";
@@ -32,6 +41,27 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 
 	/** CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização) — ERRO bloqueante */
 	public static final String CPF_INVALIDO = "CPF_INVALIDO";
+
+	/** Data de agendamento (data do atendimento) não informada — ERRO bloqueante */
+	public static final String DATA_AUSENTE = "DATA_AUSENTE";
+
+	/** Data de agendamento em formato não reconhecido por {@code DateUtils} — ERRO bloqueante */
+	public static final String DATA_INVALIDA = "DATA_INVALIDA";
+
+	/** Tipo de serviço não informado (exceto nutricionista/psicólogo, que usam procedimento fixo) — ERRO bloqueante */
+	public static final String TIPO_SERVICO_AUSENTE = "TIPO_SERVICO_AUSENTE";
+
+	/** Tipo de serviço vazio para nutricionista/psicólogo — aceito (procedimento fixo 0301010315), só indicado. AVISO, não bloqueia. */
+	public static final String TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO = "TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO";
+
+	/** Tipo de serviço diferente de Teleconsulta/Teleinterconsulta — ERRO bloqueante */
+	public static final String TIPO_SERVICO_INVALIDO = "TIPO_SERVICO_INVALIDO";
+
+	/** CPF do médico ausente ou vazio — identifica o médico na importação — ERRO bloqueante */
+	public static final String CPF_MEDICO_AUSENTE = "CPF_MEDICO_AUSENTE";
+
+	/** CPF do médico presente mas com tamanho incorreto (diferente de 11 dígitos após normalização) — ERRO bloqueante */
+	public static final String CPF_MEDICO_INVALIDO = "CPF_MEDICO_INVALIDO";
 
 	/** CNS do paciente com mais de 15 dígitos (formato incomum) — AVISO, não bloqueia */
 	public static final String CNS_INCOMUM = "CNS_INCOMUM";
@@ -68,6 +98,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 
 	/** Hora de atendimento preenchida mas não reconhecida como horário (ex.: "-", "--:--") — atendimento importado sem hora. AVISO, não bloqueia. */
 	public static final String HORA_INVALIDA = "HORA_INVALIDA";
+
+	/** Grafia de médico não encontrada em Configurações → CNS de Médicos (um aviso por grafia, com as linhas) — CNS herdado do mesmo CPF quando conhecido; senão a geração do BPA-I fica bloqueada até informar o CNS. AVISO, não bloqueia. */
+	public static final String CNS_PROFISSIONAL_NAO_CADASTRADO = "CNS_PROFISSIONAL_NAO_CADASTRADO";
 
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {

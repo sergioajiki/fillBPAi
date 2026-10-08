@@ -37,8 +37,13 @@ class ValidacaoPlanilhaServiceTest {
 			"END. COMPLEMENTOS", "SEXO", "Situação de Rua", "Paciente sem CPF"
 	};
 
+	private static final int COL_TIPO_SERVICO = 0;
+	private static final int COL_DATA_AGENDAMENTO = 1;
 	private static final int COL_HORA_ATENDIMENTO = 2;
+	private static final int COL_ESPECIALIDADE = 4;
 	private static final int COL_ESTABELECIMENTO = 3;
+	private static final int COL_MEDICO = 5;
+	private static final int COL_CPF_MEDICO = 6;
 	private static final int COL_CPF_PACIENTE = 9;
 	private static final int COL_CNS_PACIENTE = 11;
 	private static final int COL_RACA_PACIENTE = 12;
@@ -55,7 +60,7 @@ class ValidacaoPlanilhaServiceTest {
 	private String[] linhaValida() {
 		return new String[] {
 				"TELECONSULTA", "25/12/2024", "08:30", "12345 - HOSPITAL CENTRAL",
-				"CARDIOLOGIA", "JOAO DA SILVA", "98765432100", "225125",
+				"CARDIOLOGIA", "RODRIGO SILVA GRILO", "98765432100", "225125",
 				"CAMPO GRANDE", "12345678900", "MARIA SILVA", "700207960618529",
 				"BRANCA", null, "01/01/1990", "I10", "67999999999",
 				"URBANA", "081", "RUA DAS FLORES", "79003020", "100", "CENTRO",
@@ -180,6 +185,36 @@ class ValidacaoPlanilhaServiceTest {
 		assertThat(erros).singleElement().satisfies(erro -> {
 			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
 			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CPF_AUSENTE);
+		});
+	}
+
+	@Test
+	void validarSemCpfDoMedicoGeraErroCpfMedicoAusente() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_CPF_MEDICO] = null;
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CPF_MEDICO_AUSENTE);
+			assertThat(erro.detalhe()).contains("RODRIGO SILVA GRILO");
+		});
+	}
+
+	@Test
+	void validarComCpfDoMedicoInvalidoGeraErroCpfMedicoInvalido() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_CPF_MEDICO] = "123";
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CPF_MEDICO_INVALIDO);
+			assertThat(erro.detalhe()).contains("123").contains("RODRIGO SILVA GRILO");
 		});
 	}
 
@@ -504,6 +539,238 @@ class ValidacaoPlanilhaServiceTest {
 		String[] linha = linhaValida();
 		linha[COL_HORA_ATENDIMENTO] = " ";
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).isEmpty();
+	}
+
+	// ===== Tipo de serviço =====
+
+	@Test
+	void validarSemTipoDeServicoGeraErroTipoServicoAusente() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_TIPO_SERVICO] = null;
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.TIPO_SERVICO_AUSENTE);
+			assertThat(erro.valor()).isEqualTo("MARIA SILVA");
+		});
+	}
+
+	@Test
+	void validarSemTipoDeServicoParaNutricionistaOuPsicologoGeraSoAvisoComAEspecialidade() throws IOException {
+		String[] nutricionista = linhaValida();
+		nutricionista[COL_TIPO_SERVICO] = null;
+		nutricionista[COL_ESPECIALIDADE] = "Nutricionista";
+		String[] psicologo = linhaValida();
+		psicologo[COL_TIPO_SERVICO] = null;
+		psicologo[COL_ESPECIALIDADE] = "Médico Psicólogo";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, nutricionista, psicologo));
+
+		// Não bloqueia (procedimento fixo 0301010315), mas a coluna vazia é indicada
+		assertThat(erros).hasSize(2).allSatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO);
+			assertThat(erro.detalhe()).contains("0301010315");
+		});
+		assertThat(erros).extracting(ErroValidacao::valor).containsExactly("Nutricionista", "Psicólogo");
+	}
+
+	@Test
+	void validarComTipoDeServicoNaoReconhecidoGeraErroTipoServicoInvalido() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_TIPO_SERVICO] = "Consulta";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.TIPO_SERVICO_INVALIDO);
+			assertThat(erro.valor()).isEqualTo("\"Consulta\"");
+			assertThat(erro.detalhe()).contains("Teleconsulta").contains("Teleinterconsulta");
+		});
+	}
+
+	@Test
+	void validarComTipoDeServicoEmMinusculasNaoGeraErro() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_TIPO_SERVICO] = "teleinterconsulta";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).isEmpty();
+	}
+
+	// ===== Data de agendamento (data do atendimento) =====
+
+	@Test
+	void validarSemDataDeAgendamentoGeraErroDataAusente() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_DATA_AGENDAMENTO] = null;
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.DATA_AUSENTE);
+			assertThat(erro.valor()).isEqualTo("MARIA SILVA");
+		});
+	}
+
+	@Test
+	void validarComDataDeAgendamentoEmFormatoNaoReconhecidoGeraErroDataInvalida() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_DATA_AGENDAMENTO] = "25.12.2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.DATA_INVALIDA);
+			assertThat(erro.valor()).isEqualTo("\"25.12.2024\"");
+			assertThat(erro.detalhe()).contains("dd/MM/aaaa");
+		});
+	}
+
+	@Test
+	void validarComDataDeAgendamentoNosFormatosAceitosNaoGeraErro() throws IOException {
+		String[] iso = linhaValida();
+		iso[COL_DATA_AGENDAMENTO] = "2024-12-25";
+		String[] hifen = linhaValida();
+		hifen[COL_DATA_AGENDAMENTO] = "25-12-2024";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, iso, hifen))).isEmpty();
+	}
+
+	// ===== CNS do profissional =====
+
+	private String[] linhaComMedico(String nome, String cpfMedico, String cpfPaciente) {
+		String[] linha = linhaValida();
+		linha[COL_MEDICO] = nome;
+		linha[COL_CPF_MEDICO] = cpfMedico;
+		linha[COL_CPF_PACIENTE] = cpfPaciente;
+		return linha;
+	}
+
+	@Test
+	void validarComMedicoSemCnsCadastradoGeraAvisoEmCadaLinhaComOMesmoValorDaGrafia() throws IOException {
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaComMedico("MEDICO NAO CADASTRADO XYZ", "11122233344", "12345678900"),
+				linhaValida(),
+				linhaComMedico("Médico Não Cadastrado XYZ", "11122233344", "98765432100"));
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		// Um aviso por linha, todos com o mesmo valor (primeira grafia vista) —
+		// a tela e o log agrupam por valor (AgrupamentoValidacao).
+		assertThat(erros).hasSize(2).allSatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_PROFISSIONAL_NAO_CADASTRADO);
+			assertThat(erro.valor()).isEqualTo("\"MEDICO NAO CADASTRADO XYZ\"");
+			assertThat(erro.detalhe())
+					.contains("MEDICO NAO CADASTRADO XYZ")
+					.contains("2 linhas")
+					.contains("bloqueada");
+		});
+		assertThat(erros).extracting(ErroValidacao::linha).containsExactly(2, 4);
+	}
+
+	@Test
+	void validarPreencheOValorDoAvisoSeparadoDaExplicacao() throws IOException {
+		String[] semCep = linhaValida();
+		semCep[COL_CEP] = null;
+		String[] horaHifen = linhaValida();
+		horaHifen[COL_HORA_ATENDIMENTO] = "-";
+		String[] estabSemCodigo = linhaValida();
+		estabSemCodigo[COL_ESTABELECIMENTO] = "HOSPITAL CENTRAL";
+
+		List<ErroValidacao> erros = service.validar(
+				salvarPlanilha(CABECALHO_COMPLETO, semCep, horaHifen, estabSemCodigo));
+
+		assertThat(erros).anySatisfy(e -> {
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.CEP_AUSENTE);
+			assertThat(e.valor()).isEqualTo("MARIA SILVA");
+		});
+		assertThat(erros).anySatisfy(e -> {
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.HORA_INVALIDA);
+			assertThat(e.valor()).isEqualTo("\"-\"");
+		});
+		assertThat(erros).anySatisfy(e -> {
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.ESTABELECIMENTO_SEM_CODIGO);
+			assertThat(e.valor()).isEqualTo("\"HOSPITAL CENTRAL\"");
+		});
+	}
+
+	@Test
+	void validarComHerancaDeCnsIndicaAHerancaNoValor() throws IOException {
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaComMedico("RODRIGO S. GRILO", "98765432100", "12345678900"),
+				linhaValida());
+
+		assertThat(service.validar(caminho)).singleElement()
+				.satisfies(e -> assertThat(e.valor())
+						.isEqualTo("\"RODRIGO S. GRILO\" — herdará o CNS 700207960618529 do mesmo CPF"));
+	}
+
+	@Test
+	void gerarLogTxtAgrupaPorTipoComExplicacaoUmaVezEValoresComLinhas() {
+		List<ErroValidacao> erros = List.of(
+				new ErroValidacao(2, ErroValidacao.Severidade.AVISO, ErroValidacao.HORA_INVALIDA, "detalhe 2", "\"-\""),
+				new ErroValidacao(5, ErroValidacao.Severidade.AVISO, ErroValidacao.HORA_INVALIDA, "detalhe 5", "\"-\""),
+				new ErroValidacao(7, ErroValidacao.Severidade.AVISO, ErroValidacao.HORA_INVALIDA, "detalhe 7", "\"--:--\""));
+
+		String log = service.gerarLogTxt(erros, "planilha_teste.xlsx");
+
+		assertThat(log)
+				.contains("[HORA_INVALIDA] Horário de atendimento não reconhecido (3)")
+				.contains("\"-\" — 2 linhas: 2, 5")
+				.contains("\"--:--\" — 1 linha: 7");
+		assertThat(log.split("não utiliza o horário", -1)).hasSize(2); // explicação uma vez só
+	}
+
+	@Test
+	void validarComGrafiaNaoCadastradaMasMesmoCpfComGrafiaCadastradaNaPlanilhaAvisaHeranca() throws IOException {
+		// Grafia abreviada vem ANTES da cadastrada — a herança não depende da ordem
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaComMedico("RODRIGO S. GRILO", "98765432100", "12345678900"),
+				linhaValida());
+
+		List<ErroValidacao> erros = service.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_PROFISSIONAL_NAO_CADASTRADO);
+			assertThat(erro.detalhe())
+					.contains("RODRIGO S. GRILO")
+					.contains("herdado do mesmo CPF")
+					.contains("700207960618529")
+					.contains("apelido");
+		});
+	}
+
+	@Test
+	void validarComGrafiaNaoCadastradaMasCpfComCnsConhecidoNoBancoAvisaHeranca() throws IOException {
+		ValidacaoPlanilhaService comBanco =
+				new ValidacaoPlanilhaService(cpf -> "11122233344".equals(cpf) ? "700000000000001" : null);
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaComMedico("DR CONHECIDO SO PELO CPF", "111.222.333-44", "12345678900"));
+
+		List<ErroValidacao> erros = comBanco.validar(caminho);
+
+		assertThat(erros).singleElement().satisfies(erro -> {
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_PROFISSIONAL_NAO_CADASTRADO);
+			assertThat(erro.detalhe()).contains("herdado do mesmo CPF").contains("700000000000001");
+		});
+	}
+
+	@Test
+	void validarComMedicoCadastradoPorApelidoSemAcentoNaoGeraAviso() throws IOException {
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaComMedico("Rodrigo Silva Grilo", "98765432100", "12345678900"));
 
 		List<ErroValidacao> erros = service.validar(caminho);
 

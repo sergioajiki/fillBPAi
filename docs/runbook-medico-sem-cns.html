@@ -1,0 +1,705 @@
+<title>Médico sem CNS na Importação</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#F1F3EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1E2521;
+    --ink-muted:#57645C;
+    --line:#CBD3C6;
+    --line-strong:#9FAC9B;
+    --accent:#2F6F5E;
+    --accent-soft:#DCEAE4;
+    --sev-erro:#B3261E;
+    --sev-erro-soft:#F6E1DF;
+    --sev-aviso:#93630F;
+    --sev-aviso-soft:#F3E6D2;
+    --on-accent:#F4F7F3;
+    --shadow:0 1px 2px rgba(30,37,33,.06), 0 10px 26px rgba(30,37,33,.06);
+    --font-display:'Fraunces', Georgia, 'Times New Roman', serif;
+    --font-body:'IBM Plex Sans', 'Segoe UI', system-ui, sans-serif;
+    --font-mono:'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+      --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+      --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+      --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#12160F; --paper-raised:#1A2018; --ink:#E8ECE3; --ink-muted:#A9B5A2;
+    --line:#2B332B; --line-strong:#3C463C; --accent:#7DD3B0; --accent-soft:#1E3A30;
+    --sev-erro:#FF9686; --sev-erro-soft:#3A1F1B; --sev-aviso:#E8B15C; --sev-aviso-soft:#3A2E14;
+    --on-accent:#10140D; --shadow:0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+  }
+
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--paper); color:var(--ink); font-family:var(--font-body); -webkit-font-smoothing:antialiased; }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  .page{ max-width:840px; margin:0 auto; padding:64px 24px 96px; }
+
+  header.doc-head{ margin-bottom:40px; }
+  .kicker{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 14px; }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(2.1rem, 4.4vw, 2.9rem); line-height:1.08; letter-spacing:-.01em; margin:0 0 16px; text-wrap:balance; }
+  .lede{ font-size:1.1rem; line-height:1.6; color:var(--ink-muted); max-width:64ch; margin:0 0 22px; }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px 18px; font-family:var(--font-mono); font-size:.78rem; color:var(--ink-muted); padding-top:18px; border-top:1px solid var(--line); }
+  .meta strong{ color:var(--ink); font-weight:600; }
+
+  nav.toc{ display:flex; flex-wrap:wrap; gap:8px; margin:26px 0 0; }
+  nav.toc a{ font-family:var(--font-mono); font-size:.74rem; color:var(--ink-muted); text-decoration:none; padding:6px 12px; border:1px solid var(--line); border-radius:100px; transition:border-color .15s ease, color .15s ease; }
+  nav.toc a:hover, nav.toc a:focus-visible{ border-color:var(--accent); color:var(--accent); }
+  nav.toc a:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  section{ margin-top:56px; }
+  section > h2{ font-family:var(--font-display); font-weight:600; font-size:1.5rem; letter-spacing:-.005em; margin:0 0 18px; text-wrap:balance; }
+  section > h3{ font-family:var(--font-body); font-weight:600; font-size:1rem; margin:28px 0 10px; }
+  p{ line-height:1.7; font-size:1.02rem; max-width:66ch; }
+  ul.plain, ol.plain{ padding-left:1.2em; line-height:1.7; max-width:66ch; }
+  ul.plain li, ol.plain li{ margin-bottom:6px; }
+  code{ font-family:var(--font-mono); font-size:.88em; background:var(--accent-soft); color:var(--ink); padding:.12em .38em; border-radius:4px; }
+  pre{ font-family:var(--font-mono); font-size:.84rem; line-height:1.6; background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:16px 18px; overflow-x:auto; box-shadow:var(--shadow); }
+  pre code{ background:none; padding:0; }
+
+  .tbl-wrap{ overflow-x:auto; margin-top:16px; }
+  table{ border-collapse:collapse; width:100%; min-width:480px; font-size:.94rem; }
+  th, td{ text-align:left; padding:11px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); font-weight:600; }
+  td.caso{ font-weight:500; }
+  td.antes{ color:var(--ink-muted); text-decoration:line-through; }
+  td.depois{ color:var(--accent); font-weight:600; }
+
+  ol.plano{ list-style:none; padding:0; margin:20px 0 0; counter-reset:passo; }
+  ol.plano li{ counter-increment:passo; position:relative; padding:2px 0 22px 46px; border-left:1px solid var(--line); margin-left:15px; }
+  ol.plano li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  ol.plano li::before{
+    content: counter(passo); position:absolute; left:-15px; top:0; width:30px; height:30px;
+    background:var(--paper-raised); border:1.5px solid var(--accent); color:var(--accent);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:600; font-size:.82rem;
+  }
+  ol.plano li p{ margin:0; font-size:.98rem; }
+  ol.plano li h4{ margin:0 0 6px; font-family:var(--font-body); font-weight:600; font-size:.98rem; }
+
+  .callout{ margin-top:18px; border:1px solid var(--line); border-left:3px solid var(--accent); background:var(--paper-raised); border-radius:0 10px 10px 0; padding:18px 22px; }
+  .callout.aberto{ border-left-color:var(--sev-aviso); }
+  .callout.recomendado{ border-left-color:var(--accent); }
+  .callout.risco{ border-left-color:var(--sev-erro); }
+  .callout .kicker{ margin-bottom:8px; }
+  .callout p{ margin:0; font-size:.98rem; }
+  .callout p + p{ margin-top:8px; }
+
+  .pill{ font-family:var(--font-mono); font-size:.68rem; letter-spacing:.05em; text-transform:uppercase; padding:4px 10px; border-radius:100px; border:1px solid var(--line-strong); color:var(--ink-muted); white-space:nowrap; display:inline-block; margin-bottom:8px; }
+  .pill.ok{ border-color:var(--accent); color:var(--accent); }
+  .pill.aberto{ border-color:var(--sev-aviso); color:var(--sev-aviso); }
+  .pill.risco{ border-color:var(--sev-erro); color:var(--sev-erro); }
+
+  footer.doc-foot{ margin-top:72px; padding-top:20px; border-top:1px solid var(--line); font-family:var(--font-mono); font-size:.76rem; color:var(--ink-muted); }
+
+  /* Maquetes de tela (sugestões de UI) */
+  .mock{ margin-top:16px; border:1px solid var(--line-strong); border-radius:10px; background:var(--paper-raised); box-shadow:var(--shadow); overflow:hidden; font-size:.9rem; }
+  .mock-bar{ font-family:var(--font-mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-muted); padding:8px 14px; border-bottom:1px solid var(--line); }
+  .mock-body{ padding:14px; }
+  .mock-head{ font-weight:600; padding:7px 12px; border-radius:6px 6px 0 0; }
+  .mock-head.aviso{ background:var(--sev-aviso-soft); color:var(--sev-aviso); }
+  .mock-head.erro{ background:var(--sev-erro-soft); color:var(--sev-erro); }
+  .mock-chips{ display:flex; flex-wrap:wrap; gap:6px; padding:10px 0; }
+  .mock-chip{ font-family:var(--font-mono); font-size:.72rem; padding:4px 10px; border-radius:100px; border:1px solid var(--line-strong); color:var(--ink-muted); white-space:nowrap; }
+  .mock-chip.on{ border-color:var(--sev-aviso); color:var(--sev-aviso); background:var(--sev-aviso-soft); font-weight:600; }
+  .mock-chip.erro{ border-color:var(--sev-erro); color:var(--sev-erro); }
+  .mock-group{ border:1px solid var(--line); border-radius:8px; margin-top:8px; }
+  .mock-group > .g-title{ display:flex; justify-content:space-between; gap:10px; padding:8px 12px; font-weight:600; }
+  .mock-group > .g-title .n{ font-family:var(--font-mono); font-size:.74rem; color:var(--ink-muted); font-weight:500; white-space:nowrap; }
+  .mock-group > .g-hint{ padding:0 12px 8px; color:var(--ink-muted); font-size:.85rem; }
+  .mock-group ul{ margin:0; padding:0 12px 10px 30px; font-family:var(--font-mono); font-size:.78rem; line-height:1.7; }
+  .mock-group.fechado > .g-title::before{ content:"▸ "; }
+  .mock-group.aberto > .g-title::before{ content:"▾ "; }
+  .mock-actions{ display:flex; flex-wrap:wrap; gap:8px; padding-top:12px; }
+  .mock-btn{ font-size:.8rem; padding:5px 12px; border:1px solid var(--line-strong); border-radius:6px; }
+
+  @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="doc-head">
+    <p class="kicker">Runbook técnico · fillBPAi</p>
+    <h1>Médicos na importação: o que acontece sem CNS <span class="pill ok">✓ Parcialmente implementado</span></h1>
+    <p class="lede">
+      Pergunta do usuário: quando um médico é importado sem CNS, o que acontece? Resposta curta: o
+      atendimento entra normalmente, sem CNS do profissional, com um aviso no log. A geração do BPA-I
+      fica bloqueada até o CNS ser informado. A investigação também encontrou um problema mais grave:
+      uma linha com <strong>médico sem CPF</strong> desfaz a importação inteira, sem aviso, enquanto
+      o log mostra "Sucesso".
+    </p>
+    <div class="meta">
+      <span>Área: <strong>AtendimentoImportacaoService · CnsProfissionalUtils · GeradorBPAiService · RelatorioController · Medico</strong></span>
+      <span>Status: <strong>Médico sem CPF, proteção da importação, reserva de CNS pelo CPF e aviso de CNS na análise implementados — <code>mvnw.cmd test</code> passando (310 testes)</strong></span>
+      <span>Data: <strong>07/10/2026</strong></span>
+    </div>
+    <nav class="toc" aria-label="Seções do documento">
+      <a href="#resumo">Resumo</a>
+      <a href="#fluxo">Fluxo do médico</a>
+      <a href="#sem-cns">Médico sem CNS</a>
+      <a href="#resolver">Como resolver no dia a dia</a>
+      <a href="#sem-cpf">Achado crítico: médico sem CPF</a>
+      <a href="#atencao">Outros pontos de atenção</a>
+      <a href="#implementado">O que mudou</a>
+      <a href="#recomendacoes">Recomendações</a>
+      <a href="#visualizacao">Visualização dos avisos</a>
+      <a href="#abertas">Decisões em aberto</a>
+    </nav>
+  </header>
+
+  <section id="resumo">
+    <h2>Resumo</h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Situação</th><th>Analisar Planilha</th><th>Importação</th><th>Geração BPA-I</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">Médico com nome cadastrado em "CNS de Médicos"</td><td>sem alerta</td><td class="depois">importado com CNS</td><td>normal</td></tr>
+          <tr><td class="caso">Médico sem cadastro de CNS</td><td>sem alerta</td><td>importado <strong>sem CNS</strong>, com aviso no log</td><td style="color:var(--sev-erro);font-weight:600">bloqueada</td></tr>
+          <tr><td class="caso">Médico sem CPF na planilha</td><td>sem alerta</td><td style="color:var(--sev-erro);font-weight:600">importação inteira desfeita em silêncio</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="fluxo">
+    <h2>Fluxo do médico na importação</h2>
+    <ol class="plano">
+      <li>
+        <h4>Cadastro do médico: <code>AtendimentoImportacaoService.buscarOuCriarMedico()</code></h4>
+        <p>
+          A chave do <code>Medico</code> é o <strong>CPF</strong> (coluna <code>cpf</code>, até 14
+          caracteres, única). Se o CPF já existe, o nome é atualizado com o da planilha; se não, o médico
+          é criado. A entidade <code>Medico</code> <strong>não tem campo de CNS</strong>.
+        </p>
+      </li>
+      <li>
+        <h4>Busca do CNS: <code>CnsProfissionalUtils.buscar(nome)</code></h4>
+        <p>
+          O CNS é procurado pelo <strong>nome</strong> do médico (sem acentos, maiúsculo) no arquivo
+          <code>dados/medicos_cns.csv</code>, mantido na tela Configurações → CNS de Médicos (um médico
+          pode ter vários apelidos de nome para o mesmo CNS). Não há consulta ao DATASUS nem uso do CPF.
+        </p>
+      </li>
+      <li>
+        <h4>Gravação: <code>AtendimentoBPAi.cnsProfissional</code></h4>
+        <p>
+          O CNS encontrado é gravado <strong>no atendimento</strong>, não no médico. Se não for
+          encontrado, o campo não é alterado: num atendimento novo fica vazio; num atendimento
+          reimportado, mantém o CNS que já tinha.
+        </p>
+      </li>
+      <li>
+        <h4>Geração: <code>GeradorBPAiService.validarCnsProfissional()</code></h4>
+        <p>
+          Antes de gerar (parcial ou completo), qualquer atendimento sem CNS do profissional bloqueia a
+          geração, com relatório de médico, paciente e data de cada ocorrência. O CNS entra no
+          arquivo pelo campo <code>prd-cnsmed</code> (15 posições).
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="sem-cns">
+    <h2>Médico sem CNS: o que acontece</h2>
+    <p>
+      Confirmado com teste de sondagem (planilha gerada com Apache POI, banco H2 em memória e um
+      <code>medicos_cns.csv</code> temporário vazio; o teste foi removido depois da análise):
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Passo</th><th>Resultado</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">1. Importar médico sem cadastro de CNS</td><td>Sucesso: 1, Erros: 0. Atendimento gravado com CNS vazio. Aviso: <code>CNS do profissional não encontrado para: DR SEM CADASTRO. Verifique o nome na planilha ou cadastre o profissional em Configurações → CNS de Médicos.</code></td></tr>
+          <tr><td class="caso">2. Cadastrar o CNS em Configurações</td><td>Atendimentos já importados <strong>continuam sem CNS</strong>: o cadastro não é propagado para o banco.</td></tr>
+          <tr><td class="caso">3. Reimportar a mesma planilha</td><td>Atendimento existente atualizado (sem duplicar) e CNS preenchido.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Onde o usuário fica sabendo</p>
+      <p>
+        Só depois da importação: no log (seção AVISOS), no chip <code>⚠ Pendências</code> da barra
+        inferior e no bloqueio da geração. O "Analisar Planilha" não verifica o CNS do profissional,
+        então não avisa antes.
+      </p>
+    </div>
+  </section>
+
+  <section id="resolver">
+    <h2>Como resolver no dia a dia</h2>
+    <h3>Caminho recomendado: cadastrar e reimportar</h3>
+    <ol class="plano">
+      <li>
+        <h4>Veja quais médicos estão sem CNS</h4>
+        <p>No log de importação, procure <code>CNS do profissional não encontrado para:</code>, ou clique no chip <code>⚠ Pendências</code>.</p>
+      </li>
+      <li>
+        <h4>Confira se é só diferença de grafia</h4>
+        <p>
+          Se o médico já existe em Configurações → CNS de Médicos com outro nome (ex.: sem o segundo
+          sobrenome), adicione o nome da planilha como <strong>apelido</strong> desse cadastro. Se não
+          existe, cadastre o médico com o CNS.
+        </p>
+      </li>
+      <li>
+        <h4>Reimporte a planilha</h4>
+        <p>É seguro: os atendimentos já importados são atualizados, sem duplicar, e recebem o CNS. As próximas planilhas com esse médico já entram com CNS.</p>
+      </li>
+    </ol>
+    <h3>Caminho rápido: "Atualizar CNS" na tela</h3>
+    <p>
+      Selecione o médico na árvore, digite o CNS e clique em <code>Atualizar CNS</code>. Isso grava o
+      CNS em todos os atendimentos desse médico e especialidade que já estão no banco.
+    </p>
+    <div class="callout aberto">
+      <p class="kicker">Limites do caminho rápido</p>
+      <p>
+        O <code>RelatorioController.atualizarCns()</code> <strong>não grava no cadastro</strong>
+        <code>medicos_cns.csv</code>: na próxima planilha, o mesmo médico entra sem CNS de novo. Também
+        não valida o valor digitado (aceita menos de 15 dígitos, letras, ou campo vazio, que apaga o CNS
+        dos atendimentos), e vale só para a especialidade selecionada.
+      </p>
+    </div>
+  </section>
+
+  <section id="sem-cpf">
+    <h2>Achado crítico: médico sem CPF <span class="pill risco">Grave</span></h2>
+    <div class="callout risco">
+      <p class="kicker">A importação inteira é desfeita, e o log diz "Sucesso"</p>
+      <p>
+        Quando a célula <code>CPF DO MEDICO</code> está vazia, <code>buscarOuCriarMedico()</code> cria um
+        CPF fictício <code>"SEM_CPF_" + System.nanoTime()</code>, com <strong>24 caracteres</strong>. A
+        coluna <code>cpf</code> de <code>Medico</code> aceita no máximo <strong>14</strong>. O banco
+        recusa a gravação (<code>DataException: Value too long for column "CPF CHARACTER VARYING(14)"</code>).
+      </p>
+      <p>
+        A exceção estraga a sessão do Hibernate, que marca a transação só para rollback. Daí em diante:
+      </p>
+      <ul class="plain">
+        <li>As linhas <strong>depois</strong> da linha problemática falham com <code>AssertionFailure: null id in Medico entry (don't flush the Session after an exception occurs)</code>.</li>
+        <li>As linhas <strong>antes</strong> dela são contadas como sucesso, mas no final o <code>commit()</code> desfaz tudo <strong>sem lançar erro</strong>.</li>
+        <li>Resultado: o log mostra "Sucesso: N", mas <strong>nada daquela importação fica no banco</strong>.</li>
+      </ul>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Planilha (sondagem)</th><th>Log</th><th>Gravado no banco</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">Só uma linha, médico sem CPF</td><td>Sucesso 0 · Erro 1 (DataException)</td><td>nada</td></tr>
+          <tr><td class="caso">Linha sem CPF de médico, depois linha válida</td><td>Sucesso 0 · Erro 2 (DataException + AssertionFailure)</td><td>nada</td></tr>
+          <tr><td class="caso">Linha válida, depois linha sem CPF de médico</td><td style="color:var(--sev-erro);font-weight:600">Sucesso 1 · Erro 1</td><td style="color:var(--sev-erro);font-weight:600">nada (a linha "com sucesso" foi desfeita)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Vai além do médico sem CPF</p>
+      <p>
+        O mesmo mecanismo vale para <strong>qualquer erro do banco</strong> numa linha (ex.: um texto
+        maior que o tamanho da coluna em algum campo não coberto por <code>limitarCamposBanco()</code>):
+        o <code>catch</code> por linha em <code>importar()</code> não protege a transação, que é única
+        para a planilha inteira. Erros de validação do <code>AtendimentoProcessor</code> não têm esse
+        problema, porque acontecem antes de qualquer gravação.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Mesmo sem o limite de tamanho, o CPF fictício seria frágil</p>
+      <p>
+        Um CPF novo a cada linha criaria um médico novo a cada linha. A deduplicação
+        (paciente + médico + data + SIGTAP) nunca reconheceria o atendimento numa reimportação, que
+        duplicaria os registros, e a herança de folha (por id do médico) não funcionaria.
+      </p>
+    </div>
+  </section>
+
+  <section id="atencao">
+    <h2>Outros pontos de atenção</h2>
+    <div class="callout aberto">
+      <p class="kicker">Busca por nome: decisão de projeto, com um efeito colateral</p>
+      <p>
+        A busca do CNS por nome, e não por CPF, é intencional: o mesmo médico chega nas planilhas com
+        grafias diferentes (sem acento, sobrenome abreviado), e os <strong>apelidos</strong> em CNS de
+        Médicos ligam todas essas grafias ao mesmo CNS. A comparação já ignora acentos e
+        maiúsculas/minúsculas; abreviações precisam ser cadastradas como apelido.
+      </p>
+      <p>
+        Efeito colateral: o <code>Medico</code> é um só por CPF, e o nome dele é sobrescrito pela grafia
+        de cada linha importada (vale a última). Já o CNS é buscado pela grafia <strong>da linha</strong>.
+        Assim, numa mesma planilha, as linhas com uma grafia cadastrada recebem CNS e as linhas com uma
+        grafia nova ficam sem CNS, embora sejam do mesmo médico (mesmo CPF), cujo CNS o sistema já conhece.
+        Na tela, todos esses atendimentos aparecem com o mesmo nome (o da última linha), o que dificulta
+        entender por que só parte deles está sem CNS.
+      </p>
+      <p>
+        Risco residual: dois médicos diferentes com exatamente o mesmo nome recebem o mesmo CNS.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Chip de pendências no modo Completo não filtra a competência</p>
+      <p>
+        <code>RelatorioController.verificarAvisosGeracao()</code> conta atendimentos sem CNS de
+        <strong>todos os meses</strong>, mas a geração completa só considera a competência selecionada.
+        O chip pode mostrar pendências que não bloqueiam a geração daquele mês.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Onde o cadastro de CNS é gravado</p>
+      <p>
+        O cadastro em Configurações grava em <code>src/main/resources/dados/medicos_cns.csv</code>,
+        caminho relativo à pasta de onde o programa é executado. Se o aplicativo for executado a partir
+        de outra pasta (ex.: um instalador), os cadastros podem ir para um arquivo que a próxima
+        execução não lê.
+      </p>
+    </div>
+  </section>
+
+  <section id="implementado">
+    <h2>O que mudou <span class="pill ok">✓ Implementado</span></h2>
+    <p>
+      As seções anteriores descrevem o comportamento <strong>antes</strong> desta correção. Agora:
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Situação</th><th>Antes</th><th>Agora</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">CPF do médico vazio ou com tamanho errado</td><td class="antes">CPF fictício maior que a coluna; importação inteira desfeita em silêncio</td><td class="depois"><code>ERRO</code> no "Analisar Planilha" (<code>CPF_MEDICO_AUSENTE</code>/<code>CPF_MEDICO_INVALIDO</code>); na importação, só essa linha é rejeitada, antes de gravar</td></tr>
+          <tr><td class="caso">Erro do banco em qualquer linha</td><td class="antes">log "Sucesso: N", nada gravado</td><td class="depois">importação cancelada com mensagem: linha, causa e "nenhuma linha foi importada"</td></tr>
+          <tr><td class="caso">Grafia cadastrada em CNS de Médicos</td><td>CNS no atendimento</td><td class="depois">CNS no atendimento e guardado no médico (CPF)</td></tr>
+          <tr><td class="caso">Grafia nova, mesmo CPF com CNS conhecido</td><td class="antes">sem CNS, pendência</td><td class="depois">CNS herdado do CPF, com aviso para cadastrar o apelido</td></tr>
+          <tr><td class="caso">Nome casa com um CNS diferente do já guardado para o CPF</td><td>CNS do nome, sem aviso</td><td class="depois">CNS do nome (cadastro é a fonte principal), com aviso para conferir</td></tr>
+          <tr><td class="caso">Grafia nova, CPF sem CNS conhecido</td><td>sem CNS, aviso</td><td>sem CNS, aviso (igual)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ol class="plano">
+      <li>
+        <h4><code>AtendimentoProcessor.validarCpfMedico()</code> e regra 3b do <code>ValidacaoPlanilhaService</code></h4>
+        <p>
+          CPF do médico ausente ou diferente de 11 dígitos é erro bloqueante, como o CPF do paciente. O
+          ramo <code>"SEM_CPF_" + nanoTime</code> de <code>buscarOuCriarMedico()</code> foi removido.
+        </p>
+      </li>
+      <li>
+        <h4><code>AtendimentoImportacaoService.importar()</code></h4>
+        <p>
+          <code>flush()</code> ao fim de cada linha, para o erro do banco aparecer na linha certa. Se a
+          transação ficar marcada para rollback, a importação é interrompida com
+          <code>IllegalStateException</code>, exibida pelo diálogo de erro de importação.
+        </p>
+      </li>
+      <li>
+        <h4><code>Medico.cns</code> e <code>resolverCnsProfissional()</code></h4>
+        <p>
+          Nova coluna <code>cns</code> em <code>medico</code>, criada automaticamente na próxima execução
+          (<code>hbm2ddl=update</code>). Em bancos existentes começa vazia e é preenchida na primeira
+          importação em que o nome do médico for encontrado no cadastro. O CPF fica só no banco local
+          (<code>database/</code>, fora do Git), nunca no <code>medicos_cns.csv</code>, que é versionado
+          num repositório público.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="recomendacoes">
+    <h2>Recomendações</h2>
+    <ol class="plano">
+      <li>
+        <h4>Corrigir o médico sem CPF <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Opção simples: tratar CPF do médico ausente como erro de validação no
+          <code>AtendimentoProcessor</code> (antes de gravar) e como <code>ERRO</code>/<code>AVISO</code>
+          no "Analisar Planilha". Opção mais flexível: identificar o médico sem CPF pelo nome, com uma
+          chave estável e curta, em vez de <code>nanoTime</code>.
+        </p>
+      </li>
+      <li>
+        <h4>Proteger a importação contra erros do banco <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Gravar cada linha num ponto de controle próprio (ou fazer <code>flush</code> por linha e, em
+          caso de erro, reportar "importação interrompida" em vez de "Sucesso"). O log nunca deve dizer
+          que linhas foram importadas quando o <code>commit</code> foi desfeito.
+        </p>
+      </li>
+      <li>
+        <h4>Avisar CNS do profissional no "Analisar Planilha" <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>CNS_PROFISSIONAL_NAO_CADASTRADO</code> (<code>AVISO</code>, regra 10): <strong>um aviso por
+          grafia</strong> (agrupada sem acento e sem diferença de maiúsculas), com a quantidade e os números
+          das linhas. Se o mesmo CPF tiver CNS conhecido (outra grafia cadastrada na planilha, ou
+          <code>Medico.cns</code> no banco), o aviso diz que o CNS será herdado e sugere cadastrar o apelido.
+          Se não, avisa que a geração do BPA-I ficará bloqueada. A importação passou a decidir a herança no
+          fim da planilha, então o aviso vale mesmo quando a grafia cadastrada vem numa linha posterior.
+        </p>
+      </li>
+      <li>
+        <h4>Usar o CPF como reserva quando a grafia não for encontrada <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Mantendo a busca por nome como principal: se a grafia da linha não estiver cadastrada, mas o
+          mesmo médico (mesmo CPF) já tiver CNS em outro atendimento, usar esse CNS e avisar
+          "grafia '&lt;nome&gt;' não cadastrada — CNS herdado do mesmo CPF; considere cadastrá-la como
+          apelido". A linha não fica pendente e o cadastro de apelidos continua sendo incentivado.
+        </p>
+      </li>
+      <li>
+        <h4>Ligar "Atualizar CNS" ao cadastro <span class="pill aberto">Pendente</span></h4>
+        <p>
+          Validar 15 dígitos e oferecer gravar o nome e o CNS em CNS de Médicos, para que as próximas
+          planilhas já entrem com CNS.
+        </p>
+      </li>
+      <li>
+        <h4>Filtrar o chip de pendências pela competência <span class="pill aberto">Pendente</span></h4>
+        <p>Usar o mesmo filtro de mês/ano da geração completa.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="visualizacao">
+    <h2>Visualização dos avisos <span class="pill ok">✓ Sugestão 1 implementada</span></h2>
+    <p>
+      Com as regras novas (CPF do médico, CNS do profissional, horário), a análise de uma planilha real
+      pode trazer dezenas de itens de tipos diferentes. Hoje eles aparecem misturados numa caixa de texto
+      só, e o mesmo problema aparece em dois lugares:
+    </p>
+    <ul class="plain">
+      <li>
+        <strong>Blocos ERROS / AVISOS do "Analisar Planilha"</strong>
+        (<code>MainController.criarBlocoSeveridade()</code> + <code>formatarLinhas()</code>): um
+        <code>TextArea</code> com uma linha por item, no formato <code>Linha N - TIPO: detalhe</code>, na
+        ordem em que foram encontrados.
+      </li>
+      <li>
+        <strong>Chip <code>⚠ Pendências</code> da barra inferior</strong>
+        (<code>RelatorioController.mostrarAvisosGeracao()</code>): uma tabela em texto com uma linha por
+        <strong>atendimento</strong> sem CNS (médico | paciente | data).
+      </li>
+    </ul>
+
+    <h3>O que deixa confuso hoje</h3>
+    <ul class="plain">
+      <li><strong>Tipos misturados:</strong> um aviso de horário fica entre dois de CNS do paciente; não dá para ver quantos há de cada tipo.</li>
+      <li><strong>Explicação repetida:</strong> a mensagem completa (ex.: a de <code>ESTABELECIMENTO_SEM_CODIGO</code>, com cerca de 300 caracteres) se repete em cada linha da planilha; o que muda de uma para outra é só o valor.</li>
+      <li><strong>Códigos técnicos:</strong> <code>CNS_PROFISSIONAL_NAO_CADASTRADO</code> no lugar de um título legível.</li>
+      <li><strong>Sem prioridade:</strong> o que trava a geração do BPA-I (CNS do profissional) tem o mesmo peso visual de um aviso informativo (CNS do paciente com 16 dígitos).</li>
+      <li><strong>Pendências por atendimento:</strong> 40 atendimentos do mesmo médico viram 40 linhas, quando a ação (cadastrar um CNS) é uma só.</li>
+    </ul>
+
+    <h3>Sugestão 1 — Análise: chips de filtro + grupos por tipo <span class="pill ok">✓ Implementada</span></h3>
+    <p>
+      Dentro de cada bloco (ERROS e AVISOS), uma fileira de <strong>chips de filtro, um por tipo</strong>,
+      com a contagem, e abaixo a lista <strong>agrupada por tipo</strong> em seções recolhíveis. A
+      explicação aparece <strong>uma vez</strong> no cabeçalho do grupo; cada item mostra só a linha e o
+      valor.
+    </p>
+    <div class="mock" role="img" aria-label="Maquete: bloco de avisos com chips de filtro por tipo e grupos recolhíveis">
+      <div class="mock-bar">Maquete — Analisar Planilha · bloco de avisos</div>
+      <div class="mock-body">
+        <div class="mock-head aviso">⚠ AVISOS — não impedem a importação (23)</div>
+        <div class="mock-chips">
+          <span class="mock-chip on">Todos 23</span>
+          <span class="mock-chip">CNS do profissional 3</span>
+          <span class="mock-chip">Horário 6</span>
+          <span class="mock-chip">Estabelecimento sem código 9</span>
+          <span class="mock-chip">CNS do paciente 5</span>
+        </div>
+        <div class="mock-group aberto">
+          <div class="g-title"><span>CNS do profissional não cadastrado</span><span class="n">3 médicos · 41 linhas</span></div>
+          <div class="g-hint">Sem CNS, a geração do BPA-I fica bloqueada. Cadastre em Configurações → CNS de Médicos.</div>
+          <ul>
+            <li>"FULANO DE TAL" — 38 linhas (2, 3, 7, …)</li>
+            <li>"RODRIGO S. GRILO" — 2 linhas (14, 30) · herdará CNS 700207960618529 do CPF</li>
+            <li>"BELTRANA SOUZA" — 1 linha (51)</li>
+          </ul>
+        </div>
+        <div class="mock-group fechado">
+          <div class="g-title"><span>Horário de atendimento não reconhecido</span><span class="n">6 linhas</span></div>
+        </div>
+        <div class="mock-group fechado">
+          <div class="g-title"><span>Estabelecimento sem código</span><span class="n">9 linhas</span></div>
+        </div>
+        <div class="mock-group fechado">
+          <div class="g-title"><span>CNS do paciente inválido ou incomum</span><span class="n">5 linhas</span></div>
+        </div>
+        <div class="mock-actions">
+          <span class="mock-btn">Salvar Log TXT</span>
+          <span class="mock-btn">Importar Planilha</span>
+        </div>
+      </div>
+    </div>
+    <ul class="plain">
+      <li><strong>Chips:</strong> clicar num chip mostra só aquele grupo; "Todos" volta à lista completa. Os chips de ERRO ficam em vermelho, antes dos de AVISO.</li>
+      <li><strong>Ordem dos grupos:</strong> primeiro os que travam a geração (CNS do profissional), depois os que mudam dados gravados (horário vazio, estabelecimento sem vínculo), por último os informativos (CNS do paciente incomum).</li>
+      <li><strong>Grupos:</strong> o primeiro abre expandido e os outros fechados; o título mostra a contagem. Dentro do grupo, itens com o mesmo valor (ex.: o mesmo estabelecimento em 9 linhas) viram um item só com a lista de linhas, como já acontece com o aviso de CNS do profissional.</li>
+      <li><strong>Log TXT:</strong> seguir a mesma organização (seções por tipo, explicação uma vez), para o arquivo salvo bater com a tela.</li>
+    </ul>
+
+    <h3>Sugestão 2 — Pendências da geração: agrupar por médico <span class="pill aberto">Pendente</span></h3>
+    <p>
+      No chip <code>⚠ Pendências</code>, mostrar <strong>um item por médico</strong> com a quantidade de
+      atendimentos, em vez de uma linha por atendimento, e uma ação direta. O texto do próprio chip pode
+      trazer o resumo.
+    </p>
+    <div class="mock" role="img" aria-label="Maquete: pendências agrupadas por médico">
+      <div class="mock-bar">Maquete — chip "⚠ 3 médicos sem CNS (45 atend.)" · janela de pendências</div>
+      <div class="mock-body">
+        <div class="mock-head erro">🛑 Geração bloqueada — competência 09/2026</div>
+        <div class="mock-group aberto">
+          <div class="g-title"><span>FULANO DE TAL · Cardiologia</span><span class="n">38 atendimentos</span></div>
+          <ul>
+            <li>MARIA SILVA — 02/09/2026</li>
+            <li>JOSE SOUZA — 03/09/2026</li>
+            <li>… mais 36</li>
+          </ul>
+        </div>
+        <div class="mock-group fechado">
+          <div class="g-title"><span>BELTRANA SOUZA · Pediatria</span><span class="n">6 atendimentos</span></div>
+        </div>
+        <div class="mock-group fechado">
+          <div class="g-title"><span>CICLANO PEREIRA · Neurologia</span><span class="n">1 atendimento</span></div>
+        </div>
+        <div class="mock-actions">
+          <span class="mock-btn">Ir para o médico na árvore</span>
+          <span class="mock-btn">Abrir CNS de Médicos</span>
+        </div>
+      </div>
+    </div>
+    <ul class="plain">
+      <li><strong>Filtrar pela competência</strong> selecionada (pendência já registrada nas Recomendações): o chip passa a mostrar só o que de fato bloqueia a geração daquele mês.</li>
+      <li><strong>"Ir para o médico na árvore"</strong> seleciona o médico na sidebar, onde a barra de edição (CNS / Definir Folha) já fica disponível.</li>
+      <li>No modo parcial (médico selecionado), manter o resumo atual (folha ausente / CNS ausente), que já é curto.</li>
+    </ul>
+
+    <h3>Como a Sugestão 1 foi implementada <span class="pill ok">✓ Implementado</span></h3>
+    <ol class="plano">
+      <li>
+        <h4><code>ErroValidacao.valor</code></h4>
+        <p>
+          Campo novo, opcional, com o que varia entre ocorrências: o valor da célula entre aspas (horário,
+          estabelecimento, raça, etnia, situação de rua), o nome do paciente (CEP, CPF, raça ausente, CNS
+          do paciente) ou do médico (CPF do médico, CNS do profissional). O <code>detalhe</code> continua
+          igual. O construtor antigo, sem valor, continua funcionando.
+        </p>
+      </li>
+      <li>
+        <h4><code>AgrupamentoValidacao</code> (nova)</h4>
+        <p>
+          Título legível, explicação e prioridade de cada tipo, num mapa único. <code>agrupar()</code>
+          ordena ERRO antes de AVISO e depois pela prioridade; junta ocorrências com o mesmo valor num
+          item (<code>valor — N linhas: ...</code>). Sem valor, o item é o detalhe completo.
+        </p>
+      </li>
+      <li>
+        <h4>Tela — <code>MainController.criarBlocoSeveridade()</code></h4>
+        <p>
+          Chips de filtro (<code>ToggleButton</code>, só quando há mais de um tipo) + um
+          <code>TitledPane</code> por grupo, sem altura fixa. O primeiro grupo abre
+          expandido; clicar num chip mostra só aquele grupo e o expande. As janelas de avisos e de erros
+          da análise ficaram mais largas (780 px), redimensionáveis e com todo o conteúdo numa área
+          rolável; a altura da janela é limitada a 85% da tela (<code>exibirComRolagem()</code>), e os textos
+          com quebra de linha têm altura mínima igual à do texto inteiro (<code>labelQuebrado()</code>), para
+          não serem cortados com reticências.
+        </p>
+      </li>
+      <li>
+        <h4>Log TXT — <code>gerarLogTxt()</code></h4>
+        <p>
+          Mesma organização da tela: <code>[TIPO] Título (N)</code>, a explicação uma vez e os itens com
+          as linhas. O código do tipo continua no log, para rastrear.
+        </p>
+      </li>
+      <li>
+        <h4>CNS do profissional</h4>
+        <p>
+          Passou a gerar um aviso por linha, todos com o mesmo valor
+          (<code>"FULANO"</code> ou <code>"RODRIGO S. GRILO" — herdará o CNS ... do mesmo CPF</code>), para
+          seguir o mesmo modelo das outras regras; o agrupamento junta as linhas num item só.
+        </p>
+      </li>
+    </ol>
+
+    <h3>Alternativa considerada — tabela com filtro</h3>
+    <p>
+      Trocar o <code>TextArea</code> por uma <code>TableView</code> (Linha | Tipo | Detalhe), ordenável, com
+      um filtro por tipo e um campo de busca. É mais fácil de implementar, mas continua repetindo a
+      explicação em cada linha e não resolve o agrupamento por médico ou por valor, que é o que mais
+      reduz o volume. Faz sentido como complemento, dentro de cada grupo, se os grupos ficarem muito
+      grandes.
+    </p>
+
+    <h3>Notas de implementação</h3>
+    <ol class="plano">
+      <li>
+        <h4>Rótulo e explicação por tipo</h4>
+        <p>
+          Um mapa único (ex.: em <code>ErroValidacao</code>) de <code>tipoErro</code> → título legível,
+          explicação e ordem de prioridade. É usado pela tela e pelo log TXT, para os dois não
+          divergirem.
+        </p>
+      </li>
+      <li>
+        <h4>Separar a explicação do valor</h4>
+        <p>
+          Hoje o <code>detalhe</code> junta os dois numa frase só. Para agrupar, cada aviso precisa
+          expor o <strong>valor</strong> (ex.: o nome do estabelecimento) separado da explicação fixa.
+          Opção de menor impacto: um campo novo opcional <code>valor</code> em <code>ErroValidacao</code>,
+          sem mudar o <code>detalhe</code> atual, que continua no log.
+        </p>
+      </li>
+      <li>
+        <h4>Componentes JavaFX</h4>
+        <p>
+          <code>FlowPane</code> de <code>ToggleButton</code> (mesmo visual dos chips de apelido em
+          <code>ConfiguracoesDialog</code>) + <code>Accordion</code>/<code>TitledPane</code> por grupo,
+          dentro de um <code>ScrollPane</code>. A pendência por médico sai de um
+          <code>GROUP BY m.nome, a.especialidadeMedico</code> na consulta de
+          <code>verificarAvisosGeracao()</code>.
+        </p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="abertas">
+    <h2>Decisões em aberto</h2>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 3 · Visualização dos avisos: Sugestão 1 implementada</span>
+      <p>
+        O "Analisar Planilha" agora usa chips de filtro e grupos por tipo. A Sugestão 2 (pendências da
+        geração agrupadas por médico) continua pendente. Ver <a href="#visualizacao">Visualização dos
+        avisos</a>.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 1 · Médico sem CPF: bloqueado</span>
+      <p>
+        Tratado como <code>ERRO</code>, igual ao CPF do paciente. A última importação real (setembro, 577
+        linhas) não tinha nenhuma linha sem CPF de médico. Se isso passar a acontecer, a alternativa é
+        identificar o médico pelo nome.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">CPF no medicos_cns.csv: não</span>
+      <p>
+        Avaliado e descartado: o CSV é versionado num repositório público, e o CPF é dado pessoal
+        (LGPD). A reserva pelo CPF usa o banco local. À parte disso, vale decidir se o próprio
+        <code>medicos_cns.csv</code> (nomes e CNS) deve continuar num repositório público.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">2 · CNS do profissional ausente na análise: AVISO ou ERRO?</span>
+      <p>
+        Hoje a geração já bloqueia. Um <code>ERRO</code> na análise impediria importar até cadastrar; um
+        <code>AVISO</code> mantém o fluxo atual (importar e completar depois).
+      </p>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    fillBPAi · Núcleo de Telessaúde de MS · docs/runbook-medico-sem-cns.html
+  </footer>
+
+</div>

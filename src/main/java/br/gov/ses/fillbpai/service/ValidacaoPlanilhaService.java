@@ -2,12 +2,16 @@ package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.util.CepUtils;
+import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.DateUtils;
+import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
+import br.gov.ses.fillbpai.util.TextoUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -19,8 +23,13 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Serviço responsável por validar uma planilha Excel antes da importação.
@@ -32,10 +41,15 @@ import java.util.Map;
  * <p>
  * Regras validadas:
  * <ul>
+ *   <li>Data de agendamento ausente ou em formato não reconhecido — ERRO bloqueante</li>
+ *   <li>Tipo de serviço ausente (exceto nutricionista/psicólogo) ou não reconhecido — ERRO bloqueante</li>
  *   <li>CNS do paciente ausente ou com menos de 15 dígitos: AVISO (não bloqueia)</li>
  *   <li>CNS do paciente com mais de 15 dígitos: AVISO (não bloqueia)</li>
  *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
  *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
+ *   <li>CPF do médico ausente ou com tamanho diferente de 11 dígitos — ERRO bloqueante</li>
+ *   <li>Hora de atendimento preenchida mas não reconhecida: AVISO (não bloqueia)</li>
+ *   <li>Médico (grafia) sem CNS em Configurações → CNS de Médicos: AVISO por grafia (não bloqueia)</li>
  *   <li>Raça do paciente ausente ou não reconhecida (grafia incorreta): ERRO bloqueante</li>
  *   <li>Coluna opcional (ex.: COD_LOGRADOURO, SITUACAO_RUA, PACIENTE_SEM_CPF) ausente do cabeçalho: AVISO (não bloqueia)</li>
  *   <li>Situação de rua preenchida mas não reconhecida (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
@@ -55,6 +69,39 @@ public class ValidacaoPlanilhaService {
 
 	/** Resolve os campos canônicos a partir do cabeçalho, por nome. */
 	private final PlanilhaColumnMapper columnMapper = new PlanilhaColumnMapper();
+
+	/**
+	 * CPF do médico (11 dígitos) → CNS já conhecido no banco local
+	 * ({@code Medico.cns}), ou {@code null}. Usado para dizer, no aviso de CNS
+	 * do profissional, se uma grafia não cadastrada vai herdar o CNS do CPF.
+	 */
+	private final Function<String, String> cnsConhecidoPorCpf;
+
+	/** Sem acesso ao banco: a herança de CNS só considera a própria planilha. */
+	public ValidacaoPlanilhaService() {
+		this(cpf -> null);
+	}
+
+	/**
+	 * @param cnsConhecidoPorCpf busca o CNS já associado a um CPF de médico no
+	 *                           banco local (ex.: via {@code MedicoRepository})
+	 */
+	public ValidacaoPlanilhaService(Function<String, String> cnsConhecidoPorCpf) {
+		this.cnsConhecidoPorCpf = cnsConhecidoPorCpf;
+	}
+
+	/** Ocorrências de uma grafia de médico na planilha (agrupadas sem acento/caixa). */
+	private static final class GrafiaMedico {
+		final String nome;
+		final String cnsCadastro;
+		final List<Integer> linhas = new ArrayList<>();
+		final Set<String> cpfs = new LinkedHashSet<>();
+
+		GrafiaMedico(String nome, String cnsCadastro) {
+			this.nome = nome;
+			this.cnsCadastro = cnsCadastro;
+		}
+	}
 
 	/**
 	 * Lê e valida todas as linhas da planilha Excel informada.
@@ -100,6 +147,12 @@ public class ValidacaoPlanilhaService {
 			// exibir como exemplo no aviso de formato legado.
 			String exemploLegado = null;
 
+			// CNS do profissional: avaliado por grafia de médico (não por linha),
+			// depois de ler a planilha toda — a herança pelo CPF não depende da
+			// ordem das linhas (mesma regra da importação).
+			Map<String, GrafiaMedico> grafiasMedico = new LinkedHashMap<>();
+			Map<String, String> cnsPorCpfNaPlanilha = new HashMap<>();
+
 			for (Row row : sheet) {
 
 				// Pula o cabeçalho (linha de índice 0)
@@ -119,10 +172,14 @@ public class ValidacaoPlanilhaService {
 					}
 
 					validarLinha(dto, numeroLinha, erros);
+					registrarMedico(dto, numeroLinha, mapeamento.especialidadeMedicoCombinados(),
+							grafiasMedico, cnsPorCpfNaPlanilha);
 				} catch (Exception e) {
 					log.warn("Erro ao ler linha {}: {} — linha ignorada.", numeroLinha, e.getMessage());
 				}
 			}
+
+			reportarCnsProfissional(grafiasMedico, cnsPorCpfNaPlanilha, erros);
 
 			if (mapeamento.especialidadeMedicoCombinados()) {
 				erros.add(new ErroValidacao(1, ErroValidacao.Severidade.AVISO,
@@ -147,6 +204,68 @@ public class ValidacaoPlanilhaService {
 	 */
 	private void validarLinha(LinhaImportacaoDTO dto, int linha, List<ErroValidacao> erros) {
 
+		// Valor exibido nos avisos sobre dados do paciente (agrupa as linhas
+		// do mesmo paciente na tela e no log — ver AgrupamentoValidacao)
+		String paciente = dto.getPaciente() != null && !dto.getPaciente().isBlank()
+				? dto.getPaciente().trim() : "(paciente sem nome)";
+
+		// -------------------------------------------------------
+		// Regra 0a: Data de agendamento (= data do atendimento; define
+		// prd-dtaten e a competência) — ERRO bloqueante. Mesma conversão
+		// da importação (DateUtils.parse); antes a análise não olhava a data
+		// e a linha só era descartada na importação.
+		// -------------------------------------------------------
+		String data = dto.getDataAgendamentoString();
+
+		if (data == null || data.isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.DATA_AUSENTE, "Data de agendamento (data do atendimento) nao informada",
+					paciente));
+		} else {
+			try {
+				DateUtils.parse(data);
+			} catch (IllegalArgumentException e) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.DATA_INVALIDA,
+						"Data de agendamento \"" + data.trim() + "\" em formato nao reconhecido"
+								+ " (use dd/MM/aaaa, ex.: 25/12/2024)",
+						"\"" + data.trim() + "\""));
+			}
+		}
+
+		// -------------------------------------------------------
+		// Regra 0b: Tipo de serviço — define o SIGTAP (prd-pa). ERRO
+		// bloqueante; vazio é aceito só para nutricionista/psicólogo, que
+		// usam procedimento fixo (decisão de 08/10/2026). Mesma regra de
+		// AtendimentoProcessor.definirSigtap.
+		// -------------------------------------------------------
+		String tipo = dto.getTipoServico();
+
+		if (tipo == null || tipo.isBlank()) {
+			String especialidade = especialidadeDaLinha(dto);
+
+			if (EspecialidadeUtils.usaProcedimentoFixo(especialidade)) {
+				// Não bloqueia (procedimento fixo), mas indica a coluna vazia;
+				// o valor é a especialidade, para agrupar as linhas por ela
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO,
+						"Tipo de servico nao informado - para " + EspecialidadeUtils.normalizar(especialidade)
+								+ " sera usado o procedimento fixo 0301010315",
+						EspecialidadeUtils.normalizar(especialidade)));
+			} else {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.TIPO_SERVICO_AUSENTE,
+						"Tipo de servico nao informado (aceitos: " + AtendimentoProcessor.TIPOS_SERVICO_ACEITOS + ")",
+						paciente));
+			}
+		} else if (AtendimentoProcessor.codigoSigtap(tipo) == null) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.TIPO_SERVICO_INVALIDO,
+					"Tipo de servico \"" + tipo.trim() + "\" nao reconhecido (aceitos: "
+							+ AtendimentoProcessor.TIPOS_SERVICO_ACEITOS + ")",
+					"\"" + tipo.trim() + "\""));
+		}
+
 		// -------------------------------------------------------
 		// Regra 1: CNS do paciente
 		// - Ausente ou < 15 dígitos → AVISO, não bloqueia
@@ -156,17 +275,20 @@ public class ValidacaoPlanilhaService {
 
 		if (cnsNormalizado == null || cnsNormalizado.isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-					ErroValidacao.CNS_INVALIDO, "CNS do paciente não informado — registrado com aviso (CNS_INVALIDO)"));
+					ErroValidacao.CNS_INVALIDO, "CNS do paciente não informado — registrado com aviso (CNS_INVALIDO)",
+					paciente + " — não informado"));
 		} else if (cnsNormalizado.length() < 15) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_INVALIDO,
 					"CNS inválido (apenas " + cnsNormalizado.length()
-							+ " dígitos, mínimo 15) — registrado com aviso (CNS_INVALIDO)"));
+							+ " dígitos, mínimo 15) — registrado com aviso (CNS_INVALIDO)",
+					paciente + " — " + cnsNormalizado));
 		} else if (cnsNormalizado.length() > 15) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_INCOMUM,
 					"CNS com formato incomum (" + cnsNormalizado.length()
-							+ " dígitos, esperado 15): " + cnsNormalizado));
+							+ " dígitos, esperado 15): " + cnsNormalizado,
+					paciente + " — " + cnsNormalizado));
 		}
 
 		// -------------------------------------------------------
@@ -176,13 +298,14 @@ public class ValidacaoPlanilhaService {
 
 		if (cep == null || cep.trim().isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
-					ErroValidacao.CEP_AUSENTE, "CEP do endereço não informado"));
+					ErroValidacao.CEP_AUSENTE, "CEP do endereço não informado", paciente));
 		} else if (!CepUtils.isValido(cep)) {
 			String cepNormalizado = CepUtils.normalizar(cep);
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CEP_INVALIDO,
 					"CEP com tamanho inválido (" + (cepNormalizado != null ? cepNormalizado.length() : 0)
-							+ " dígitos, esperado 8): " + cep.trim()));
+							+ " dígitos, esperado 8): " + cep.trim(),
+					paciente + " — \"" + cep.trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -192,13 +315,36 @@ public class ValidacaoPlanilhaService {
 
 		if (cpf == null || cpf.trim().isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
-					ErroValidacao.CPF_AUSENTE, "CPF do paciente não informado"));
+					ErroValidacao.CPF_AUSENTE, "CPF do paciente não informado", paciente));
 		} else if (!CpfUtils.isValido(cpf)) {
 			String cpfNormalizado = CpfUtils.normalizar(cpf);
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CPF_INVALIDO,
 					"CPF com tamanho inválido (" + (cpfNormalizado != null ? cpfNormalizado.length() : 0)
-							+ " dígitos, esperado 11): " + cpf.trim()));
+							+ " dígitos, esperado 11): " + cpf.trim(),
+					paciente + " — \"" + cpf.trim() + "\""));
+		}
+
+		// -------------------------------------------------------
+		// Regra 3b: CPF do médico — chave do cadastro de médicos. ERRO
+		// bloqueante (mesma regra de AtendimentoProcessor.validarCpfMedico).
+		// -------------------------------------------------------
+		String cpfMedico = dto.getCpfMedico();
+
+		if (cpfMedico == null || cpfMedico.trim().isEmpty()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CPF_MEDICO_AUSENTE,
+					"CPF do medico nao informado (medico: " + dto.getMedico() + ")",
+					"médico: " + dto.getMedico()));
+		} else if (!CpfUtils.isValido(cpfMedico)) {
+			String cpfMedicoNormalizado = CpfUtils.normalizar(cpfMedico);
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CPF_MEDICO_INVALIDO,
+					"CPF do medico com tamanho invalido ("
+							+ (cpfMedicoNormalizado != null ? cpfMedicoNormalizado.length() : 0)
+							+ " digitos, esperado 11): " + cpfMedico.trim()
+							+ " (medico: " + dto.getMedico() + ")",
+					"médico: " + dto.getMedico() + " — \"" + cpfMedico.trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -211,12 +357,13 @@ public class ValidacaoPlanilhaService {
 
 		if (raca == null || raca.trim().isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
-					ErroValidacao.RACA_AUSENTE, "Raca do paciente nao informada"));
+					ErroValidacao.RACA_AUSENTE, "Raca do paciente nao informada", paciente));
 		} else if (RacaUtils.resolverCodigo(raca) == null) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.RACA_INVALIDA,
 					"Raca do paciente \"" + raca.trim() + "\" nao reconhecida - verifique a grafia "
-							+ "na planilha (aceito: Branca, Preta, Parda, Amarela, Indigena)"));
+							+ "na planilha (aceito: Branca, Preta, Parda, Amarela, Indigena)",
+					"\"" + raca.trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -228,11 +375,13 @@ public class ValidacaoPlanilhaService {
 			if (etnia == null || etnia.trim().isEmpty()) {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 						ErroValidacao.RACA_INDIGENA,
-						"Raca informada como Indigena - e necessario preencher a etnia do paciente"));
+						"Raca informada como Indigena - e necessario preencher a etnia do paciente",
+						paciente));
 			} else if (EtniaUtils.resolver(etnia) == null) {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 						ErroValidacao.ETNIA_NAO_ENCONTRADA,
-						"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado"));
+						"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado",
+						"\"" + etnia.trim() + "\""));
 			}
 		}
 
@@ -246,7 +395,8 @@ public class ValidacaoPlanilhaService {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.SITUACAO_RUA_INVALIDA,
 					"Situacao de rua \"" + dto.getSituacaoRua().trim()
-							+ "\" nao reconhecida (use Sim/Nao ou S/N) - sera enviado 'N' na remessa"));
+							+ "\" nao reconhecida (use Sim/Nao ou S/N) - sera enviado 'N' na remessa",
+					"\"" + dto.getSituacaoRua().trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -260,7 +410,8 @@ public class ValidacaoPlanilhaService {
 					ErroValidacao.PACIENTE_SEM_CPF_INVALIDO,
 					"Paciente sem CPF \"" + dto.getPacienteSemCpf().trim()
 							+ "\" nao reconhecido (use Sim/Nao ou S/N) - o valor sera derivado"
-							+ " automaticamente a partir do CPF informado"));
+							+ " automaticamente a partir do CPF informado",
+					"\"" + dto.getPacienteSemCpf().trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -279,7 +430,8 @@ public class ValidacaoPlanilhaService {
 					"Estabelecimento \"" + estabelecimentoBruto.trim() + "\" nao traz codigo reconhecido "
 							+ "(formato esperado: \"codigo - nome\") - sera vinculado por nome, se ja "
 							+ "houver um estabelecimento cadastrado com esse nome; caso contrario, o "
-							+ "atendimento ficara sem estabelecimento"));
+							+ "atendimento ficara sem estabelecimento",
+					"\"" + estabelecimentoBruto.trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -298,8 +450,128 @@ public class ValidacaoPlanilhaService {
 						ErroValidacao.HORA_INVALIDA,
 						"Horario de atendimento \"" + hora.trim() + "\" nao reconhecido (use HH:mm, ex.: 08:30)"
 								+ " - como a remessa BPA-I nao utiliza o horario, o atendimento podera ser"
-								+ " importado com o horario vazio"));
+								+ " importado com o horario vazio",
+						"\"" + hora.trim() + "\""));
 			}
+		}
+	}
+
+	/**
+	 * Especialidade da linha, já separada do nome do médico na planilha legado
+	 * (célula única "ESPECIALIDADE - NOME" mapeada para os dois campos) — mesma
+	 * regra de {@code AtendimentoProcessor.separarEspecialidadeEMedico}.
+	 */
+	private String especialidadeDaLinha(LinhaImportacaoDTO dto) {
+
+		String especialidade = dto.getEspecialidadeMedico();
+
+		if (especialidade != null && especialidade.equals(dto.getMedico())) {
+			return StringUtils.separarEspecialidadeEMedico(especialidade)[0];
+		}
+
+		return especialidade;
+	}
+
+	/**
+	 * Registra a grafia do médico da linha para a regra de CNS do profissional
+	 * (avaliada no fim, em {@link #reportarCnsProfissional}). O CNS é buscado
+	 * por nome no cadastro ({@code medicos_cns.csv}, com apelidos), como na
+	 * importação; quando encontrado, fica associado ao CPF da linha para que
+	 * outras grafias do mesmo CPF possam herdá-lo.
+	 */
+	private void registrarMedico(LinhaImportacaoDTO dto, int linha, boolean especialidadeMedicoCombinados,
+			Map<String, GrafiaMedico> grafias, Map<String, String> cnsPorCpfNaPlanilha) {
+
+		String nome = dto.getMedico();
+
+		// Planilha legado: a célula traz "ESPECIALIDADE - NOME" — usa só o nome,
+		// como AtendimentoProcessor.separarEspecialidadeEMedico faz na importação.
+		if (especialidadeMedicoCombinados && nome != null) {
+			nome = StringUtils.separarEspecialidadeEMedico(nome)[1];
+		}
+
+		if (nome == null || nome.isBlank()) {
+			return;
+		}
+
+		String nomeFinal = nome.trim();
+
+		GrafiaMedico grafia = grafias.computeIfAbsent(TextoUtils.normalizar(nomeFinal),
+				k -> new GrafiaMedico(nomeFinal, CnsProfissionalUtils.buscar(nomeFinal).getCns()));
+
+		grafia.linhas.add(linha);
+
+		String cpf = dto.getCpfMedico();
+
+		if (cpf != null && CpfUtils.isValido(cpf)) {
+			String cpfNormalizado = CpfUtils.normalizar(cpf);
+			grafia.cpfs.add(cpfNormalizado);
+
+			if (grafia.cnsCadastro != null) {
+				cnsPorCpfNaPlanilha.putIfAbsent(cpfNormalizado, grafia.cnsCadastro);
+			}
+		}
+	}
+
+	/**
+	 * Regra 10: CNS do profissional — um AVISO por grafia de médico que não está
+	 * em Configurações → CNS de Médicos. Não bloqueia (a importação segue e o
+	 * CNS pode ser completado depois), mas a geração do BPA-I bloqueia
+	 * atendimentos sem CNS. Quando o mesmo CPF tem CNS conhecido (outra grafia
+	 * cadastrada nesta planilha, ou {@code Medico.cns} no banco), o aviso diz
+	 * que o CNS será herdado e sugere cadastrar a grafia como apelido.
+	 */
+	private void reportarCnsProfissional(Map<String, GrafiaMedico> grafias,
+			Map<String, String> cnsPorCpfNaPlanilha, List<ErroValidacao> erros) {
+
+		for (GrafiaMedico grafia : grafias.values()) {
+
+			if (grafia.cnsCadastro != null) {
+				continue;
+			}
+
+			String cnsHerdado = null;
+
+			for (String cpf : grafia.cpfs) {
+				cnsHerdado = cnsPorCpfNaPlanilha.get(cpf);
+				if (cnsHerdado == null) {
+					cnsHerdado = buscarCnsNoBanco(cpf);
+				}
+				if (cnsHerdado != null) {
+					break;
+				}
+			}
+
+			String ocorrencias = AgrupamentoValidacao.descreverLinhas(grafia.linhas);
+
+			String detalhe = cnsHerdado != null
+					? "Medico \"" + grafia.nome + "\" nao encontrado em Configuracoes > CNS de Medicos ("
+							+ ocorrencias + ") - o CNS sera herdado do mesmo CPF (" + cnsHerdado
+							+ "); considere cadastrar esta grafia como apelido"
+					: "Medico \"" + grafia.nome + "\" sem CNS cadastrado em Configuracoes > CNS de Medicos ("
+							+ ocorrencias + ") - os atendimentos serao importados sem CNS do profissional e a"
+							+ " geracao do BPA-I ficara bloqueada ate o CNS ser informado. Cadastre o medico"
+							+ " (ou esta grafia como apelido de um medico ja cadastrado) antes de importar";
+
+			String valor = "\"" + grafia.nome + "\""
+					+ (cnsHerdado != null ? " — herdará o CNS " + cnsHerdado + " do mesmo CPF" : "");
+
+			// Um aviso por linha (como as demais regras), todos com o mesmo
+			// valor: a tela e o log juntam as linhas num item só.
+			for (int linha : grafia.linhas) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.CNS_PROFISSIONAL_NAO_CADASTRADO, detalhe, valor));
+			}
+		}
+	}
+
+	/** Consulta o CNS já conhecido no banco para o CPF; falha na consulta não interrompe a análise. */
+	private String buscarCnsNoBanco(String cpf) {
+		try {
+			return cnsConhecidoPorCpf.apply(cpf);
+		} catch (Exception e) {
+			log.warn("Falha ao consultar CNS conhecido para o CPF do medico: {}", e.getMessage());
+			return null;
 		}
 	}
 
@@ -452,18 +724,35 @@ public class ValidacaoPlanilhaService {
 
 		if (!bloqueantes.isEmpty()) {
 			sb.append("\n--- ERROS (impedem a importação) ---\n");
-			for (ErroValidacao e : bloqueantes) {
-				sb.append(String.format("Linha %d - %s: %s%n", e.linha(), e.tipoErro(), e.detalhe()));
-			}
+			anexarGrupos(sb, bloqueantes);
 		}
 
 		if (!avisos.isEmpty()) {
 			sb.append("\n--- AVISOS (não impedem a importação) ---\n");
-			for (ErroValidacao e : avisos) {
-				sb.append(String.format("Linha %d - %s: %s%n", e.linha(), e.tipoErro(), e.detalhe()));
-			}
+			anexarGrupos(sb, avisos);
 		}
 
 		return sb.toString();
+	}
+
+	/**
+	 * Escreve os grupos de {@link AgrupamentoValidacao} — mesma organização da
+	 * tela: por tipo, explicação uma vez, ocorrências iguais juntas.
+	 */
+	private void anexarGrupos(StringBuilder sb, List<ErroValidacao> erros) {
+
+		for (AgrupamentoValidacao.Grupo grupo : AgrupamentoValidacao.agrupar(erros)) {
+
+			sb.append("\n[").append(grupo.tipo()).append("] ").append(grupo.titulo())
+					.append(" (").append(grupo.ocorrencias()).append(")\n");
+
+			if (!grupo.explicacao().isEmpty()) {
+				sb.append("  ").append(grupo.explicacao()).append("\n");
+			}
+
+			for (AgrupamentoValidacao.Item item : grupo.itens()) {
+				sb.append("  - ").append(AgrupamentoValidacao.formatarItem(item)).append("\n");
+			}
+		}
 	}
 }

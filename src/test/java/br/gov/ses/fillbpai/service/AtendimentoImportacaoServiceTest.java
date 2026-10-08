@@ -181,6 +181,153 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(atendimento.getHoraAtendimento()).isNull();
 	}
 
+	// ===== Tipo de serviço vazio =====
+
+	@Test
+	void importarComTipoDeServicoVazioRejeitaALinhaEReimportarNaoDuplica() throws IOException {
+
+		String[] semTipo = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		semTipo[0] = null;
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, semTipo);
+
+		ImportacaoResultado primeira = service.importar(caminho);
+		service.importar(caminho);
+
+		assertThat(primeira.getTotalSucesso()).isEqualTo(0);
+		assertThat(primeira.getErros()).singleElement()
+				.satisfies(erro -> assertThat(erro).contains("Tipo de serviço não informado"));
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
+	}
+
+	// ===== Médico sem CPF / erro de gravação =====
+
+	@Test
+	void importarComMedicoSemCpfRejeitaSoAquelaLinhaEGravaAsDemais() throws IOException {
+
+		String[] valida = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] semCpfMedico = linhaValida("11122233344", "JOSE SOUZA", null, "DR SEM CPF", "CARDIOLOGIA");
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, semCpfMedico, valida);
+
+		ImportacaoResultado resultado = service.importar(caminho);
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+		assertThat(resultado.getTotalErro()).isEqualTo(1);
+		assertThat(resultado.getErros()).singleElement()
+				.satisfies(erro -> assertThat(erro).startsWith("Linha 2").contains("CPF do médico não informado"));
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).singleElement()
+				.satisfies(a -> assertThat(a.getPaciente().getNome()).isEqualTo("MARIA SILVA"));
+	}
+
+	@Test
+	void importarComErroDeGravacaoNoBancoCancelaAImportacaoEmVezDeReportarSucesso() throws IOException {
+
+		String[] valida = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] cidLongo = linhaValida("11122233344", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		cidLongo[15] = "CID COM TEXTO LONGO DEMAIS PARA A COLUNA"; // cid_consulta tem 20 posições
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, valida, cidLongo);
+
+		assertThatThrownBy(() -> service.importar(caminho))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessageContaining("Linha 3")
+				.hasMessageContaining("nenhuma linha foi importada");
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
+	}
+
+	// ===== CNS do profissional: nome + reserva pelo CPF =====
+
+	@Test
+	void importarGuardaNoMedicoOCnsEncontradoPeloNome() throws IOException {
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA"));
+
+		service.importar(caminho);
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getCnsProfissional()).isEqualTo("700207960618529");
+		assertThat(atendimento.getMedico().getCns()).isEqualTo("700207960618529");
+	}
+
+	@Test
+	void importarComGrafiaNaoCadastradaHerdaCnsDoMesmoCpfComAviso() throws IOException {
+
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
+
+		// Nova planilha: mesmo CPF, grafia abreviada que não está em medicos_cns.csv
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("11122233344", "JOSE SOUZA", "98765432100", "RODRIGO S. GRILO", "CARDIOLOGIA")));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+		assertThat(resultado.getAvisos())
+				.anySatisfy(aviso -> assertThat(aviso)
+						.contains("RODRIGO S. GRILO")
+						.contains("CNS herdado do mesmo CPF"))
+				.noneMatch(aviso -> aviso.contains("CNS do profissional não encontrado"));
+
+		assertThat(atendimentoRepository.buscarTodos())
+				.allSatisfy(a -> assertThat(a.getCnsProfissional()).isEqualTo("700207960618529"));
+	}
+
+	@Test
+	void importarHerdaCnsDoMesmoCpfMesmoQuandoAGrafiaCadastradaVemDepoisNaPlanilha() throws IOException {
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("11122233344", "JOSE SOUZA", "98765432100", "RODRIGO S. GRILO", "CARDIOLOGIA"),
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
+
+		assertThat(resultado.getAvisos())
+				.anySatisfy(aviso -> assertThat(aviso).startsWith("Linha 2").contains("CNS herdado do mesmo CPF"))
+				.noneMatch(aviso -> aviso.contains("CNS do profissional não encontrado"));
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos())
+				.hasSize(2)
+				.allSatisfy(a -> assertThat(a.getCnsProfissional()).isEqualTo("700207960618529"));
+	}
+
+	@Test
+	void importarComGrafiaNaoCadastradaECpfSemCnsConhecidoMantemAvisoDeNaoEncontrado() throws IOException {
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "MEDICO NAO CADASTRADO XYZ", "CARDIOLOGIA")));
+
+		assertThat(resultado.getAvisos())
+				.anySatisfy(aviso -> assertThat(aviso).contains("CNS do profissional não encontrado"));
+		assertThat(atendimentoRepository.buscarTodos().get(0).getCnsProfissional()).isNull();
+	}
+
+	@Test
+	void importarComCnsDoNomeDiferenteDoCnsJaConhecidoParaOCpfUsaONomeEAvisa() throws IOException {
+
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
+
+		// Mesmo CPF, mas o nome casa com outro médico do cadastro (outro CNS)
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("11122233344", "JOSE SOUZA", "98765432100", "ELOILDA MARIA DE AGUIAR LUSTOSA", "CARDIOLOGIA")));
+
+		assertThat(resultado.getAvisos())
+				.anySatisfy(aviso -> assertThat(aviso)
+						.contains("709007893069218")
+						.contains("700207960618529"));
+
+		entityManager.clear();
+		AtendimentoBPAi novo = atendimentoRepository.buscarTodos().stream()
+				.filter(a -> a.getPaciente().getNome().equals("JOSE SOUZA"))
+				.findFirst().orElseThrow();
+		assertThat(novo.getCnsProfissional()).isEqualTo("709007893069218");
+		assertThat(novo.getMedico().getCns()).isEqualTo("709007893069218");
+	}
+
 	@Test
 	void importarComEstabelecimentoSemCodigoReaproveitaEstabelecimentoJaCadastradoPeloNome() throws IOException {
 
