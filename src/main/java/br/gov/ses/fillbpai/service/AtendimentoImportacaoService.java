@@ -217,7 +217,7 @@ public class AtendimentoImportacaoService {
 		// Estabelecimento (findOrCreate por código)
 		// ==============================
 
-		Estabelecimento estabelecimento = buscarOuCriarEstabelecimento(dto);
+		Estabelecimento estabelecimento = buscarOuCriarEstabelecimento(dto, resultado, linhaExcel);
 
 		// ==============================
 		// Deduplicação: busca atendimento existente
@@ -464,28 +464,50 @@ public class AtendimentoImportacaoService {
 	}
 
 	/**
-	 * Busca estabelecimento pelo código. Se não existir, cria novo.
-	 * Se existir, atualiza o nome.
+	 * Busca estabelecimento pelo código (sempre numérico — ver
+	 * {@code StringUtils.separarCodigoENome}). Se existir, atualiza o nome
+	 * quando a linha traz um; se não existir, cria — desde que a linha traga
+	 * o nome.
+	 * <ul>
+	 *   <li>Sem código: vínculo por nome com um já cadastrado (aviso
+	 *       ESTABELECIMENTO_SEM_CODIGO já emitido pelo processador).</li>
+	 *   <li>Só o código ({@code "1234567"}, {@code "12345 -"}): vincula se o
+	 *       código já estiver cadastrado, <b>sem apagar o nome</b>; se não
+	 *       estiver, o atendimento fica sem estabelecimento, com aviso (não dá
+	 *       para cadastrar sem nome).</li>
+	 * </ul>
 	 */
-	private Estabelecimento buscarOuCriarEstabelecimento(LinhaImportacaoDTO dto) {
+	private Estabelecimento buscarOuCriarEstabelecimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado,
+			int linhaExcel) {
 
-		if (dto.getCodEstabelecimento() == null || dto.getCodEstabelecimento().isBlank()) {
-			// Código não reconhecido na célula (sem separador "código - nome") —
-			// tenta reaproveitar um estabelecimento já cadastrado com o mesmo
-			// nome antes de desistir do vínculo (AVISO já emitido em
-			// AtendimentoProcessor/ValidacaoPlanilhaService).
-			return estabelecimentoRepository.buscarPorNome(dto.getEstabelecimento()).orElse(null);
+		String codigo = dto.getCodEstabelecimento();
+		String nome = dto.getEstabelecimento();
+		boolean temNome = nome != null && !nome.isBlank();
+
+		if (codigo == null || codigo.isBlank()) {
+			// Código não reconhecido na célula — tenta reaproveitar um
+			// estabelecimento já cadastrado com o mesmo nome antes de desistir
+			// do vínculo (AVISO já emitido em AtendimentoProcessor/ValidacaoPlanilhaService).
+			return estabelecimentoRepository.buscarPorNome(nome).orElse(null);
 		}
 
-		return estabelecimentoRepository.buscarPorCodigo(dto.getCodEstabelecimento())
+		return estabelecimentoRepository.buscarPorCodigo(codigo)
 				.map(estab -> {
-					estab.setNome(dto.getEstabelecimento());
+					if (temNome) {
+						estab.setNome(nome);
+					}
 					return estab;
 				})
 				.orElseGet(() -> {
+					if (!temNome) {
+						resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: Estabelecimento informado só"
+								+ " pelo código " + codigo + ", que não está cadastrado — o atendimento ficou sem"
+								+ " estabelecimento. Informe \"código - nome\" na planilha para cadastrá-lo.");
+						return null;
+					}
 					Estabelecimento novo = new Estabelecimento();
-					novo.setCodigo(dto.getCodEstabelecimento());
-					novo.setNome(dto.getEstabelecimento());
+					novo.setCodigo(codigo);
+					novo.setNome(nome);
 					estabelecimentoRepository.salvar(novo);
 					return novo;
 				});

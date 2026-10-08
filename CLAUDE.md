@@ -41,7 +41,9 @@ Tipos de ERRO (bloqueantes):
 - **CPF_AUSENTE** — CPF do paciente não informado
 - **CPF_INVALIDO** — CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização)
 - **DATA_AUSENTE** / **DATA_INVALIDA** — data de agendamento (= data do atendimento; define `prd-dtaten` e a competência) vazia ou em formato não aceito por `DateUtils.parse` (dd/MM/yyyy, yyyy-MM-dd, dd-MM-yyyy). Outros nomes de cabeçalho para essa data entram como alias de `DATA_AGENDAMENTO` em Configurações
-- **TIPO_SERVICO_AUSENTE** / **TIPO_SERVICO_INVALIDO** — tipo de serviço vazio ou diferente de Teleconsulta/Teleinterconsulta (únicos aceitos, por decisão). Vazio é aceito só para nutricionista/psicólogo (`EspecialidadeUtils.usaProcedimentoFixo` — procedimento fixo 0301010315 na geração), e nesse caso a análise indica a coluna vazia com o AVISO **TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO** (valor = especialidade); para os demais, tipo vazio deixava o SIGTAP nulo (procedimento `0000000000` no BPA-I e duplicação na reimportação). Mesma regra em `AtendimentoProcessor.definirSigtap`/`codigoSigtap`
+- **TIPO_SERVICO_AUSENTE** / **TIPO_SERVICO_INVALIDO** — tipo de serviço vazio ou diferente de Teleconsulta/Teleinterconsulta (únicos aceitos, por decisão). Vazio é aceito só para nutricionista/psicólogo (`EspecialidadeUtils.usaProcedimentoFixo` — procedimento fixo 0301010315 na geração), e nesse caso a análise indica a coluna vazia com o AVISO **TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO** (valor = especialidade) e o `AtendimentoProcessor` registra o mesmo aviso no log de importação; para os demais, tipo vazio deixava o SIGTAP nulo (procedimento `0000000000` no BPA-I e duplicação na reimportação). Mesma regra em `AtendimentoProcessor.definirSigtap`/`codigoSigtap`
+- **CBO_AUSENTE** / **CBO_INVALIDO** — CBO do médico vazio ou sem 6 dígitos depois de tirar a máscara (`CboUtils`: `2251-25` → `225125`). Vai para o BPA-I (`prd-cbo`, 6 posições); com máscara deslocava o registro inteiro. A importação grava só os dígitos e o gerador também normaliza (dados antigos)
+- **ESPECIALIDADE_AUSENTE** — especialidade vazia; sem ela o atendimento sumia da árvore da tela e nutricionista/psicólogo não eram reconhecidos
 - **CPF_MEDICO_AUSENTE** / **CPF_MEDICO_INVALIDO** — CPF do médico ausente ou diferente de 11 dígitos; também rejeitado por `AtendimentoProcessor` antes de gravar (antes, um CPF fictício maior que a coluna derrubava a transação da planilha inteira)
 - **RACA_AUSENTE** — raça do paciente não informada (campo obrigatório no layout do BPA-I, seq 21 prd-raca)
 - **RACA_INVALIDA** — raça presente mas não reconhecida por `RacaUtils` (grafia incorreta) — mensagem sugere conferir a grafia
@@ -57,6 +59,8 @@ Tipos de AVISO (não bloqueantes):
 - **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
 - **PACIENTE_SEM_CPF_INVALIDO** — coluna "Paciente sem CPF" presente mas valor da célula não reconhecido (mesmas regras de `SimNaoUtils`) — valor será derivado automaticamente a partir do CPF do paciente
 - **ESTABELECIMENTO_SEM_CODIGO** — célula "Estabelecimento" preenchida mas sem separador "código - nome" reconhecido; a importação tenta vincular por nome a um estabelecimento já cadastrado, senão o atendimento fica sem estabelecimento
+- **ESTABELECIMENTO_AUSENTE** — célula "Estabelecimento" vazia, só com o separador (`-`, `—`) ou código zero (`StringUtils.isEstabelecimentoNaoInformado`); o atendimento fica sem estabelecimento. Valor fixo "não informado" (agrupa todas as linhas). Também registrado no log de importação pelo `AtendimentoProcessor`
+- **ESTABELECIMENTO_SEM_NOME** — célula "Estabelecimento" só com o código (`1234567`, `12345 -`): vincula se o código já estiver cadastrado, sem apagar o nome; senão o atendimento fica sem estabelecimento (aviso no log de importação). O código do estabelecimento é sempre numérico: `StringUtils.separarCodigoENome` só aceita como código o que vem antes do primeiro hífen se for só dígitos (até 10) — texto antes do hífen (`UBS - CENTRO`, `HOSPITAL X - UNIDADE 2`) é parte do nome e cai em `ESTABELECIMENTO_SEM_CODIGO`
 - **CNS_PROFISSIONAL_NAO_CADASTRADO** — grafia de médico não encontrada em Configurações → CNS de Médicos; um aviso por linha, com o mesmo `valor` para a grafia (agrupada sem acento/caixa) — a tela e o log juntam as linhas. Se o mesmo CPF tem CNS conhecido (outra grafia cadastrada na planilha, ou `Medico.cns` no banco — `MainController` passa a consulta via construtor `ValidacaoPlanilhaService(Function<String,String>)`), diz que o CNS será herdado e sugere cadastrar o apelido; senão, avisa que a geração do BPA-I ficará bloqueada
 - **HORA_INVALIDA** — hora de atendimento preenchida mas não reconhecida por `TimeUtils` (ex.: "-", "--:--"); o atendimento é importado sem hora (a hora não vai para o BPA-I) e `AtendimentoProcessor` registra aviso no log de importação em vez de descartar a linha
 
@@ -131,7 +135,7 @@ Nota: a atualização de CNS por busca livre em nome parcial (aplicar a todos os
 - Layout BPA-I: campos posicionais com tamanho fixo (351 chars de conteúdo por registro + CRLF = 353)
 - Header: 132 chars
 - Campos NUM opcionais: brancos quando vazio, zeros à esquerda quando preenchido
-- Campos ALFA: espaços à direita até completar tamanho
+- Campos ALFA: espaços à direita até completar tamanho, e corte no tamanho do campo (`GeradorBPAiService.padRightSpaces`) — um valor maior nunca desloca o registro
 - Codificação do arquivo de saída: ISO-8859-1
 - Documento de referência do layout: `data/Layout_Exportacao_BPA_2026.pdf` (substitui `Layout interface texto do BPA.pdf`, que não existe mais no repositório)
 

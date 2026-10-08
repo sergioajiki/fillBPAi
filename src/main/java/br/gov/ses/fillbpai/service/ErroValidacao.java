@@ -57,6 +57,15 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Tipo de serviço diferente de Teleconsulta/Teleinterconsulta — ERRO bloqueante */
 	public static final String TIPO_SERVICO_INVALIDO = "TIPO_SERVICO_INVALIDO";
 
+	/** CBO do médico não informado — vai para o BPA-I (prd-cbo) — ERRO bloqueante */
+	public static final String CBO_AUSENTE = "CBO_AUSENTE";
+
+	/** CBO do médico sem 6 dígitos depois de tirar a máscara (ex.: "22512", texto) — ERRO bloqueante */
+	public static final String CBO_INVALIDO = "CBO_INVALIDO";
+
+	/** Especialidade não informada — sem ela o atendimento some da árvore da tela — ERRO bloqueante */
+	public static final String ESPECIALIDADE_AUSENTE = "ESPECIALIDADE_AUSENTE";
+
 	/** CPF do médico ausente ou vazio — identifica o médico na importação — ERRO bloqueante */
 	public static final String CPF_MEDICO_AUSENTE = "CPF_MEDICO_AUSENTE";
 
@@ -95,6 +104,12 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 
 	/** Estabelecimento preenchido mas sem separador "código - nome" reconhecido — código não identificado. AVISO, não bloqueia. */
 	public static final String ESTABELECIMENTO_SEM_CODIGO = "ESTABELECIMENTO_SEM_CODIGO";
+
+	/** Estabelecimento não informado (célula vazia, só o separador "-" ou código zero) — atendimento fica sem estabelecimento. AVISO, não bloqueia. */
+	public static final String ESTABELECIMENTO_AUSENTE = "ESTABELECIMENTO_AUSENTE";
+
+	/** Estabelecimento informado só pelo código ("1234567", "12345 -") — vinculado se o código já estiver cadastrado (sem apagar o nome); senão o atendimento fica sem estabelecimento. AVISO, não bloqueia. */
+	public static final String ESTABELECIMENTO_SEM_NOME = "ESTABELECIMENTO_SEM_NOME";
 
 	/** Hora de atendimento preenchida mas não reconhecida como horário (ex.: "-", "--:--") — atendimento importado sem hora. AVISO, não bloqueia. */
 	public static final String HORA_INVALIDA = "HORA_INVALIDA";

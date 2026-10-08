@@ -119,13 +119,18 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>2 de 27 colunas revisadas — recomendações 1 e 2 implementadas (<code>mvnw.cmd test</code>: 321 testes)</strong></span>
+      <span>Status: <strong>6 de 27 colunas revisadas — especialidade e CBO: recomendações 12 a 14 implementadas (349 testes), 15 pendente; data e tipo de serviço: recomendações 1 e 2 implementadas (<code>mvnw.cmd test</code>: 322 testes); estabelecimento: recomendações 7 a 9 e 11 implementadas (335 testes); horário: diagnóstico</strong></span>
       <span>Data: <strong>08/10/2026</strong></span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
       <a href="#andamento">Andamento</a>
       <a href="#data">Data de agendamento</a>
       <a href="#tipo">Tipo de serviço</a>
+      <a href="#hora">Horário</a>
+      <a href="#estabelecimento">Estabelecimento</a>
+      <a href="#estabelecimento-corrigido">Estabelecimento — o que mudou</a>
+      <a href="#especialidade">Especialidade</a>
+      <a href="#cbo">CBO</a>
       <a href="#padrao">Padrão encontrado</a>
       <a href="#implementado">O que mudou</a>
       <a href="#recomendacoes">Recomendações</a>
@@ -142,12 +147,12 @@
     <div class="col-status">
       <span class="feito">DATA_AGENDAMENTO ✓</span>
       <span class="feito">TIPO_SERVICO ✓</span>
-      <span>HORA_ATENDIMENTO (ver runbook próprio)</span>
-      <span>ESTABELECIMENTO (ver runbook próprio)</span>
-      <span>ESPECIALIDADE_MEDICO</span>
+      <span class="feito">HORA_ATENDIMENTO ✓</span>
+      <span class="feito">ESTABELECIMENTO ✓</span>
+      <span class="feito">ESPECIALIDADE_MEDICO ✓</span>
       <span>MEDICO (ver runbook próprio)</span>
       <span>CPF_MEDICO (ver runbook próprio)</span>
-      <span>CBO_MEDICO</span>
+      <span class="feito">CBO_MEDICO ✓</span>
       <span>MUNICIPIO</span>
       <span>CPF_PACIENTE</span>
       <span>PACIENTE</span>
@@ -350,6 +355,380 @@
 
   <!-- ======================================================= -->
 
+  <section id="hora">
+    <h2>Horário de atendimento (<code>HORA_ATENDIMENTO</code>)</h2>
+    <p>
+      Corrigido no início desta revisão (ver <code>docs/runbook-hora-atendimento-ausente.html</code>):
+      horário não reconhecido não descarta mais a linha. Esta verificação confere o estado atual.
+    </p>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Leitura</h4>
+        <p>
+          Célula de hora do Excel → <code>HH:mm</code>. Texto → o texto (espaço não separável tratado
+          como espaço; fórmula lida pelo resultado). <strong>Célula de data com hora</strong>
+          (<code>25/12/2024 08:30</code>) → só a data (<code>2024-12-25</code>): a leitura genérica de
+          célula de data descarta a hora quando o ano não é 1899.
+        </p>
+      </li>
+      <li>
+        <h4>Análise e importação</h4>
+        <p>
+          <code>TimeUtils.parse()</code> aceita <code>HH:mm</code>, <code>H:mm</code>, <code>HH:mm:ss</code>,
+          <code>HHmm</code> e <code>HH.mm</code>. Não reconhecido → <code>AVISO</code>
+          <code>HORA_INVALIDA</code> na análise e aviso no log; o atendimento entra com o horário vazio.
+        </p>
+      </li>
+      <li>
+        <h4>Uso</h4>
+        <p>
+          Não vai para o BPA-I. Só a coluna "Hora" da tabela — e guardado para auditoria futura. Não faz
+          parte da chave contra duplicação.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>08:30</code>, <code>8:30</code>, <code>0830</code>, <code>08.30</code></td><td>sem alerta</td><td class="ok">08:30</td></tr>
+          <tr><td class="caso"><code>08:30:15</code></td><td>sem alerta</td><td class="ok">08:30:15</td></tr>
+          <tr><td class="caso">Célula de hora do Excel</td><td>sem alerta</td><td class="ok">08:30</td></tr>
+          <tr><td class="caso">Vazia</td><td>sem alerta</td><td class="ok">horário vazio</td></tr>
+          <tr><td class="caso"><code>8h30</code></td><td><code>HORA_INVALIDA</code></td><td class="atencao">horário vazio, com aviso</td></tr>
+          <tr><td class="caso"><code>08:30 AM</code>, <code>25:00</code></td><td><code>HORA_INVALIDA</code></td><td class="atencao">horário vazio, com aviso</td></tr>
+          <tr><td class="caso">Célula de data com hora (<code>25/12/2024 08:30</code>)</td><td><code>HORA_INVALIDA="2024-12-25"</code></td><td class="atencao">horário vazio, com aviso confuso</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas (menores — o horário não vai para o BPA-I)</h3>
+    <div class="callout aberto">
+      <p class="kicker"><code>8h30</code> não é reconhecido</p>
+      <p>
+        É uma forma comum de escrever horário no Brasil. Hoje vira horário vazio com aviso. Aceitar
+        <code>8h30</code> / <code>08h30</code> / <code>8h</code> é uma mudança pequena em
+        <code>TimeUtils</code>.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Data com hora na coluna de horário perde a hora</p>
+      <p>
+        Se a coluna de horário vier como data+hora (comum quando a planilha é exportada de um sistema), a
+        leitura devolve só a data, e o aviso mostra <code>"2024-12-25"</code> como se fosse o horário —
+        confuso para quem lê. Para essa coluna, a leitura deveria pegar a parte da hora da célula.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="estabelecimento">
+    <h2>Estabelecimento (<code>ESTABELECIMENTO</code>)</h2>
+    <p>
+      Já tratado em <code>docs/runbook-estabelecimento-codigo-ausente.html</code> (aviso
+      <code>ESTABELECIMENTO_SEM_CODIGO</code> + vínculo por nome). Esta verificação encontrou casos que
+      aquele trabalho não cobriu.
+    </p>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Separação — <code>StringUtils.separarCodigoENome()</code></h4>
+        <p>
+          A célula é cortada no <strong>primeiro</strong> hífen (comum, en dash ou em dash): o que vem antes
+          é o código, o que vem depois é o nome. Sem hífen: tudo é nome e o código fica vazio. Não há
+          nenhuma conferência de que o "código" seja de fato um código (números).
+        </p>
+      </li>
+      <li>
+        <h4>Cadastro — <code>AtendimentoImportacaoService.buscarOuCriarEstabelecimento()</code></h4>
+        <p>
+          Com código: procura pelo código; se existe, <strong>sobrescreve o nome</strong> com o da linha; se
+          não, cria (coluna <code>codigo</code> com no máximo 10 caracteres, única). Sem código: procura um
+          estabelecimento já cadastrado com o mesmo nome; se não houver, o atendimento fica sem
+          estabelecimento.
+        </p>
+      </li>
+      <li>
+        <h4>Uso</h4>
+        <p>
+          Não vai para o BPA-I (o campo de unidade do layout vem de <code>cnesNts</code>, de outra fonte).
+          Serve à coluna "Estabelecimento" da tabela. Não faz parte da chave contra duplicação.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>12345 - HOSPITAL CENTRAL</code>, <code>12345-HOSPITAL CENTRAL</code>, com en dash</td><td>sem alerta</td><td class="ok">12345 | HOSPITAL CENTRAL</td></tr>
+          <tr><td class="caso"><code>12345 - HOSPITAL SAO JOSE - UNIDADE 2</code></td><td>sem alerta</td><td class="ok">12345 | HOSPITAL SAO JOSE - UNIDADE 2</td></tr>
+          <tr><td class="caso">Vazia</td><td>sem alerta</td><td class="ok">sem estabelecimento</td></tr>
+          <tr><td class="caso"><code>HOSPITAL CENTRAL</code> (sem código)</td><td><code>ESTABELECIMENTO_SEM_CODIGO</code></td><td class="atencao">vínculo por nome, ou sem estabelecimento</td></tr>
+          <tr><td class="caso"><code>1234567</code> (só o código, texto ou número)</td><td><code>ESTABELECIMENTO_SEM_CODIGO</code></td><td class="atencao">tratado como <em>nome</em>; sem estabelecimento</td></tr>
+          <tr><td class="caso"><code>12345 -</code> (código sem nome)</td><td>sem alerta</td><td class="atencao">nome vazio — e apaga o nome de um 12345 já cadastrado</td></tr>
+          <tr><td class="caso"><code>UBS - CENTRO</code> (sem código, hífen no nome)</td><td>sem alerta</td><td class="falha">cria estabelecimento com código "UBS", nome "CENTRO"</td></tr>
+          <tr><td class="caso"><code>HOSPITAL SAO JOSE - UNIDADE 2</code> (sem código, hífen no nome)</td><td>sem alerta</td><td class="falha">"código" com 17 caracteres → erro no banco → <strong>importação inteira cancelada</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Nome com hífen e sem código cancela a importação <span class="pill risco">Grave</span></p>
+      <p>
+        Como o corte é no primeiro hífen sem conferir o que vem antes, <code>HOSPITAL SAO JOSE - UNIDADE
+        2</code> vira código <code>HOSPITAL SAO JOSE</code>, que não cabe na coluna de 10 caracteres. O
+        banco recusa e — pela proteção criada no runbook do médico sem CPF — a importação inteira é
+        cancelada, com a mensagem do banco. A análise aprova a planilha antes. Sem aquela proteção, o
+        efeito seria pior (tudo desfeito em silêncio com "Sucesso" no log).
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">Estabelecimentos falsos são criados</p>
+      <p>
+        Com um texto curto antes do hífen (<code>UBS - CENTRO</code>, <code>HU - PEDIATRIA</code>), o
+        sistema cria um estabelecimento de código "UBS" sem nenhum aviso. Ele passa a existir no banco e
+        pode receber atendimentos de outras planilhas.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Só o código não é reconhecido como código</p>
+      <p>
+        Uma célula só com <code>1234567</code> (um CNES, por exemplo) é tratada como nome e o aviso diz
+        "sem código" — o contrário do que aconteceu. Daria para procurar o estabelecimento por esse código.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Código sem nome apaga o nome cadastrado</p>
+      <p>
+        <code>12345 -</code> grava nome vazio e, se o 12345 já existir, troca o nome bom por vazio. De forma
+        geral, o nome do estabelecimento é sempre sobrescrito pela última planilha — o mesmo que acontece com
+        o nome do médico.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="estabelecimento-corrigido">
+    <h2>Estabelecimento — o que mudou <span class="pill ok">✓ Implementado</span></h2>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Antes</th><th>Agora</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>HOSPITAL SAO JOSE - UNIDADE 2</code></td><td class="antes">importação inteira cancelada</td><td class="depois">tratado como nome: aviso <code>ESTABELECIMENTO_SEM_CODIGO</code> + vínculo por nome</td></tr>
+          <tr><td class="caso"><code>UBS - CENTRO</code></td><td class="antes">criava estabelecimento falso "UBS"</td><td class="depois">tratado como nome: aviso <code>ESTABELECIMENTO_SEM_CODIGO</code> + vínculo por nome</td></tr>
+          <tr><td class="caso"><code>1234567</code> (só o código)</td><td class="antes">tratado como nome; aviso "sem código"</td><td class="depois">tratado como código: vincula se cadastrado; aviso <code>ESTABELECIMENTO_SEM_NOME</code> na análise; se não cadastrado, aviso no log e atendimento sem estabelecimento</td></tr>
+          <tr><td class="caso"><code>12345 -</code> (código sem nome)</td><td class="antes">apagava o nome do 12345 cadastrado</td><td class="depois">igual ao "só o código": mantém o nome cadastrado</td></tr>
+          <tr><td class="caso"><code>12345678901 - X</code> (mais de 10 dígitos)</td><td class="antes">erro no banco, importação cancelada</td><td class="depois">tratado como nome (aviso "sem código")</td></tr>
+          <tr><td class="caso"><code>12345 - HOSPITAL CENTRAL</code></td><td>12345 | HOSPITAL CENTRAL</td><td>igual</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ol class="plano">
+      <li>
+        <h4><code>StringUtils.separarCodigoENome()</code></h4>
+        <p>
+          Código só se for só dígitos (1 a 10) antes do primeiro hífen; nome vazio vira nulo. Usada só pelo
+          estabelecimento — a separação especialidade/médico da planilha legado usa outra função
+          (<code>separarEspecialidadeEMedico</code>) e não foi alterada.
+        </p>
+      </li>
+      <li>
+        <h4><code>AtendimentoImportacaoService.buscarOuCriarEstabelecimento()</code></h4>
+        <p>
+          Só sobrescreve o nome se a linha trouxer um. Código sem nome e não cadastrado: não cria (não dá
+          para cadastrar sem nome) e avisa no log.
+        </p>
+      </li>
+      <li>
+        <h4>Análise</h4>
+        <p>
+          Novo <code>AVISO</code> <code>ESTABELECIMENTO_SEM_NOME</code>, agrupado pelo código. A análise não
+          consulta o banco, então avisa em todo caso "só código"; a importação diz se o código não estava
+          cadastrado.
+        </p>
+      </li>
+    </ol>
+
+    <h3>Verificação: estabelecimento sem código e sem nome</h3>
+    <p>
+      Conferido com teste de sondagem (08/10/2026), já com as correções acima. A tabela mostra o
+      comportamento <strong>antes</strong> da Recomendação 11 — agora os três casos geram o aviso
+      <code>ESTABELECIMENTO_AUSENTE</code> ("Estabelecimento não informado") na análise e no log:
+    </p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">Inexistente, vazia, só espaços, espaço não separável</td><td>sem alerta</td><td class="atencao">importada sem estabelecimento, sem aviso</td></tr>
+          <tr><td class="caso"><code>-</code>, <code> - </code>, <code>—</code> (só o separador)</td><td><code>ESTABELECIMENTO_SEM_CODIGO="-"</code></td><td class="atencao">sem estabelecimento; aviso diz que vai procurar um estabelecimento chamado "-"</td></tr>
+          <tr><td class="caso"><code>0</code> (número zero)</td><td><code>ESTABELECIMENTO_SEM_NOME="código 0"</code></td><td class="atencao">sem estabelecimento; aviso "código 0 não cadastrado"</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Estabelecimento vazio passa em silêncio</p>
+      <p>
+        Hoje a coluna pode vir vazia sem nenhum alerta, na análise ou no log. Não afeta o BPA-I (o
+        estabelecimento não vai para a remessa), mas o atendimento aparece sem unidade na tabela e nos
+        relatórios, e ninguém fica sabendo. Nada é gravado no banco nesse caso — sem estabelecimento falso.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Célula só com o separador vira um "nome"</p>
+      <p>
+        <code>-</code> (comum como marcador de "sem informação") é tratado como nome de estabelecimento: o
+        aviso diz que não há código e que vai tentar vincular pelo nome <code>"-"</code> — mensagem
+        enganosa para o que é, na prática, uma célula vazia. O mesmo vale para <code>0</code>, tratado como
+        código zero.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="especialidade">
+    <h2>Especialidade (<code>ESPECIALIDADE_MEDICO</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Leitura</h4>
+        <p>
+          Cabeçalho <code>Especialidade</code>. Na planilha legado (sem essa coluna), vem da célula combinada
+          "ESPECIALIDADE - MÉDICO" e é separada na importação (aviso de formato legado).
+        </p>
+      </li>
+      <li>
+        <h4>Normalização — <code>EspecialidadeUtils.normalizar()</code></h4>
+        <p>
+          Só tira o prefixo "Médico "/"Médica " (<code>Médico Cardiologista</code> → <code>Cardiologista</code>) e
+          espaços das pontas. <strong>Maiúsculas/minúsculas e acentos ficam como vieram.</strong> Não há
+          nenhuma verificação: vazio passa sem aviso.
+        </p>
+      </li>
+      <li>
+        <h4>Uso — não vai para o BPA-I, mas organiza tudo</h4>
+        <p>
+          Árvore da tela (especialidade → médicos), atribuição de folha (chave especialidade + médico),
+          filtro da geração parcial, nome do arquivo gerado e a regra de procedimento fixo de
+          nutricionista/psicólogo.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>CARDIOLOGIA</code></td><td>sem alerta</td><td class="ok">CARDIOLOGIA</td></tr>
+          <tr><td class="caso"><code>Médico Cardiologista</code></td><td>sem alerta</td><td class="ok">Cardiologista</td></tr>
+          <tr><td class="caso"><code>Cardiologia</code> (outra caixa)</td><td>sem alerta</td><td class="atencao">gravado como "Cardiologia" — <strong>outra especialidade</strong> para o sistema</td></tr>
+          <tr><td class="caso">Vazia</td><td>sem alerta</td><td class="falha">gravada vazia, sem aviso</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Especialidade vazia some da árvore</p>
+      <p>
+        A árvore só mostra atendimentos com especialidade preenchida. Sem ela, o atendimento não aparece
+        em nenhum nó, então não dá para selecionar o médico para corrigir CNS ou folha — mas o atendimento
+        <strong>entra</strong> na geração completa (numa folha própria, sob especialidade vazia). Também
+        impede reconhecer nutricionista/psicólogo, então o procedimento fixo não é aplicado.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Grafias diferentes viram especialidades diferentes</p>
+      <p>
+        <code>CARDIOLOGIA</code>, <code>Cardiologia</code> e <code>Cardiológia</code> são três nós na árvore e três
+        chaves de folha: o mesmo médico pode ganhar <strong>duas folhas</strong> no BPA-I e aparecer duas
+        vezes na tela. Cardiologia × Cardiologista também ficam separados (são nomes diferentes de fato).
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="cbo">
+    <h2>CBO do médico (<code>CBO_MEDICO</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Leitura e importação</h4>
+        <p>
+          Cabeçalho <code>CBO DO MEDICO</code>. Texto ou número (número vira texto sem casas decimais). É
+          gravado <strong>exatamente como veio</strong>: não há normalização (máscara, pontos) nem
+          verificação, na análise ou na importação.
+        </p>
+      </li>
+      <li>
+        <h4>Uso — campo <code>prd-cbo</code> do BPA-I</h4>
+        <p>
+          Layout 2026: seq 5, posições 031–036, ALFA, 6 caracteres, "código conforme a Classificação
+          Brasileira de Ocupações". O gerador escreve com <code>padRightSpaces(cbo, 6)</code>, que completa
+          com espaços mas <strong>não corta</strong> o que passar de 6.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor (confirmado gerando o registro)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th><th>Registro BPA-I</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>225125</code> (texto ou número)</td><td>sem alerta</td><td>225125</td><td class="ok">351 posições, <code>225125</code></td></tr>
+          <tr><td class="caso"><code>2251-25</code> (com máscara)</td><td>sem alerta</td><td>2251-25</td><td class="falha">352 posições — registro deslocado</td></tr>
+          <tr><td class="caso"><code>225.125</code></td><td>sem alerta</td><td>225.125</td><td class="falha">352 posições — registro deslocado</td></tr>
+          <tr><td class="caso"><code>MEDICO CARDIOLOGISTA</code></td><td>sem alerta</td><td>texto</td><td class="falha">365 posições — registro deslocado</td></tr>
+          <tr><td class="caso"><code>22512</code> (5 dígitos)</td><td>sem alerta</td><td>22512</td><td class="atencao">351 posições, CBO inválido <code>22512␣</code></td></tr>
+          <tr><td class="caso">Vazio</td><td>sem alerta</td><td>vazio</td><td class="atencao">351 posições, CBO em branco</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">CBO com máscara quebra o arquivo do BPA-I <span class="pill risco">Grave</span></p>
+      <p>
+        O BPA-I é um arquivo de posições fixas (351 caracteres por registro). Um CBO digitado com hífen ou
+        ponto (<code>2251-25</code>, forma comum de escrever CBO) tem 7 caracteres, e o gerador não corta: o
+        registro sai com 352 posições e <strong>todos os campos seguintes ficam deslocados</strong> — CNS,
+        datas, procedimento, nome do paciente. O SIA/SUS tende a recusar o arquivo, ou ler os campos
+        errados. Nada avisa: nem a análise, nem a importação, nem a geração.
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">CBO vazio ou incompleto passa</p>
+      <p>
+        Vazio vira 6 espaços; 5 dígitos ou texto viram um CBO que não existe. O CBO é o que diz qual
+        profissional fez o procedimento — sem ele o registro tende a ser rejeitado na validação do SIA.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">O mesmo risco em outros campos de texto</p>
+      <p>
+        A maioria dos campos de texto do registro (nome, endereço, bairro, complemento, número) passa por
+        <code>formatarAlfa()</code>, que corta no tamanho. O CBO não passa. Vale conferir os demais quando
+        chegarmos a eles (ex.: CID usa <code>formatarCid()</code>).
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
   <section id="padrao">
     <h2>Padrão encontrado</h2>
     <p>
@@ -374,7 +753,7 @@
           <tr><td class="caso">Data vazia</td><td class="antes">análise aprovava; linha descartada na importação</td><td class="depois"><code>ERRO</code> <code>DATA_AUSENTE</code> na análise</td></tr>
           <tr><td class="caso">Data em formato não aceito (<code>5/3/2024</code>, <code>25.12.2024</code>, …)</td><td class="antes">análise aprovava; linha descartada na importação</td><td class="depois"><code>ERRO</code> <code>DATA_INVALIDA</code> na análise, com o valor e o formato esperado</td></tr>
           <tr><td class="caso">Tipo de serviço vazio</td><td class="antes">importado sem SIGTAP: procedimento <code>0000000000</code> e duplicação na reimportação</td><td class="depois"><code>ERRO</code> <code>TIPO_SERVICO_AUSENTE</code> na análise; linha rejeitada na importação</td></tr>
-          <tr><td class="caso">Tipo vazio para nutricionista/psicólogo</td><td class="antes">importado sem nenhum alerta</td><td class="depois">continua importado (procedimento fixo, Decisão 3), com <code>AVISO</code> <code>TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO</code> na análise indicando a coluna vazia, agrupado por especialidade</td></tr>
+          <tr><td class="caso">Tipo vazio para nutricionista/psicólogo</td><td class="antes">importado sem nenhum alerta</td><td class="depois">continua importado (procedimento fixo, Decisão 3), com <code>AVISO</code> <code>TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO</code> na análise indicando a coluna vazia, agrupado por especialidade, e o mesmo aviso no log de importação</td></tr>
           <tr><td class="caso">Tipo não reconhecido (<code>Consulta</code>)</td><td class="antes">análise aprovava; linha descartada na importação</td><td class="depois"><code>ERRO</code> <code>TIPO_SERVICO_INVALIDO</code> na análise, com o valor e os aceitos</td></tr>
         </tbody>
       </table>
@@ -473,6 +852,81 @@
           (<code>SELECT … WHERE sigtap IS NULL</code>) e, se houver, limpar os duplicados.
         </p>
       </li>
+      <li>
+        <h4>Estabelecimento: o código tem que ser número <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Em <code>separarCodigoENome()</code> (ou numa versão só para estabelecimento), só aceitar como
+          código o que vem antes do hífen se for <strong>só dígitos</strong> (e até 10 caracteres); caso
+          contrário, a célula inteira é o nome (cai no aviso <code>ESTABELECIMENTO_SEM_CODIGO</code> e no
+          vínculo por nome). Resolve o cancelamento da importação e os estabelecimentos falsos.
+          Atenção: a mesma função separa especialidade e médico na planilha legado — a regra nova não pode
+          afetar aquele uso.
+        </p>
+      </li>
+      <li>
+        <h4>Estabelecimento: célula só com o código <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Célula só com dígitos (<code>1234567</code>, texto ou número) → tratar como código e procurar o
+          estabelecimento por ele; se existir, vincular sem aviso; se não, avisar "código não cadastrado".
+        </p>
+      </li>
+      <li>
+        <h4>Estabelecimento: não apagar nome com vazio <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Código sem nome (<code>12345 -</code>) mantém o nome já cadastrado, com aviso.
+        </p>
+      </li>
+      <li>
+        <h4>Horário: aceitar <code>8h30</code> e ler a hora de célula data+hora</h4>
+        <p>
+          <code>TimeUtils</code> aceitar <code>8h30</code>/<code>08h30</code>/<code>8h</code>; e, para a coluna
+          de horário, quando a célula for data+hora, ler a parte da hora em vez da data. Baixa prioridade:
+          o horário não vai para o BPA-I.
+        </p>
+      </li>
+      <li>
+        <h4>Estabelecimento não informado: avisar <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Novo <code>AVISO</code> <code>ESTABELECIMENTO_AUSENTE</code> na análise e no log quando a célula vier
+          vazia, só com o separador (<code>-</code>, <code>—</code>) ou <code>0</code>: "Estabelecimento não
+          informado — o atendimento ficará sem estabelecimento". Agrupado num item só na tela
+          (<code>não informado — N linhas: ...</code>). <code>-</code> e <code>0</code> deixam de ser tratados
+          como nome/código. Ver <a href="#abertas">Decisão 5</a>. Implementado: <code>StringUtils.isEstabelecimentoNaoInformado()</code>, usado pela análise e pelo <code>AtendimentoProcessor</code> (aviso no log).
+        </p>
+      </li>
+      <li>
+        <h4>CBO: normalizar e exigir 6 dígitos <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Na importação, manter só os dígitos (<code>2251-25</code>, <code>225.125</code> → <code>225125</code>).
+          Depois disso, vazio → <code>ERRO</code> <code>CBO_AUSENTE</code>; diferente de 6 dígitos →
+          <code>ERRO</code> <code>CBO_INVALIDO</code>, na análise e na importação, com o médico e o valor
+          encontrado. Ver <a href="#abertas">Decisão 6</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Gerador: nunca passar do tamanho do campo <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>padRightSpaces()</code> passar a cortar no tamanho, como <code>formatarAlfa()</code> já faz. É
+          a proteção de última linha: qualquer valor grande demais (inclusive CBOs já gravados no banco com
+          máscara) deixa de deslocar o registro. Vale também um teste que gere registros com valores longos
+          em todos os campos e confira as 351 posições.
+        </p>
+      </li>
+      <li>
+        <h4>Especialidade vazia: bloquear <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>ESPECIALIDADE_AUSENTE</code> na análise e na importação. Ver <a href="#abertas">Decisão 7</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Especialidade: padronizar a grafia <span class="pill aberto">Pendente — Decisão 8</span></h4>
+        <p>
+          Gravar a especialidade em maiúsculas (e sem espaços duplos), para <code>Cardiologia</code> e
+          <code>CARDIOLOGIA</code> serem a mesma especialidade na árvore e na folha. Atenção: atendimentos já
+          gravados com outra caixa continuariam separados até serem reimportados (ou corrigidos de uma vez
+          no banco). Ver <a href="#abertas">Decisão 8</a>.
+        </p>
+      </li>
     </ol>
   </section>
 
@@ -503,7 +957,47 @@
         a Recomendação 1 for implementada, ela deve deixar essas duas especialidades de fora, para não
         mudar o comportamento delas. Observação que continua valendo: com tipo vazio, a reimportação
         duplica esses atendimentos também (a chave contra duplicação compara o SIGTAP gravado, que fica
-        vazio).
+        vazio). A análise e o log de importação indicam a coluna vazia com
+        <code>TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO</code>.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 4 · O código do estabelecimento é sempre numérico</span>
+      <p>
+        Decidido (08/10/2026): o código é sempre numérico. Só vale como código o que vem antes do primeiro
+        hífen se for só dígitos (até 10); qualquer outra coisa faz parte do nome. Implementado nas
+        Recomendações 7 a 9.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill ok">✓ 5 · Estabelecimento vazio: aviso</span>
+      <p>
+        Decidido (08/10/2026): <code>AVISO</code>, não bloqueia — o estabelecimento não vai para o BPA-I.
+        Implementado na Recomendação 11 (<code>ESTABELECIMENTO_AUSENTE</code> na análise e aviso no log).
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill ok">✓ 6 · CBO vazio ou inválido: erro</span>
+      <p>
+        Decidido (08/10/2026): <code>ERRO</code>. Implementado na Recomendação 12 (<code>CBO_AUSENTE</code> /
+        <code>CBO_INVALIDO</code>). Motivo: o CBO vai para o BPA-I e um valor errado ou vazio
+        compromete o registro. A alternativa seria aviso, mantendo o problema para a geração.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill ok">✓ 7 · Especialidade vazia: erro</span>
+      <p>
+        A especialidade não vai para o BPA-I, mas sem ela o atendimento some da árvore (não dá para editar
+        CNS/folha pela tela) e nutricionista/psicólogo não são reconhecidos. Decidido (08/10/2026): <code>ERRO</code> (<code>ESPECIALIDADE_AUSENTE</code>, Recomendação 14).
+        Com <code>AVISO</code>, a planilha entra, mas esses atendimentos ficam sem como ser corrigidos pela
+        tela.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">8 · Padronizar a especialidade em maiúsculas?</span>
+      <p>
+        Muda como a especialidade aparece na tela (sempre em maiúsculas) e só vale para novas importações.
+        Confirmar se pode.
       </p>
     </div>
   </section>

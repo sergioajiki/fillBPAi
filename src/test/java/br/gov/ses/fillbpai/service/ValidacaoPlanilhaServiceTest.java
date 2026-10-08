@@ -44,6 +44,7 @@ class ValidacaoPlanilhaServiceTest {
 	private static final int COL_ESTABELECIMENTO = 3;
 	private static final int COL_MEDICO = 5;
 	private static final int COL_CPF_MEDICO = 6;
+	private static final int COL_CBO = 7;
 	private static final int COL_CPF_PACIENTE = 9;
 	private static final int COL_CNS_PACIENTE = 11;
 	private static final int COL_RACA_PACIENTE = 12;
@@ -487,6 +488,33 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarComNomeComHifenESemCodigoGeraAvisoSemCodigoEmVezDeCodigoFalso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_ESTABELECIMENTO] = "HOSPITAL SAO JOSE - UNIDADE 2";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(erro -> {
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ESTABELECIMENTO_SEM_CODIGO);
+			assertThat(erro.valor()).isEqualTo("\"HOSPITAL SAO JOSE - UNIDADE 2\"");
+		});
+	}
+
+	@Test
+	void validarComEstabelecimentoSoComCodigoGeraAvisoSemNome() throws IOException {
+		String[] soCodigo = linhaValida();
+		soCodigo[COL_ESTABELECIMENTO] = "1234567";
+		String[] codigoHifen = linhaValida();
+		codigoHifen[COL_ESTABELECIMENTO] = "12345 -";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, soCodigo, codigoHifen));
+
+		assertThat(erros).hasSize(2).allSatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ESTABELECIMENTO_SEM_NOME);
+		});
+		assertThat(erros).extracting(ErroValidacao::valor).containsExactly("código 1234567", "código 12345");
+	}
+
+	@Test
 	void validarComEstabelecimentoComCodigoNaoGeraAviso() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_ESTABELECIMENTO] = "12345 - HOSPITAL CENTRAL";
@@ -498,14 +526,27 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
-	void validarComEstabelecimentoVazioNaoGeraAviso() throws IOException {
-		String[] linha = linhaValida();
-		linha[COL_ESTABELECIMENTO] = null;
-		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+	void validarComEstabelecimentoNaoInformadoGeraAvisoAusenteAgrupavel() throws IOException {
+		// Vazio, só o separador ou "0" (marcadores comuns de "sem informação")
+		String[] vazio = linhaValida();
+		vazio[COL_ESTABELECIMENTO] = null;
+		String[] espacos = linhaValida();
+		espacos[COL_ESTABELECIMENTO] = "   ";
+		String[] hifen = linhaValida();
+		hifen[COL_ESTABELECIMENTO] = " - ";
+		String[] travessao = linhaValida();
+		travessao[COL_ESTABELECIMENTO] = "—";
+		String[] zero = linhaValida();
+		zero[COL_ESTABELECIMENTO] = "0";
 
-		List<ErroValidacao> erros = service.validar(caminho);
+		List<ErroValidacao> erros = service.validar(
+				salvarPlanilha(CABECALHO_COMPLETO, vazio, espacos, hifen, travessao, zero));
 
-		assertThat(erros).noneMatch(erro -> erro.tipoErro().equals(ErroValidacao.ESTABELECIMENTO_SEM_CODIGO));
+		assertThat(erros).hasSize(5).allSatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ESTABELECIMENTO_AUSENTE);
+			assertThat(erro.valor()).isEqualTo("não informado");
+		});
 	}
 
 	@Test
@@ -543,6 +584,72 @@ class ValidacaoPlanilhaServiceTest {
 		List<ErroValidacao> erros = service.validar(caminho);
 
 		assertThat(erros).isEmpty();
+	}
+
+	// ===== CBO do médico =====
+
+	@Test
+	void validarSemCboGeraErroCboAusenteComOMedico() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_CBO] = null;
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CBO_AUSENTE);
+			assertThat(erro.valor()).isEqualTo("médico: RODRIGO SILVA GRILO");
+		});
+	}
+
+	@Test
+	void validarComCboSemSeisDigitosGeraErroCboInvalido() throws IOException {
+		String[] cincoDigitos = linhaValida();
+		cincoDigitos[COL_CBO] = "22512";
+		String[] texto = linhaValida();
+		texto[COL_CBO] = "MEDICO CARDIOLOGISTA";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, cincoDigitos, texto));
+
+		assertThat(erros).hasSize(2).allSatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CBO_INVALIDO);
+		});
+		assertThat(erros).extracting(ErroValidacao::valor).containsExactly(
+				"médico: RODRIGO SILVA GRILO — \"22512\"",
+				"médico: RODRIGO SILVA GRILO — \"MEDICO CARDIOLOGISTA\"");
+	}
+
+	@Test
+	void validarComCboComMascaraNaoGeraErro() throws IOException {
+		String[] hifen = linhaValida();
+		hifen[COL_CBO] = "2251-25";
+		String[] ponto = linhaValida();
+		ponto[COL_CBO] = "225.125";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, hifen, ponto))).isEmpty();
+	}
+
+	// ===== Especialidade =====
+
+	@Test
+	void validarSemEspecialidadeGeraErroEspecialidadeAusenteComOMedico() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_ESPECIALIDADE] = null;
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ESPECIALIDADE_AUSENTE);
+			assertThat(erro.valor()).isEqualTo("médico: RODRIGO SILVA GRILO");
+		});
+	}
+
+	@Test
+	void validarComEspecialidadeSoComEspacosGeraErroEspecialidadeAusente() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_ESPECIALIDADE] = "  ";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha)))
+				.singleElement()
+				.satisfies(erro -> assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ESPECIALIDADE_AUSENTE));
 	}
 
 	// ===== Tipo de serviço =====

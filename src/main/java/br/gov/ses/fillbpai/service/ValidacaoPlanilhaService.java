@@ -1,6 +1,7 @@
 package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
+import br.gov.ses.fillbpai.util.CboUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
@@ -48,6 +49,8 @@ import java.util.function.Function;
  *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
  *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
  *   <li>CPF do médico ausente ou com tamanho diferente de 11 dígitos — ERRO bloqueante</li>
+ *   <li>CBO do médico ausente ou sem 6 dígitos (máscara aceita) — ERRO bloqueante</li>
+ *   <li>Especialidade ausente — ERRO bloqueante</li>
  *   <li>Hora de atendimento preenchida mas não reconhecida: AVISO (não bloqueia)</li>
  *   <li>Médico (grafia) sem CNS em Configurações → CNS de Médicos: AVISO por grafia (não bloqueia)</li>
  *   <li>Raça do paciente ausente ou não reconhecida (grafia incorreta): ERRO bloqueante</li>
@@ -348,6 +351,40 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
+		// Regra 3c: CBO do médico — vai para o BPA-I (prd-cbo, 6 posições).
+		// ERRO bloqueante (decisão de 08/10/2026). Máscara é aceita (2251-25):
+		// a importação reduz aos dígitos (CboUtils).
+		// -------------------------------------------------------
+		String medico = "médico: " + dto.getMedico();
+		String cbo = dto.getCboMedico();
+
+		if (cbo == null || cbo.isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CBO_AUSENTE, "CBO do medico nao informado (medico: " + dto.getMedico() + ")",
+					medico));
+		} else if (!CboUtils.isValido(cbo)) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CBO_INVALIDO,
+					"CBO do medico \"" + cbo.trim() + "\" invalido - esperado 6 digitos (ex.: 225125)"
+							+ " (medico: " + dto.getMedico() + ")",
+					medico + " — \"" + cbo.trim() + "\""));
+		}
+
+		// -------------------------------------------------------
+		// Regra 3d: Especialidade — organiza árvore, folha e procedimento
+		// fixo. ERRO bloqueante (decisão de 08/10/2026): sem ela o
+		// atendimento sumia da árvore da tela.
+		// -------------------------------------------------------
+		String especialidadeLinha = EspecialidadeUtils.normalizar(especialidadeDaLinha(dto));
+
+		if (especialidadeLinha == null || especialidadeLinha.isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.ESPECIALIDADE_AUSENTE,
+					"Especialidade nao informada (medico: " + dto.getMedico() + ")",
+					medico));
+		}
+
+		// -------------------------------------------------------
 		// Regra 4: Raça do paciente — campo obrigatório no layout do BPA-I
 		// (seq 21 prd-raca). Ausente ou não reconhecida (grafia incorreta) é
 		// ERRO bloqueante.
@@ -421,9 +458,30 @@ public class ValidacaoPlanilhaService {
 		// houver um estabelecimento cadastrado com esse nome.
 		// -------------------------------------------------------
 		String estabelecimentoBruto = dto.getEstabelecimento();
+		String[] estabelecimento = StringUtils.separarCodigoENome(estabelecimentoBruto);
 
-		if (estabelecimentoBruto != null && !estabelecimentoBruto.isBlank()
-				&& StringUtils.separarCodigoENome(estabelecimentoBruto)[0] == null) {
+		if (StringUtils.isEstabelecimentoNaoInformado(estabelecimentoBruto)) {
+
+			// Vazio, só o separador ou código zero — valor fixo para agrupar
+			// todas as linhas num item só na tela/log
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.ESTABELECIMENTO_AUSENTE,
+					"Estabelecimento nao informado - o atendimento ficara sem estabelecimento",
+					"não informado"));
+
+		} else if (estabelecimento[0] != null && estabelecimento[1] == null) {
+
+			// Só o código ("1234567", "12345 -"): vincula se já cadastrado,
+			// sem apagar o nome; senão o atendimento fica sem estabelecimento
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.ESTABELECIMENTO_SEM_NOME,
+					"Estabelecimento informado so pelo codigo " + estabelecimento[0]
+							+ " - sera vinculado se o codigo ja estiver cadastrado; caso contrario, o"
+							+ " atendimento ficara sem estabelecimento",
+					"código " + estabelecimento[0]));
+
+		} else if (estabelecimentoBruto != null && !estabelecimentoBruto.isBlank()
+				&& estabelecimento[0] == null) {
 
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.ESTABELECIMENTO_SEM_CODIGO,

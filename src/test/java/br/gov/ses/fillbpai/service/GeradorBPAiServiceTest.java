@@ -97,6 +97,30 @@ class GeradorBPAiServiceTest {
 	}
 
 	@Test
+	void seq5PrdCboJaGravadoComMascaraSaiSoComDigitosSemDeslocarORegistro() {
+		// Atendimentos importados antes da normalização podem estar no banco
+		// com "2251-25": antes o registro saía com 352 posições
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setCboMedico("2251-25");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+		assertThat(linha).hasSize(351);
+		assertThat(linha.substring(30, 36)).isEqualTo("225125");
+	}
+
+	@Test
+	void registroNuncaPassaDe351PosicoesMesmoComValoresGrandesDemais() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setCboMedico("MEDICO CARDIOLOGISTA 2251-25 E OUTROS");
+		atendimento.setCidConsulta("I10.0 HIPERTENSAO ESSENCIAL");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+		assertThat(linha).hasSize(351);
+	}
+
+	@Test
 	void gerarConteudoParcialUsaSempreCrlfSemQuebraDeLinhaSolta() {
 		String conteudo = service.gerarConteudoParcial(List.of(criarAtendimentoCompleto()), "202412");
 

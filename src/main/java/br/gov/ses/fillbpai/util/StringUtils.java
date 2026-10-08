@@ -63,18 +63,54 @@ public class StringUtils {
      */
     private static final String SEPARADOR_REGEX = "[-–—]";
 
+    /** Código do estabelecimento: só dígitos, até 10 (tamanho da coluna {@code estabelecimento.codigo}). */
+    private static final java.util.regex.Pattern CODIGO_ESTABELECIMENTO =
+            java.util.regex.Pattern.compile("^\\s*(\\d{1,10})\\s*(?:" + SEPARADOR_REGEX + "\\s*(.*?))?\\s*$",
+                    java.util.regex.Pattern.DOTALL);
+
+    /**
+     * Separa a célula de estabelecimento {@code "CÓDIGO - NOME"} em
+     * {@code {codigo, nome}}. O código é sempre numérico (decisão de
+     * 08/10/2026): só vale como código o que vem antes do primeiro separador
+     * se for <b>só dígitos</b> (até 10).
+     * <ul>
+     *   <li>{@code "12345 - HOSPITAL"} → {@code {"12345", "HOSPITAL"}} (hífens no nome são mantidos)</li>
+     *   <li>{@code "1234567"} ou {@code "12345 -"} → {@code {"1234567", null}} (só o código)</li>
+     *   <li>{@code "HOSPITAL SAO JOSE - UNIDADE 2"}, {@code "UBS - CENTRO"} →
+     *       {@code {null, célula inteira}} — texto antes do hífen é parte do nome. Antes virava
+     *       "código": estourava a coluna (importação cancelada) ou criava estabelecimento falso.</li>
+     * </ul>
+     */
+    /** Só separadores ou código zero (com ou sem separador): marcadores de "sem informação". */
+    private static final java.util.regex.Pattern ESTABELECIMENTO_NAO_INFORMADO =
+            java.util.regex.Pattern.compile("^\\s*(0+\\s*)?(" + SEPARADOR_REGEX + "\\s*)*$");
+
+    /**
+     * Célula de estabelecimento que, na prática, não informa nada: vazia, só
+     * espaços, só o separador ({@code -}, {@code —}) ou código zero
+     * ({@code 0}, {@code 000 -}). Tratada como "não informado" (aviso
+     * ESTABELECIMENTO_AUSENTE) — antes {@code -} virava um nome e {@code 0}
+     * um código.
+     */
+    public static boolean isEstabelecimentoNaoInformado(String valor) {
+        return valor == null || ESTABELECIMENTO_NAO_INFORMADO.matcher(valor).matches();
+    }
+
     public static String[] separarCodigoENome(String valor) {
 
-        if (valor == null || !valor.matches(".*" + SEPARADOR_REGEX + ".*")) {
-            return new String[]{null, valor};
+        if (valor == null) {
+            return new String[]{null, null};
         }
 
-        String[] partes = valor.split(SEPARADOR_REGEX, 2);
+        java.util.regex.Matcher m = CODIGO_ESTABELECIMENTO.matcher(valor);
 
-        String codigo = partes[0].trim();
-        String nome = partes[1].trim();
+        if (!m.matches()) {
+            return new String[]{null, valor.trim()};
+        }
 
-        return new String[]{codigo, nome};
+        String nome = m.group(2);
+
+        return new String[]{m.group(1), nome == null || nome.isBlank() ? null : nome.trim()};
     }
 
     /**

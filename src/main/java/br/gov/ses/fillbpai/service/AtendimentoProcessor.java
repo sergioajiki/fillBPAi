@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
+import br.gov.ses.fillbpai.util.CboUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
@@ -66,6 +67,14 @@ public class AtendimentoProcessor {
 
 		dto.setSigtap(definirSigtap(dto.getTipoServico(), dto.getEspecialidadeMedico()));
 
+		// Nutricionista/psicólogo com tipo vazio: aceito (procedimento fixo),
+		// mas indicado no log — mesmo aviso do "Analisar Planilha"
+		// (TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO)
+		if (isNullOrEmpty(dto.getTipoServico())) {
+			avisos.add("Tipo de serviço não informado — para " + dto.getEspecialidadeMedico()
+					+ " foi usado o procedimento fixo 0301010315");
+		}
+
 		// ===============================
 		// 3. Normalizações
 		// Remove formatação de CPF/CEP e limita tamanho
@@ -87,6 +96,8 @@ public class AtendimentoProcessor {
 		validarCep(dto);
 		validarCpf(dto);
 		validarCpfMedico(dto);
+		validarCbo(dto);
+		validarEspecialidade(dto);
 		validarRaca(dto);
 		avisos.addAll(validarCns(dto));
 		avisos.addAll(verificarEtniaDoIndigena(dto));
@@ -202,7 +213,14 @@ public class AtendimentoProcessor {
 
 		String valorOriginal = dto.getEstabelecimento();
 
-		if (isNullOrEmpty(valorOriginal)) {
+		// Vazio, só o separador ou código zero: não informado — atendimento
+		// fica sem estabelecimento, com aviso (mesma regra da análise,
+		// ESTABELECIMENTO_AUSENTE). Antes passava em silêncio, e "-"/"0" eram
+		// tratados como nome/código.
+		if (StringUtils.isEstabelecimentoNaoInformado(valorOriginal)) {
+			dto.setCodEstabelecimento(null);
+			dto.setEstabelecimento(null);
+			avisos.add("Estabelecimento não informado — o atendimento ficou sem estabelecimento");
 			return avisos;
 		}
 
@@ -291,6 +309,48 @@ public class AtendimentoProcessor {
 	 *
 	 * @throws IllegalArgumentException se o CPF do médico estiver ausente ou inválido
 	 */
+	/**
+	 * CBO do médico — vai para o BPA-I ({@code prd-cbo}, 6 posições). Reduzido
+	 * aos dígitos ({@code 2251-25} → {@code 225125}): com a máscara ele tinha 7
+	 * caracteres e deslocava o registro. Vazio ou diferente de 6 dígitos é erro
+	 * bloqueante da linha (decisão de 08/10/2026).
+	 *
+	 * @throws IllegalArgumentException se o CBO estiver ausente ou inválido
+	 */
+	private void validarCbo(LinhaImportacaoDTO dto) {
+
+		String cbo = dto.getCboMedico();
+
+		if (isNullOrEmpty(cbo)) {
+			throw new IllegalArgumentException(
+					"CBO do médico não informado (médico: " + dto.getMedico() + ").");
+		}
+
+		if (!CboUtils.isValido(cbo)) {
+			throw new IllegalArgumentException(
+					"CBO do médico inválido (esperado 6 dígitos): " + cbo.trim()
+							+ " (médico: " + dto.getMedico() + ").");
+		}
+
+		dto.setCboMedico(CboUtils.normalizar(cbo));
+	}
+
+	/**
+	 * Especialidade — não vai para o BPA-I, mas organiza a árvore da tela, a
+	 * folha (chave especialidade + médico) e a regra de procedimento fixo de
+	 * nutricionista/psicólogo. Sem ela o atendimento sumia da árvore. Vazia é
+	 * erro bloqueante da linha (decisão de 08/10/2026).
+	 *
+	 * @throws IllegalArgumentException se a especialidade estiver vazia
+	 */
+	private void validarEspecialidade(LinhaImportacaoDTO dto) {
+
+		if (isNullOrEmpty(dto.getEspecialidadeMedico())) {
+			throw new IllegalArgumentException(
+					"Especialidade não informada (médico: " + dto.getMedico() + ").");
+		}
+	}
+
 	private void validarCpfMedico(LinhaImportacaoDTO dto) {
 
 		String cpf = dto.getCpfMedico();

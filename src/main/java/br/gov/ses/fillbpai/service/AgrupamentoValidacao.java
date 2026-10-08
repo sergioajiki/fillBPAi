@@ -73,6 +73,16 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.CPF_MEDICO_INVALIDO, new InfoTipo(
 					"CPF do médico com tamanho inválido",
 					"O CPF deve ter 11 dígitos.", 8)),
+			Map.entry(ErroValidacao.CBO_AUSENTE, new InfoTipo(
+					"CBO do médico não informado",
+					"O CBO vai para o BPA-I (6 dígitos, ex.: 225125). Campo obrigatório.", 8)),
+			Map.entry(ErroValidacao.CBO_INVALIDO, new InfoTipo(
+					"CBO do médico inválido",
+					"O CBO deve ter 6 dígitos (ex.: 225125). Máscara como 2251-25 é aceita.", 8)),
+			Map.entry(ErroValidacao.ESPECIALIDADE_AUSENTE, new InfoTipo(
+					"Especialidade não informada",
+					"Organiza a árvore da tela e a folha do BPA-I; sem ela o atendimento não aparece na"
+							+ " árvore. Campo obrigatório.", 8)),
 			Map.entry(ErroValidacao.CEP_AUSENTE, new InfoTipo(
 					"CEP não informado",
 					"Campo obrigatório no endereço do paciente.", 9)),
@@ -100,6 +110,15 @@ public final class AgrupamentoValidacao {
 					"Estabelecimento sem código",
 					"Formato esperado: \"código - nome\". Será vinculado por nome a um estabelecimento já"
 							+ " cadastrado; se não houver, o atendimento fica sem estabelecimento.", 21)),
+			Map.entry(ErroValidacao.ESTABELECIMENTO_AUSENTE, new InfoTipo(
+					"Estabelecimento não informado",
+					"Célula vazia, só com \"-\" ou com código 0. O atendimento será importado sem"
+							+ " estabelecimento (não afeta o BPA-I, só a tabela e os relatórios).", 21)),
+			Map.entry(ErroValidacao.ESTABELECIMENTO_SEM_NOME, new InfoTipo(
+					"Estabelecimento só com o código",
+					"Será vinculado se o código já estiver cadastrado, mantendo o nome cadastrado; caso"
+							+ " contrário, o atendimento fica sem estabelecimento. Use \"código - nome\" para"
+							+ " cadastrar um estabelecimento novo.", 21)),
 			Map.entry(ErroValidacao.TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO, new InfoTipo(
 					"Tipo de serviço vazio (procedimento fixo)",
 					"Nutricionista e psicólogo usam o procedimento fixo 0301010315, então a linha será"

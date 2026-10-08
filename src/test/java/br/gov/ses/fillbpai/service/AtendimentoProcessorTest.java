@@ -28,6 +28,9 @@ class AtendimentoProcessorTest {
 		dto.setPaciente("MARIA SILVA");
 		dto.setCpfPaciente("12345678900");
 		dto.setCpfMedico("98765432100");
+		dto.setEstabelecimento("12345 - HOSPITAL CENTRAL");
+		dto.setEspecialidadeMedico("CARDIOLOGIA");
+		dto.setCboMedico("225125");
 		dto.setDataAgendamentoString("25/12/2024");
 		dto.setTipoServico("TELECONSULTA");
 		dto.setCep("79003020");
@@ -100,10 +103,23 @@ class AtendimentoProcessorTest {
 			dto.setTipoServico(null);
 			dto.setEspecialidadeMedico(especialidade);
 
-			processor.processar(dto);
+			List<String> avisos = processor.processar(dto);
 
 			assertThat(dto.getSigtap()).as(especialidade).isNull();
+			assertThat(avisos).as(especialidade).anySatisfy(aviso -> assertThat(aviso)
+					.contains("Tipo de serviço não informado")
+					.contains("0301010315"));
 		}
+	}
+
+	@Test
+	void processarComTipoServicoPreenchidoParaNutricionistaNaoGeraAvisoDeTipoVazio() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEspecialidadeMedico("NUTRICIONISTA");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(avisos).noneMatch(aviso -> aviso.contains("Tipo de serviço não informado"));
 	}
 
 	// ===== ESTABELECIMENTO =====
@@ -142,13 +158,18 @@ class AtendimentoProcessorTest {
 	}
 
 	@Test
-	void processarComEstabelecimentoVazioNaoGeraAviso() {
-		LinhaImportacaoDTO dto = dtoValido();
-		dto.setEstabelecimento(null);
+	void processarComEstabelecimentoNaoInformadoGeraAvisoEDeixaSemEstabelecimento() {
+		for (String valor : new String[] { null, "-", "0" }) {
+			LinhaImportacaoDTO dto = dtoValido();
+			dto.setEstabelecimento(valor);
 
-		List<String> avisos = processor.processar(dto);
+			List<String> avisos = processor.processar(dto);
 
-		assertThat(avisos).noneMatch(a -> a.contains("Estabelecimento"));
+			assertThat(avisos).as(String.valueOf(valor))
+					.containsExactly("Estabelecimento não informado — o atendimento ficou sem estabelecimento");
+			assertThat(dto.getCodEstabelecimento()).isNull();
+			assertThat(dto.getEstabelecimento()).isNull();
+		}
 	}
 
 	@Test
@@ -285,6 +306,49 @@ class AtendimentoProcessorTest {
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("CPF do médico com tamanho inválido")
 				.hasMessageContaining("JOAO DA SILVA");
+	}
+
+	// ===== CBO e especialidade =====
+
+	@Test
+	void processarNormalizaMascaraDoCbo() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCboMedico("2251-25");
+
+		processor.processar(dto);
+
+		assertThat(dto.getCboMedico()).isEqualTo("225125");
+	}
+
+	@Test
+	void processarSemCboLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCboMedico(null);
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CBO do médico não informado");
+	}
+
+	@Test
+	void processarComCboSemSeisDigitosLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCboMedico("22512");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CBO do médico inválido")
+				.hasMessageContaining("22512");
+	}
+
+	@Test
+	void processarSemEspecialidadeLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setEspecialidadeMedico(null);
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Especialidade não informada");
 	}
 
 	@Test

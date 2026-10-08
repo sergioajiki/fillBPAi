@@ -74,6 +74,58 @@ class StringUtilsTest {
 	}
 
 	@Test
+	void separarCodigoENomeSemEspacosEMantemHifenDoNome() {
+		assertThat(StringUtils.separarCodigoENome("12345-HOSPITAL CENTRAL"))
+				.containsExactly("12345", "HOSPITAL CENTRAL");
+		assertThat(StringUtils.separarCodigoENome("12345 - HOSPITAL SAO JOSE - UNIDADE 2"))
+				.containsExactly("12345", "HOSPITAL SAO JOSE - UNIDADE 2");
+	}
+
+	@Test
+	void separarCodigoENomeComTextoAntesDoHifenTrataACelulaInteiraComoNome() {
+		// O código é sempre numérico (decisão de 08/10/2026): texto antes do
+		// hífen é parte do nome. Antes "HOSPITAL SAO JOSE" virava código (17
+		// caracteres numa coluna de 10 → importação cancelada) e "UBS" criava
+		// um estabelecimento falso.
+		assertThat(StringUtils.separarCodigoENome("HOSPITAL SAO JOSE - UNIDADE 2"))
+				.containsExactly(null, "HOSPITAL SAO JOSE - UNIDADE 2");
+		assertThat(StringUtils.separarCodigoENome("UBS - CENTRO"))
+				.containsExactly(null, "UBS - CENTRO");
+		assertThat(StringUtils.separarCodigoENome("UBS01 - CENTRO"))
+				.containsExactly(null, "UBS01 - CENTRO");
+	}
+
+	@Test
+	void separarCodigoENomeComCodigoMaiorQueDezDigitosTrataComoNome() {
+		assertThat(StringUtils.separarCodigoENome("12345678901 - HOSPITAL"))
+				.containsExactly(null, "12345678901 - HOSPITAL");
+	}
+
+	@Test
+	void estabelecimentoNaoInformadoParaVazioSeparadorOuZero() {
+		assertThat(StringUtils.isEstabelecimentoNaoInformado(null)).isTrue();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("")).isTrue();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("   ")).isTrue();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("-")).isTrue();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado(" - ")).isTrue();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("—")).isTrue();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("0")).isTrue();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("000 -")).isTrue();
+
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("12345")).isFalse();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("0 - HOSPITAL")).isFalse();
+		assertThat(StringUtils.isEstabelecimentoNaoInformado("HOSPITAL")).isFalse();
+	}
+
+	@Test
+	void separarCodigoENomeSoComCodigoDevolveCodigoENomeNulo() {
+		assertThat(StringUtils.separarCodigoENome("1234567")).containsExactly("1234567", null);
+		assertThat(StringUtils.separarCodigoENome(" 1234567 ")).containsExactly("1234567", null);
+		assertThat(StringUtils.separarCodigoENome("12345 -")).containsExactly("12345", null);
+		assertThat(StringUtils.separarCodigoENome("12345 -   ")).containsExactly("12345", null);
+	}
+
+	@Test
 	void separarEspecialidadeEMedicoComSeparador() {
 		String[] resultado = StringUtils.separarEspecialidadeEMedico("CARDIOLOGIA - JOAO DA SILVA");
 

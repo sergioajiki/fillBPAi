@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.service;
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
+import br.gov.ses.fillbpai.util.CboUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
@@ -552,7 +553,9 @@ public class GeradorBPAiService {
 		/**
 		 * seq 5 - prd-cbo
 		 */
-		sb.append(padRightSpaces(a.getCboMedico(), 6));
+		// Só dígitos: atendimentos importados antes da normalização podem estar
+		// gravados com máscara ("2251-25"), que deslocava o registro
+		sb.append(padRightSpaces(CboUtils.normalizar(a.getCboMedico()), 6));
 
 		/**
 		 * seq 6 - prd-dtaten
@@ -868,10 +871,18 @@ public class GeradorBPAiService {
 		return sb.toString();
 	}
 
+	/**
+	 * Campo ALFA de tamanho fixo: completa com espaços à direita e <b>corta</b>
+	 * o que passar do tamanho. Antes não cortava — um valor maior que o campo
+	 * (ex.: CBO "2251-25") deslocava todos os campos seguintes do registro.
+	 */
 	private String padRightSpaces(String valor, int tamanho) {
 
 		if (valor == null)
 			valor = "";
+
+		if (valor.length() > tamanho)
+			valor = valor.substring(0, tamanho);
 
 		return String.format("%-" + tamanho + "s", valor);
 	}

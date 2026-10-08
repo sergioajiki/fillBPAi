@@ -181,6 +181,116 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(atendimento.getHoraAtendimento()).isNull();
 	}
 
+	// ===== Estabelecimento: código sempre numérico =====
+
+	private void cadastrarEstabelecimento(String codigo, String nome) {
+		Estabelecimento existente = new Estabelecimento();
+		existente.setCodigo(codigo);
+		existente.setNome(nome);
+		entityManager.getTransaction().begin();
+		entityManager.persist(existente);
+		entityManager.getTransaction().commit();
+		entityManager.clear();
+	}
+
+	private long contarEstabelecimentos() {
+		return (long) entityManager.createQuery("SELECT COUNT(e) FROM Estabelecimento e").getSingleResult();
+	}
+
+	@Test
+	void importarComNomeComHifenESemCodigoNaoCancelaAImportacao() throws IOException {
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[3] = "HOSPITAL SAO JOSE - UNIDADE 2";
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+		assertThat(resultado.getAvisos()).anySatisfy(aviso -> assertThat(aviso).contains("nao traz codigo reconhecido"));
+		assertThat(atendimentoRepository.buscarTodos().get(0).getEstabelecimento()).isNull();
+		assertThat(contarEstabelecimentos()).isZero();
+	}
+
+	@Test
+	void importarComEstabelecimentoNaoInformadoAvisaNoLogENaoCriaNada() throws IOException {
+
+		String[] vazio = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		vazio[3] = null;
+		String[] hifen = linhaValida("11122233344", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		hifen[3] = "-";
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, vazio, hifen));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(2);
+		assertThat(resultado.getAvisos())
+				.anySatisfy(aviso -> assertThat(aviso).startsWith("Linha 2").contains("Estabelecimento não informado"))
+				.anySatisfy(aviso -> assertThat(aviso).startsWith("Linha 3").contains("Estabelecimento não informado"))
+				.noneMatch(aviso -> aviso.contains("nao traz codigo reconhecido"));
+		assertThat(atendimentoRepository.buscarTodos())
+				.allSatisfy(a -> assertThat(a.getEstabelecimento()).isNull());
+		assertThat(contarEstabelecimentos()).isZero();
+	}
+
+	@Test
+	void importarComTextoCurtoAntesDoHifenNaoCriaEstabelecimentoFalso() throws IOException {
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[3] = "UBS - CENTRO";
+
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(contarEstabelecimentos()).isZero();
+	}
+
+	@Test
+	void importarComCelulaSoComCodigoCadastradoVinculaEMantemONome() throws IOException {
+
+		cadastrarEstabelecimento("1234567", "HOSPITAL CENTRAL");
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[3] = "1234567";
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
+		assertThat(atendimento.getEstabelecimento()).isNotNull();
+		assertThat(atendimento.getEstabelecimento().getCodigo()).isEqualTo("1234567");
+		assertThat(atendimento.getEstabelecimento().getNome()).isEqualTo("HOSPITAL CENTRAL");
+		assertThat(resultado.getAvisos()).noneMatch(aviso -> aviso.contains("Estabelecimento"));
+	}
+
+	@Test
+	void importarComCodigoSemNomeNaoApagaONomeCadastrado() throws IOException {
+
+		cadastrarEstabelecimento("12345", "HOSPITAL CENTRAL");
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[3] = "12345 -";
+
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos().get(0).getEstabelecimento().getNome())
+				.isEqualTo("HOSPITAL CENTRAL");
+	}
+
+	@Test
+	void importarComCelulaSoComCodigoNaoCadastradoFicaSemEstabelecimentoComAviso() throws IOException {
+
+		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[3] = "7654321";
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+		assertThat(atendimentoRepository.buscarTodos().get(0).getEstabelecimento()).isNull();
+		assertThat(resultado.getAvisos()).anySatisfy(aviso -> assertThat(aviso)
+				.startsWith("Linha 2")
+				.contains("7654321")
+				.contains("não está cadastrado"));
+		assertThat(contarEstabelecimentos()).isZero();
+	}
+
 	// ===== Tipo de serviço vazio =====
 
 	@Test
