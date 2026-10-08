@@ -263,6 +263,11 @@ public class MainController {
 		// CNS já conhecido por CPF de médico no banco local — permite à análise
 		// dizer quando uma grafia não cadastrada vai herdar o CNS do mesmo CPF.
 		MedicoRepository medicoRepository = new MedicoRepository(entityManager);
+
+		// CEPs já resolvidos no banco: a análise busca o IBGE pelo CEP quando o
+		// município não está na tabela de MS, e não deve ir à internet para eles
+		new AtendimentoImportacaoService(entityManager).preCarregarCacheIbge();
+
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService(
 				cpf -> medicoRepository.buscarPorCpf(cpf).map(Medico::getCns).orElse(null));
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
@@ -419,7 +424,10 @@ public class MainController {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Avisos de Validação");
-		alert.setHeaderText("A planilha contém avisos mas pode ser importada");
+		// Sem cabeçalho nem ícone: o bloco "AVISOS — não impedem a importação"
+		// e o botão "Importar Planilha" já dizem que a planilha pode ser importada
+		alert.setHeaderText(null);
+		alert.setGraphic(null);
 
 		VBox blocoAvisos = criarBlocoSeveridade(
 				"⚠ AVISOS — não impedem a importação (" + avisos.size() + ")",
@@ -619,7 +627,10 @@ public class MainController {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Erros de Validação");
-		alert.setHeaderText("A planilha contém erros que impedem a importação");
+		// Sem cabeçalho nem ícone: o bloco "ERROS — necessário corrigir..." logo
+		// abaixo já diz isso, e a linha extra só ocupava altura da janela
+		alert.setHeaderText(null);
+		alert.setGraphic(null);
 
 		List<ErroValidacao> bloqueantes = demaisErros.stream()
 				.filter(ErroValidacao::isBloqueante)
@@ -630,7 +641,7 @@ public class MainController {
 				.collect(java.util.stream.Collectors.toList());
 
 		VBox blocoErros = criarBlocoSeveridade(
-				"🛑 ERROS — impedem a importação (" + bloqueantes.size() + ")",
+				"🛑 ERROS — necessário corrigir na planilha para gerar a remessa BPA-I (" + bloqueantes.size() + ")",
 				bloqueantes,
 				"#B3261E", "#F6E1DF");
 
@@ -796,7 +807,7 @@ public class MainController {
 
 	/**
 	 * Mostra o diálogo com o conteúdo dentro de uma área rolável e a janela
-	 * limitada a 85% da altura e 90% da largura útil do monitor (largura padrão 1100 px),
+	 * limitada a 75% da altura útil (conteúdo) e 90% da largura útil do monitor (largura padrão 1100 px),
 	 * centralizada na vertical.
 	 * <p>
 	 * Sem isso, uma análise com muitos avisos fazia a janela passar do tamanho
@@ -820,15 +831,26 @@ public class MainController {
 
 		// Largura: 1100 px, limitada a 90% da largura útil do monitor
 		alert.getDialogPane().setPrefWidth(Math.min(1100, tela.getWidth() * 0.9));
-		double alturaMaxima = tela.getHeight() * 0.85;
 
-		alert.setOnShown(e -> {
+		// Altura limitada ANTES de abrir: o JavaFX dimensiona a janela pela
+		// altura preferida do conteúdo, que o maxHeight do DialogPane limita.
+		// Antes só se encolhia a janela depois de aberta (onShown), o que não
+		// pegava — a janela abria maior que a tela, com a barra de título acima
+		// da borda e o rodapé atrás da barra de tarefas. 75% da área útil
+		// (descontada a barra de tarefas) deixa folga para a barra de título.
+		double alturaMaximaConteudo = tela.getHeight() * 0.75;
+		alert.getDialogPane().setMaxHeight(alturaMaximaConteudo);
+
+		// Proteção extra, já com o tamanho final da janela (runLater): nunca
+		// passar da área útil e ficar centralizada na vertical dentro dela.
+		alert.setOnShown(e -> Platform.runLater(() -> {
 			javafx.stage.Window janela = alert.getDialogPane().getScene().getWindow();
-			if (janela.getHeight() > alturaMaxima) {
-				janela.setHeight(alturaMaxima);
-				janela.setY(tela.getMinY() + (tela.getHeight() - alturaMaxima) / 2);
+			if (janela.getHeight() > tela.getHeight() * 0.9) {
+				janela.setHeight(tela.getHeight() * 0.9);
 			}
-		});
+			double y = tela.getMinY() + (tela.getHeight() - janela.getHeight()) / 2;
+			janela.setY(Math.max(tela.getMinY(), y));
+		}));
 
 		alert.showAndWait();
 	}

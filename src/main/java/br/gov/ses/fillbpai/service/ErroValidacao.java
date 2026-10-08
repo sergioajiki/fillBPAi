@@ -57,6 +57,24 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Tipo de serviço diferente de Teleconsulta/Teleinterconsulta — ERRO bloqueante */
 	public static final String TIPO_SERVICO_INVALIDO = "TIPO_SERVICO_INVALIDO";
 
+	/** CPF do paciente com os 11 dígitos iguais (00000000000, 11111111111...) — CPF de preenchimento, juntaria pacientes diferentes — ERRO bloqueante */
+	public static final String CPF_FALSO = "CPF_FALSO";
+
+	/** CPF preenchido com a coluna "Paciente sem CPF" = Sim — informações contraditórias — ERRO bloqueante */
+	public static final String CPF_CONFLITO_SEM_CPF = "CPF_CONFLITO_SEM_CPF";
+
+	/** Célula do município vazia na planilha — sem o nome não há a busca do IBGE pela tabela de MS — ERRO bloqueante */
+	public static final String MUNICIPIO_AUSENTE = "MUNICIPIO_AUSENTE";
+
+	/** Município fora da tabela de MS e código IBGE não encontrado pelo CEP (banco + APIs) — conferir grafia e CEP — ERRO bloqueante */
+	public static final String MUNICIPIO_NAO_ENCONTRADO = "MUNICIPIO_NAO_ENCONTRADO";
+
+	/** CPF do paciente com dígitos verificadores errados (dígito digitado errado) — ERRO bloqueante */
+	public static final String CPF_DV_INVALIDO = "CPF_DV_INVALIDO";
+
+	/** CPF do médico com dígitos repetidos ou verificadores errados — criaria um "segundo médico" — ERRO bloqueante */
+	public static final String CPF_MEDICO_DV_INVALIDO = "CPF_MEDICO_DV_INVALIDO";
+
 	/** CBO do médico não informado — vai para o BPA-I (prd-cbo) — ERRO bloqueante */
 	public static final String CBO_AUSENTE = "CBO_AUSENTE";
 
@@ -110,6 +128,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 
 	/** Estabelecimento informado só pelo código ("1234567", "12345 -") — vinculado se o código já estiver cadastrado (sem apagar o nome); senão o atendimento fica sem estabelecimento. AVISO, não bloqueia. */
 	public static final String ESTABELECIMENTO_SEM_NOME = "ESTABELECIMENTO_SEM_NOME";
+
+	/** Município fora da tabela de MS, mas código IBGE encontrado pelo CEP — mostra o município que o CEP indica, para conferir. AVISO, não bloqueia. */
+	public static final String MUNICIPIO_PELO_CEP = "MUNICIPIO_PELO_CEP";
 
 	/** Hora de atendimento preenchida mas não reconhecida como horário (ex.: "-", "--:--") — atendimento importado sem hora. AVISO, não bloqueia. */
 	public static final String HORA_INVALIDA = "HORA_INVALIDA";

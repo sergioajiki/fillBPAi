@@ -43,6 +43,25 @@ public class EspecialidadeUtils {
 	}
 
 	/**
+	 * Forma gravada na importação: {@link #normalizar} + maiúsculas + espaços
+	 * internos repetidos reduzidos a um. Assim {@code "Cardiologia"},
+	 * {@code "CARDIOLOGIA"} e {@code "cardiologia "} são a mesma especialidade
+	 * na árvore da tela e na chave da folha (decisão de 08/10/2026 — antes
+	 * eram especialidades diferentes, e o mesmo médico podia ganhar duas
+	 * folhas). Acentos são mantidos. Vazio vira {@code null}.
+	 */
+	public static String padronizar(String especialidade) {
+
+		String normalizada = normalizar(especialidade);
+
+		if (normalizada == null || normalizada.isBlank()) {
+			return null;
+		}
+
+		return normalizada.replaceAll("\\s+", " ").toUpperCase(java.util.Locale.ROOT);
+	}
+
+	/**
 	 * Especialidades que usam procedimento fixo ({@code 0301010315}) no BPA-I,
 	 * qualquer que seja o tipo de serviço: NUTRICIONISTA e PSICÓLOGO (após
 	 * {@link #normalizar}, sem diferença de caixa). Regra única usada pela

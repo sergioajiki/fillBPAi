@@ -37,6 +37,48 @@ class IbgeUtilsTest {
 	}
 
 	@Test
+	void buscarPorNomeToleraSiglaDaUfEEspacosRepetidos() {
+		assertThat(IbgeUtils.buscarPorNome("Campo Grande - MS")).isEqualTo("5002704");
+		assertThat(IbgeUtils.buscarPorNome("CAMPO GRANDE/MS")).isEqualTo("5002704");
+		assertThat(IbgeUtils.buscarPorNome("Campo Grande (MS)")).isEqualTo("5002704");
+		assertThat(IbgeUtils.buscarPorNome("Campo Grande – MS")).isEqualTo("5002704");
+		assertThat(IbgeUtils.buscarPorNome("Campo  Grande")).isEqualTo("5002704");
+		assertThat(IbgeUtils.buscarPorNome("  Três   Lagoas - ms ")).isEqualTo("5008305");
+	}
+
+	@Test
+	void nomeMunicipioDevolveNomeOficialEUfDeQualquerMunicipioDoBrasil() {
+		assertThat(IbgeUtils.nomeMunicipio("5002704")).isEqualTo("Campo Grande/MS");
+		assertThat(IbgeUtils.nomeMunicipio("5103403")).isEqualTo("Cuiabá/MT");
+		assertThat(IbgeUtils.nomeMunicipio("3550308")).isEqualTo("São Paulo/SP");
+		assertThat(IbgeUtils.nomeMunicipio("9999999")).isNull();
+		assertThat(IbgeUtils.nomeMunicipio(null)).isNull();
+	}
+
+	@Test
+	void resolverPeloCepInformaNoAvisoOMunicipioEncontrado() {
+		try {
+			IbgeUtils.usarBuscadorHttpParaTeste(url -> new IbgeUtils.RespostaHttp(200, "{\"ibge\": \"5103403\"}"));
+
+			IbgeUtils.IbgeResultado resultado = IbgeUtils.resolver("91000099", "Cuiaba centro");
+
+			assertThat(resultado.getCodigoIbge()).isEqualTo("5103403");
+			assertThat(resultado.getAviso())
+					.contains("\"Cuiaba centro\"")
+					.contains("Cuiabá/MT")
+					.contains("confira");
+		} finally {
+			IbgeUtils.usarBuscadorHttpParaTeste(null);
+		}
+	}
+
+	@Test
+	void buscarPorNomeComMunicipioDeOutraUfContinuaNaoEncontrado() {
+		// A tabela só tem MS: tirar a sigla não pode fazer "Cuiabá - MT" bater com nada
+		assertThat(IbgeUtils.buscarPorNome("Cuiabá - MT")).isNull();
+	}
+
+	@Test
 	void buscarPorNomeComMunicipioDesconhecidoDevolveNull() {
 		assertThat(IbgeUtils.buscarPorNome("MUNICIPIO QUE NAO EXISTE XYZ")).isNull();
 	}
@@ -59,7 +101,7 @@ class IbgeUtilsTest {
 		IbgeUtils.IbgeResultado resultado = IbgeUtils.resolver(cepFake, null);
 
 		assertThat(resultado.getCodigoIbge()).isEqualTo("9999999");
-		assertThat(resultado.getAviso()).contains("não encontrado no CSV por nome");
+		assertThat(resultado.getAviso()).contains("pelo CEP 00000001").contains("código IBGE 9999999");
 	}
 
 	@Test
@@ -74,5 +116,83 @@ class IbgeUtilsTest {
 	void preCarregarCacheDbComMapaNuloOuVazioNaoLancaExcecao() {
 		assertThatCode(() -> IbgeUtils.preCarregarCacheDb(null)).doesNotThrowAnyException();
 		assertThatCode(() -> IbgeUtils.preCarregarCacheDb(Map.of())).doesNotThrowAnyException();
+	}
+
+	// ===== APIs de CEP: ViaCEP com reservas (BrasilAPI, OpenCEP) — HTTP simulado, sem rede =====
+
+	private final java.util.List<String> urlsConsultadas = new java.util.ArrayList<>();
+
+	/** Simula as APIs: cada URL que contém a chave recebe a resposta; demais lançam erro de conexão. */
+	private void simularApis(Map<String, IbgeUtils.RespostaHttp> respostas) {
+		IbgeUtils.usarBuscadorHttpParaTeste(url -> {
+			urlsConsultadas.add(url);
+			return respostas.entrySet().stream()
+					.filter(e -> url.contains(e.getKey()))
+					.map(Map.Entry::getValue)
+					.findFirst()
+					.orElseThrow(() -> new RuntimeException("sem conexão"));
+		});
+	}
+
+	@org.junit.jupiter.api.AfterEach
+	void restaurarHttpReal() {
+		IbgeUtils.usarBuscadorHttpParaTeste(null);
+	}
+
+	@Test
+	void buscarPorCepUsaViaCepQuandoResponde() {
+		simularApis(Map.of("viacep", new IbgeUtils.RespostaHttp(200, "{\"localidade\":\"X\",\"ibge\": \"5002704\"}")));
+
+		assertThat(IbgeUtils.buscarPorCep("91000001")).isEqualTo("5002704");
+		assertThat(urlsConsultadas).singleElement().satisfies(u -> assertThat(u).contains("viacep"));
+	}
+
+	@Test
+	void buscarPorCepComViaCepForaDoArUsaBrasilApi() {
+		simularApis(Map.of("brasilapi", new IbgeUtils.RespostaHttp(200,
+				"{\"cep\":\"91000002\",\"city\":\"Campo Grande\",\"ibge\":{\"city\":\"5002704\",\"state\":\"50\"}}")));
+
+		assertThat(IbgeUtils.buscarPorCep("91000002")).isEqualTo("5002704");
+		assertThat(urlsConsultadas).hasSize(2);
+	}
+
+	@Test
+	void buscarPorCepComViaCepEBrasilApiForaDoArUsaOpenCep() {
+		simularApis(Map.of("opencep", new IbgeUtils.RespostaHttp(200, "{\"ibge\": \"5008305\"}")));
+
+		assertThat(IbgeUtils.buscarPorCep("91000003")).isEqualTo("5008305");
+		assertThat(urlsConsultadas).hasSize(3);
+	}
+
+	@Test
+	void buscarPorCepNaoEncontradoNoViaCepTentaAsReservas() {
+		// ViaCEP responde "erro": "true" (com aspas) para CEP inexistente; a reserva pode ter o CEP
+		simularApis(Map.of(
+				"viacep", new IbgeUtils.RespostaHttp(200, "{\n  \"erro\": \"true\"\n}"),
+				"brasilapi", new IbgeUtils.RespostaHttp(200, "{\"ibge\":{\"city\":\"5002704\"}}")));
+
+		assertThat(IbgeUtils.buscarPorCep("91000004")).isEqualTo("5002704");
+	}
+
+	@Test
+	void buscarPorCepNaoEncontradoEmTodasGuardaResultadoNegativoENaoConsultaDeNovo() {
+		simularApis(Map.of(
+				"viacep", new IbgeUtils.RespostaHttp(200, "{\"erro\": true}"),
+				"brasilapi", new IbgeUtils.RespostaHttp(404, "{\"message\":\"CEP INVALIDO\"}"),
+				"opencep", new IbgeUtils.RespostaHttp(404, "{\"error\": true}")));
+
+		assertThat(IbgeUtils.buscarPorCep("91000005")).isNull();
+		assertThat(IbgeUtils.buscarPorCep("91000005")).isNull();
+		assertThat(urlsConsultadas).hasSize(3); // segunda chamada veio do cache
+	}
+
+	@Test
+	void buscarPorCepComTodasForaDoArNaoGuardaResultadoNegativo() {
+		// Falha de rede é passageira: a próxima importação deve tentar de novo
+		simularApis(Map.of());
+
+		assertThat(IbgeUtils.buscarPorCep("91000006")).isNull();
+		assertThat(IbgeUtils.buscarPorCep("91000006")).isNull();
+		assertThat(urlsConsultadas).hasSize(6);
 	}
 }

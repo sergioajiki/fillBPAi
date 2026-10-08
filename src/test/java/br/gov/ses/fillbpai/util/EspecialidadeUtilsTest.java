@@ -44,6 +44,23 @@ class EspecialidadeUtilsTest {
 	}
 
 	@Test
+	void padronizarRemovePrefixoColocaEmMaiusculasEJuntaEspacos() {
+		// Decisão 08/10/2026: "Cardiologia" e "CARDIOLOGIA" eram duas
+		// especialidades (dois nós na árvore, duas folhas para o mesmo médico)
+		assertThat(EspecialidadeUtils.padronizar("Cardiologia")).isEqualTo("CARDIOLOGIA");
+		assertThat(EspecialidadeUtils.padronizar("  cardiologia  ")).isEqualTo("CARDIOLOGIA");
+		assertThat(EspecialidadeUtils.padronizar("Médico Cardiologista")).isEqualTo("CARDIOLOGISTA");
+		assertThat(EspecialidadeUtils.padronizar("Clínica   Médica")).isEqualTo("CLÍNICA MÉDICA");
+		assertThat(EspecialidadeUtils.padronizar("Psicólogo")).isEqualTo("PSICÓLOGO");
+	}
+
+	@Test
+	void padronizarComNuloOuVazioDevolveNulo() {
+		assertThat(EspecialidadeUtils.padronizar(null)).isNull();
+		assertThat(EspecialidadeUtils.padronizar("   ")).isNull();
+	}
+
+	@Test
 	void usaProcedimentoFixoParaNutricionistaEPsicologoComOuSemPrefixoECaixa() {
 		assertThat(EspecialidadeUtils.usaProcedimentoFixo("NUTRICIONISTA")).isTrue();
 		assertThat(EspecialidadeUtils.usaProcedimentoFixo("nutricionista")).isTrue();

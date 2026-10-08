@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
 import br.gov.ses.fillbpai.util.CboUtils;
+import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
@@ -94,6 +95,7 @@ public class GeradorBPAiService {
 						+ medico + " em " + String.format("%02d/%04d", atenMes, atenAno));
 
 			validarCnsProfissional(lista);
+			validarIbge(lista);
 
 			String competencia = calcularCompetencia(LocalDate.of(atenAno, atenMes, 1));
 
@@ -212,6 +214,7 @@ public class GeradorBPAiService {
 						"Nenhum registro encontrado para a competência " + competencia);
 
 			validarCnsProfissional(lista);
+			validarIbge(lista);
 
 			// 3. Ordena por especialidade (alfabética) → médico (alfabético) → mês
 			lista.sort(Comparator
@@ -389,6 +392,52 @@ public class GeradorBPAiService {
 				? a.getDataAgendamento().getMonthValue() : 0;
 
 		return esp + "|" + med + "|" + mes;
+	}
+
+	/**
+	 * Bloqueia a geração se algum atendimento estiver sem código IBGE do
+	 * município do paciente ({@code prd-ibge}, obrigatório no BPA-I) — mesmo
+	 * padrão de {@link #validarCnsProfissional}. Acontece quando nem o nome do
+	 * município nem o CEP resolveram o IBGE na importação (decisão de
+	 * 08/10/2026 — antes o campo saía em branco sem aviso na geração).
+	 *
+	 * @throws RuntimeException com a lista de médico/paciente/data dos atendimentos sem IBGE
+	 */
+	void validarIbge(List<AtendimentoBPAi> lista) {
+
+		List<AtendimentoBPAi> semIbge = lista.stream()
+				.filter(a -> {
+					Endereco e = a.getPaciente() != null ? a.getPaciente().getEndereco() : null;
+					return e == null || e.getCodigoIbge() == null || e.getCodigoIbge().isBlank();
+				})
+				.collect(java.util.stream.Collectors.toList());
+
+		if (semIbge.isEmpty()) {
+			return;
+		}
+
+		StringBuilder sb = new StringBuilder();
+		sb.append("=== ERRO DE GERAÇÃO BPA-I ===\n");
+		sb.append("Geração bloqueada: ").append(semIbge.size())
+				.append(" atendimento(s) sem código IBGE do município do paciente.\n");
+		sb.append("Corrija o município ou o CEP na planilha e reimporte.\n\n");
+		sb.append(String.format("%-30s| %-30s| %s%n", "Médico", "Paciente", "Data"));
+		sb.append("------------------------------|------------------------------|----------\n");
+
+		DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+		for (AtendimentoBPAi a : semIbge) {
+			String medNome = a.getMedico() != null ? a.getMedico().getNome() : "(sem médico)";
+			String pacNome = a.getPaciente() != null ? a.getPaciente().getNome() : "(sem paciente)";
+			String data = a.getDataAgendamento() != null ? a.getDataAgendamento().format(fmt) : "";
+
+			if (medNome.length() > 30) medNome = medNome.substring(0, 27) + "...";
+			if (pacNome.length() > 30) pacNome = pacNome.substring(0, 27) + "...";
+
+			sb.append(String.format("%-30s| %-30s| %s%n", medNome, pacNome, data));
+		}
+
+		throw new RuntimeException(sb.toString());
 	}
 
 	/**
@@ -762,7 +811,10 @@ public class GeradorBPAiService {
 		 * seq 38 - prd_cpf_pcnte
 		 * CPF do paciente, 11 chars, numérico
 		 */
-		String cpfPacienteNum = paciente != null ? somenteNumeros(paciente.getCpf()) : "";
+		// Paciente sem CPF fica no banco com uma chave interna ("SC..."), que
+		// não é CPF: sai como CPF vazio (e deriva prd_sem_cpf = S)
+		String cpfPacienteNum = paciente != null && !CpfUtils.isChaveSemCpf(paciente.getCpf())
+				? somenteNumeros(paciente.getCpf()) : "";
 		sb.append(padLeftZeros(cpfPacienteNum, 11));
 
 		/**

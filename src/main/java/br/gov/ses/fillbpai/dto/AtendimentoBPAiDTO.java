@@ -82,9 +82,10 @@ public class AtendimentoBPAiDTO {
 				entity.getPaciente().getNome() : "";
 	}
 
+	/** CPF do paciente; vazio para paciente sem CPF (a chave interna "SC..." não é exibida). */
 	public String getCpfPaciente() {
-		return entity.getPaciente() != null ?
-				entity.getPaciente().getCpf() : "";
+		String cpf = entity.getPaciente() != null ? entity.getPaciente().getCpf() : "";
+		return br.gov.ses.fillbpai.util.CpfUtils.isChaveSemCpf(cpf) ? "" : cpf;
 	}
 
 	public String getSexoPaciente() {

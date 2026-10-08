@@ -39,7 +39,7 @@ class PacienteRepositoryTest {
 	void salvarEBuscarPorCpfEncontraOPacienteComOEnderecoJunto() {
 
 		Paciente paciente = new Paciente();
-		paciente.setCpf("12345678900");
+		paciente.setCpf("12345678909");
 		paciente.setNome("MARIA SILVA");
 
 		Endereco endereco = new Endereco();
@@ -53,7 +53,7 @@ class PacienteRepositoryTest {
 		entityManager.getTransaction().commit();
 		entityManager.clear();
 
-		Optional<Paciente> encontrado = repository.buscarPorCpf("12345678900");
+		Optional<Paciente> encontrado = repository.buscarPorCpf("12345678909");
 
 		assertThat(encontrado).isPresent();
 		assertThat(encontrado.get().getNome()).isEqualTo("MARIA SILVA");

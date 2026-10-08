@@ -26,11 +26,12 @@ class AtendimentoProcessorTest {
 	private LinhaImportacaoDTO dtoValido() {
 		LinhaImportacaoDTO dto = new LinhaImportacaoDTO();
 		dto.setPaciente("MARIA SILVA");
-		dto.setCpfPaciente("12345678900");
+		dto.setCpfPaciente("12345678909");
 		dto.setCpfMedico("98765432100");
 		dto.setEstabelecimento("12345 - HOSPITAL CENTRAL");
 		dto.setEspecialidadeMedico("CARDIOLOGIA");
 		dto.setCboMedico("225125");
+		dto.setMunicipio("CAMPO GRANDE");
 		dto.setDataAgendamentoString("25/12/2024");
 		dto.setTipoServico("TELECONSULTA");
 		dto.setCep("79003020");
@@ -218,18 +219,18 @@ class AtendimentoProcessorTest {
 
 		processor.processar(dto);
 
-		assertThat(dto.getEspecialidadeMedico()).isEqualTo("Endocrinologista");
+		assertThat(dto.getEspecialidadeMedico()).isEqualTo("ENDOCRINOLOGISTA");
 	}
 
 	@Test
-	void processarSemPrefixoMedicoNaoAlteraEspecialidade() {
+	void processarSemPrefixoMedicoSoPadronizaAEspecialidadeEmMaiusculas() {
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setEspecialidadeMedico("Psiquiatra");
 		dto.setMedico("JOAO DA SILVA");
 
 		processor.processar(dto);
 
-		assertThat(dto.getEspecialidadeMedico()).isEqualTo("Psiquiatra");
+		assertThat(dto.getEspecialidadeMedico()).isEqualTo("PSIQUIATRA");
 	}
 
 	// ===== SEXO =====
@@ -308,6 +309,18 @@ class AtendimentoProcessorTest {
 				.hasMessageContaining("JOAO DA SILVA");
 	}
 
+	// ===== Município =====
+
+	@Test
+	void processarSemMunicipioLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setMunicipio(null);
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Município do paciente não informado");
+	}
+
 	// ===== CBO e especialidade =====
 
 	@Test
@@ -362,14 +375,77 @@ class AtendimentoProcessorTest {
 	}
 
 	@Test
+	void processarSemCpfComPacienteSemCpfSimNaoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfPaciente(null);
+		dto.setPacienteSemCpf("Sim");
+
+		processor.processar(dto);
+
+		assertThat(dto.getPacienteSemCpf()).isEqualTo("S");
+	}
+
+	@Test
+	void processarComCpfPreenchidoEPacienteSemCpfSimLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setPacienteSemCpf("Sim");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CPF preenchido com \"Paciente sem CPF\" = Sim");
+	}
+
+	@Test
+	void processarSemCpfSemColunaPacienteSemCpfLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfPaciente(null);
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CPF do paciente não informado");
+	}
+
+	@Test
+	void processarComCpfDoPacienteComDigitoVerificadorErradoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfPaciente("12345678900");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CPF do paciente inválido (dígitos verificadores não conferem)");
+	}
+
+	@Test
+	void processarComCpfDoMedicoComDigitoVerificadorErradoOuRepetidoLancaExcecao() {
+		for (String cpf : new String[] { "98765432101", "11111111111" }) {
+			LinhaImportacaoDTO dto = dtoValido();
+			dto.setCpfMedico(cpf);
+
+			assertThatThrownBy(() -> processor.processar(dto)).as(cpf)
+					.isInstanceOf(IllegalArgumentException.class)
+					.hasMessageContaining("CPF do médico inválido");
+		}
+	}
+
+	@Test
+	void processarComCpfFalsoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfPaciente("000.000.000-00");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CPF do paciente inválido (dígitos repetidos)");
+	}
+
+	@Test
 	void processarNormalizaMascaraDeCpfECep() {
 		LinhaImportacaoDTO dto = dtoValido();
-		dto.setCpfPaciente("123.456.789-00");
+		dto.setCpfPaciente("123.456.789-09");
 		dto.setCep("79003-020");
 
 		processor.processar(dto);
 
-		assertThat(dto.getCpfPaciente()).isEqualTo("12345678900");
+		assertThat(dto.getCpfPaciente()).isEqualTo("12345678909");
 		assertThat(dto.getCep()).isEqualTo("79003020");
 	}
 
@@ -608,7 +684,9 @@ class AtendimentoProcessorTest {
 
 	@Test
 	void processarNormalizaPacienteSemCpfPorExtensoParaCodigoDeUmaLetra() {
+		// "Sim" só é válido com o CPF vazio (CPF preenchido + Sim é erro de conflito)
 		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCpfPaciente(null);
 		dto.setPacienteSemCpf("Sim");
 
 		processor.processar(dto);

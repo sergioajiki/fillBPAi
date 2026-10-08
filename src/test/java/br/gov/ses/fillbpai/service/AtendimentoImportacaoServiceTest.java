@@ -144,7 +144,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarCriaPacienteMedicoEstabelecimentoEAtendimento() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
 
 		ImportacaoResultado resultado = service.importar(caminho);
 
@@ -165,7 +165,7 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComHoraNaoReconhecidaImportaALinhaSemHoraEComAviso() throws IOException {
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[2] = "-"; // HORA ATENDIMENTO
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
@@ -200,7 +200,7 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComNomeComHifenESemCodigoNaoCancelaAImportacao() throws IOException {
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[3] = "HOSPITAL SAO JOSE - UNIDADE 2";
 
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
@@ -214,9 +214,9 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComEstabelecimentoNaoInformadoAvisaNoLogENaoCriaNada() throws IOException {
 
-		String[] vazio = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] vazio = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		vazio[3] = null;
-		String[] hifen = linhaValida("11122233344", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] hifen = linhaValida("11122233396", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		hifen[3] = "-";
 
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, vazio, hifen));
@@ -234,7 +234,7 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComTextoCurtoAntesDoHifenNaoCriaEstabelecimentoFalso() throws IOException {
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[3] = "UBS - CENTRO";
 
 		service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
@@ -247,7 +247,7 @@ class AtendimentoImportacaoServiceTest {
 
 		cadastrarEstabelecimento("1234567", "HOSPITAL CENTRAL");
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[3] = "1234567";
 
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
@@ -264,7 +264,7 @@ class AtendimentoImportacaoServiceTest {
 
 		cadastrarEstabelecimento("12345", "HOSPITAL CENTRAL");
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[3] = "12345 -";
 
 		service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
@@ -277,7 +277,7 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComCelulaSoComCodigoNaoCadastradoFicaSemEstabelecimentoComAviso() throws IOException {
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[3] = "7654321";
 
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
@@ -291,12 +291,107 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(contarEstabelecimentos()).isZero();
 	}
 
+	// ===== Paciente sem CPF =====
+
+	@Test
+	void importarPacienteSemCpfComColunaSimGravaComChaveInternaEReimportarNaoDuplica() throws IOException {
+
+		String[] cabecalho = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalho[CABECALHO_COMPLETO.length] = "Paciente sem CPF";
+		String[] linha = java.util.Arrays.copyOf(
+				linhaValida(null, "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 1);
+		linha[CABECALHO_COMPLETO.length] = "Sim";
+		String caminho = salvarPlanilha(cabecalho, linha);
+
+		ImportacaoResultado primeira = service.importar(caminho);
+		service.importar(caminho);
+
+		assertThat(primeira.getTotalSucesso()).isEqualTo(1);
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).singleElement().satisfies(a -> {
+			assertThat(br.gov.ses.fillbpai.util.CpfUtils.isChaveSemCpf(a.getPaciente().getCpf())).isTrue();
+			assertThat(a.getPacienteSemCpf()).isEqualTo("S");
+		});
+	}
+
+	// ===== Município / IBGE =====
+
+	@Test
+	void importarComMunicipioSemIbgeBloqueiaAPlanilhaInteiraSemGravarNada() throws IOException {
+		// Decisão 08/10/2026: linhas não podem ser rejeitadas por falta do IBGE —
+		// a importação da planilha inteira é bloqueada, mesmo com linhas válidas
+		String[] valida = linhaValida("11144477735", "PACIENTE VALIDO", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] semIbge = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		semIbge[8] = "Cuiabá";
+		semIbge[20] = "79999990";
+		String[] semMunicipio = linhaValida("22255588846", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		semMunicipio[8] = null;
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, valida, semIbge, semMunicipio);
+
+		try {
+			// APIs de CEP simuladas (sem rede): todas respondem "CEP não existe"
+			br.gov.ses.fillbpai.util.IbgeUtils.usarBuscadorHttpParaTeste(
+					url -> new br.gov.ses.fillbpai.util.IbgeUtils.RespostaHttp(404, "{}"));
+
+			assertThatThrownBy(() -> service.importar(caminho))
+					.isInstanceOf(RuntimeException.class)
+					.hasMessageContaining("Importação bloqueada")
+					.hasMessageContaining("nenhuma linha foi importada")
+					.hasMessageContaining("Linha 3: Município \"Cuiabá\" não encontrado e o CEP 79999990 também não foi encontrado")
+					.hasMessageContaining("Linha 4: Município do paciente não informado");
+		} finally {
+			br.gov.ses.fillbpai.util.IbgeUtils.usarBuscadorHttpParaTeste(null);
+		}
+
+		entityManager.clear();
+		assertThat((long) entityManager.createQuery("SELECT COUNT(p) FROM Paciente p").getSingleResult()).isZero();
+		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
+	}
+
+	@Test
+	void importarComMunicipioForaDaTabelaEncontradoPeloCepGravaEAvisaOMunicipioEncontrado() throws IOException {
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[8] = "Cuiaba centro";
+		linha[20] = "79999991";
+
+		ImportacaoResultado resultado;
+		try {
+			br.gov.ses.fillbpai.util.IbgeUtils.usarBuscadorHttpParaTeste(
+					url -> new br.gov.ses.fillbpai.util.IbgeUtils.RespostaHttp(200, "{\"ibge\": \"5103403\"}"));
+			resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+		} finally {
+			br.gov.ses.fillbpai.util.IbgeUtils.usarBuscadorHttpParaTeste(null);
+		}
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+		assertThat(resultado.getAvisos()).anySatisfy(aviso -> assertThat(aviso)
+				.startsWith("Linha 2").contains("\"Cuiaba centro\"").contains("Cuiabá/MT"));
+		assertThat(atendimentoRepository.buscarTodos().get(0).getPaciente().getEndereco().getCodigoIbge())
+				.isEqualTo("5103403");
+	}
+
+	// ===== Especialidade padronizada =====
+
+	@Test
+	void importarGravaEspecialidadeEmMaiusculasParaGrafiasDiferentesViraremAMesma() throws IOException {
+
+		String[] minusculas = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "Cardiologia");
+		String[] maiusculas = linhaValida("11122233396", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO, minusculas, maiusculas));
+
+		assertThat(atendimentoRepository.buscarTodos())
+				.hasSize(2)
+				.allSatisfy(a -> assertThat(a.getEspecialidadeMedico()).isEqualTo("CARDIOLOGIA"));
+	}
+
 	// ===== Tipo de serviço vazio =====
 
 	@Test
 	void importarComTipoDeServicoVazioRejeitaALinhaEReimportarNaoDuplica() throws IOException {
 
-		String[] semTipo = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] semTipo = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		semTipo[0] = null;
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, semTipo);
 
@@ -316,8 +411,8 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComMedicoSemCpfRejeitaSoAquelaLinhaEGravaAsDemais() throws IOException {
 
-		String[] valida = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
-		String[] semCpfMedico = linhaValida("11122233344", "JOSE SOUZA", null, "DR SEM CPF", "CARDIOLOGIA");
+		String[] valida = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] semCpfMedico = linhaValida("11122233396", "JOSE SOUZA", null, "DR SEM CPF", "CARDIOLOGIA");
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, semCpfMedico, valida);
 
@@ -336,8 +431,8 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComErroDeGravacaoNoBancoCancelaAImportacaoEmVezDeReportarSucesso() throws IOException {
 
-		String[] valida = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
-		String[] cidLongo = linhaValida("11122233344", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] valida = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] cidLongo = linhaValida("11122233396", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		cidLongo[15] = "CID COM TEXTO LONGO DEMAIS PARA A COLUNA"; // cid_consulta tem 20 posições
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, valida, cidLongo);
@@ -357,7 +452,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarGuardaNoMedicoOCnsEncontradoPeloNome() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA"));
 
 		service.importar(caminho);
 
@@ -370,11 +465,11 @@ class AtendimentoImportacaoServiceTest {
 	void importarComGrafiaNaoCadastradaHerdaCnsDoMesmoCpfComAviso() throws IOException {
 
 		service.importar(salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
 
 		// Nova planilha: mesmo CPF, grafia abreviada que não está em medicos_cns.csv
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("11122233344", "JOSE SOUZA", "98765432100", "RODRIGO S. GRILO", "CARDIOLOGIA")));
+				linhaValida("11122233396", "JOSE SOUZA", "98765432100", "RODRIGO S. GRILO", "CARDIOLOGIA")));
 
 		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
 		assertThat(resultado.getAvisos())
@@ -391,8 +486,8 @@ class AtendimentoImportacaoServiceTest {
 	void importarHerdaCnsDoMesmoCpfMesmoQuandoAGrafiaCadastradaVemDepoisNaPlanilha() throws IOException {
 
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("11122233344", "JOSE SOUZA", "98765432100", "RODRIGO S. GRILO", "CARDIOLOGIA"),
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
+				linhaValida("11122233396", "JOSE SOUZA", "98765432100", "RODRIGO S. GRILO", "CARDIOLOGIA"),
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
 
 		assertThat(resultado.getAvisos())
 				.anySatisfy(aviso -> assertThat(aviso).startsWith("Linha 2").contains("CNS herdado do mesmo CPF"))
@@ -408,7 +503,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarComGrafiaNaoCadastradaECpfSemCnsConhecidoMantemAvisoDeNaoEncontrado() throws IOException {
 
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "MEDICO NAO CADASTRADO XYZ", "CARDIOLOGIA")));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "MEDICO NAO CADASTRADO XYZ", "CARDIOLOGIA")));
 
 		assertThat(resultado.getAvisos())
 				.anySatisfy(aviso -> assertThat(aviso).contains("CNS do profissional não encontrado"));
@@ -419,11 +514,11 @@ class AtendimentoImportacaoServiceTest {
 	void importarComCnsDoNomeDiferenteDoCnsJaConhecidoParaOCpfUsaONomeEAvisa() throws IOException {
 
 		service.importar(salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "RODRIGO SILVA GRILO", "CARDIOLOGIA")));
 
 		// Mesmo CPF, mas o nome casa com outro médico do cadastro (outro CNS)
 		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("11122233344", "JOSE SOUZA", "98765432100", "ELOILDA MARIA DE AGUIAR LUSTOSA", "CARDIOLOGIA")));
+				linhaValida("11122233396", "JOSE SOUZA", "98765432100", "ELOILDA MARIA DE AGUIAR LUSTOSA", "CARDIOLOGIA")));
 
 		assertThat(resultado.getAvisos())
 				.anySatisfy(aviso -> assertThat(aviso)
@@ -449,7 +544,7 @@ class AtendimentoImportacaoServiceTest {
 		entityManager.getTransaction().commit();
 		entityManager.clear();
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[3] = "HOSPITAL CENTRAL"; // sem separador "código - nome"
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
@@ -466,7 +561,7 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComEstabelecimentoSemCodigoENomeDesconhecidoFicaSemEstabelecimento() throws IOException {
 
-		String[] linha = linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		linha[3] = "UNIDADE NUNCA CADASTRADA"; // sem separador "código - nome"
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
@@ -483,7 +578,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarPersisteTextoDaEtniaNoPaciente() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA",
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA",
 						"INDIGENA", "BANIWA"));
 
 		service.importar(caminho);
@@ -496,7 +591,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarSemColunaSituacaoRuaDeixaCampoNuloNoPaciente() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
 
 		service.importar(caminho);
 
@@ -511,7 +606,7 @@ class AtendimentoImportacaoServiceTest {
 		cabecalhoComSituacaoRua[CABECALHO_COMPLETO.length] = "Situação de Rua";
 
 		String[] linha = java.util.Arrays.copyOf(
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
 				CABECALHO_COMPLETO.length + 1);
 		linha[CABECALHO_COMPLETO.length] = "Sim";
 
@@ -530,7 +625,7 @@ class AtendimentoImportacaoServiceTest {
 		cabecalhoComSituacaoRua[CABECALHO_COMPLETO.length] = "Situação de Rua";
 
 		String[] linhaComSituacaoRua = java.util.Arrays.copyOf(
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
 				CABECALHO_COMPLETO.length + 1);
 		linhaComSituacaoRua[CABECALHO_COMPLETO.length] = "Sim";
 
@@ -539,7 +634,7 @@ class AtendimentoImportacaoServiceTest {
 		// Reimporta a mesma pessoa (mesmo CPF) via uma planilha sem a coluna —
 		// não deve apagar a informação já conhecida do paciente.
 		String caminhoSemColuna = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
 		service.importar(caminhoSemColuna);
 
 		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
@@ -550,7 +645,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarSemColunaPacienteSemCpfDeixaCampoNuloNoAtendimento() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
 
 		service.importar(caminho);
 
@@ -564,8 +659,9 @@ class AtendimentoImportacaoServiceTest {
 		String[] cabecalhoComColuna = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
 		cabecalhoComColuna[CABECALHO_COMPLETO.length] = "Paciente sem CPF";
 
+		// "Sim" só é válido com o CPF vazio (CPF preenchido + Sim é erro de conflito)
 		String[] linha = java.util.Arrays.copyOf(
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				linhaValida(null, "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
 				CABECALHO_COMPLETO.length + 1);
 		linha[CABECALHO_COMPLETO.length] = "Sim";
 
@@ -578,10 +674,27 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarComCpfPreenchidoEPacienteSemCpfSimRejeitaALinha() throws IOException {
+
+		String[] cabecalhoComColuna = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalhoComColuna[CABECALHO_COMPLETO.length] = "Paciente sem CPF";
+		String[] linha = java.util.Arrays.copyOf(
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 1);
+		linha[CABECALHO_COMPLETO.length] = "Sim";
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(cabecalhoComColuna, linha));
+
+		assertThat(resultado.getTotalSucesso()).isZero();
+		assertThat(resultado.getErros()).singleElement()
+				.satisfies(erro -> assertThat(erro).contains("CPF preenchido com \"Paciente sem CPF\" = Sim"));
+	}
+
+	@Test
 	void importarPlanilhaLegadoSeparaEspecialidadeEMedicoAoPersistir() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_LEGADO,
-				linhaLegado("12345678900", "MARIA SILVA", "98765432100", "CARDIOLOGIA - JOAO DA SILVA"));
+				linhaLegado("12345678909", "MARIA SILVA", "98765432100", "CARDIOLOGIA - JOAO DA SILVA"));
 
 		ImportacaoResultado resultado = service.importar(caminho);
 
@@ -597,7 +710,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarDuasVezesAMesmaLinhaNaoDuplicaAtendimento() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
 
 		service.importar(caminho);
 		ImportacaoResultado segundaImportacao = service.importar(caminho);
@@ -615,7 +728,7 @@ class AtendimentoImportacaoServiceTest {
 		medico.setNome("JOAO DA SILVA");
 
 		Paciente pacienteAnterior = new Paciente();
-		pacienteAnterior.setCpf("11111111111");
+		pacienteAnterior.setCpf("11122233477");
 		pacienteAnterior.setNome("PACIENTE ANTERIOR");
 
 		AtendimentoBPAi atendimentoAnterior = new AtendimentoBPAi();
@@ -633,12 +746,12 @@ class AtendimentoImportacaoServiceTest {
 		entityManager.getTransaction().commit();
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("22222222222", "PACIENTE NOVO", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+				linhaValida("22233344405", "PACIENTE NOVO", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
 
 		service.importar(caminho);
 
 		AtendimentoBPAi novoAtendimento = atendimentoRepository.buscarTodos().stream()
-				.filter(a -> a.getPaciente().getCpf().equals("22222222222"))
+				.filter(a -> a.getPaciente().getCpf().equals("22233344405"))
 				.findFirst()
 				.orElseThrow();
 
@@ -649,7 +762,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarResolveCnsDoProfissionalPeloNomeQuandoConhecido() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "11122233344", "RODRIGO SILVA GRILO", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "11122233396", "RODRIGO SILVA GRILO", "CARDIOLOGIA"));
 
 		service.importar(caminho);
 
@@ -661,7 +774,7 @@ class AtendimentoImportacaoServiceTest {
 	void importarComMedicoDesconhecidoGeraAvisoDeCnsNaoEncontrado() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678900", "MARIA SILVA", "99988877766", "MEDICO QUE NAO EXISTE XYZ", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "99988877714", "MEDICO QUE NAO EXISTE XYZ", "CARDIOLOGIA"));
 
 		ImportacaoResultado resultado = service.importar(caminho);
 
@@ -680,7 +793,7 @@ class AtendimentoImportacaoServiceTest {
 		// mensagem (comportamento real confirmado rodando o teste).
 		String[] cabecalhoIncompleto = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length - 1);
 		String caminho = salvarPlanilha(cabecalhoIncompleto,
-				linhaValida("12345678900", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
 
 		assertThatThrownBy(() -> service.importar(caminho))
 				.isInstanceOf(RuntimeException.class)
@@ -692,8 +805,8 @@ class AtendimentoImportacaoServiceTest {
 	@Test
 	void importarComLinhaInvalidaRegistraErroSemInterromperAsDemais() throws IOException {
 
-		String[] linhaSemPaciente = linhaValida("12345678900", null, "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
-		String[] linhaOk = linhaValida("22222222222", "PACIENTE VALIDO", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linhaSemPaciente = linhaValida("12345678909", null, "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] linhaOk = linhaValida("22233344405", "PACIENTE VALIDO", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linhaSemPaciente, linhaOk);
 

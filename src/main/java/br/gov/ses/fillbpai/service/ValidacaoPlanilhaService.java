@@ -9,6 +9,7 @@ import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.IbgeUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
@@ -30,6 +31,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /**
@@ -80,6 +82,13 @@ public class ValidacaoPlanilhaService {
 	 */
 	private final Function<String, String> cnsConhecidoPorCpf;
 
+	/**
+	 * (CEP normalizado, município) → código IBGE pelo CEP (CEPs já conhecidos +
+	 * APIs de CEP), ou {@code null}. Só é chamado quando o município não está na
+	 * tabela de MS. Substituível nos testes, para não usar a rede.
+	 */
+	private final BiFunction<String, String, String> ibgePorCep;
+
 	/** Sem acesso ao banco: a herança de CNS só considera a própria planilha. */
 	public ValidacaoPlanilhaService() {
 		this(cpf -> null);
@@ -90,7 +99,27 @@ public class ValidacaoPlanilhaService {
 	 *                           banco local (ex.: via {@code MedicoRepository})
 	 */
 	public ValidacaoPlanilhaService(Function<String, String> cnsConhecidoPorCpf) {
+		this(cnsConhecidoPorCpf, (cep, municipio) -> IbgeUtils.resolver(cep, municipio).getCodigoIbge());
+	}
+
+	/**
+	 * @param cnsConhecidoPorCpf ver {@link #ValidacaoPlanilhaService(Function)}
+	 * @param ibgePorCep         busca do código IBGE pelo CEP (padrão: {@code IbgeUtils.resolver})
+	 */
+	public ValidacaoPlanilhaService(Function<String, String> cnsConhecidoPorCpf,
+			BiFunction<String, String, String> ibgePorCep) {
 		this.cnsConhecidoPorCpf = cnsConhecidoPorCpf;
+		this.ibgePorCep = ibgePorCep;
+	}
+
+	/** Busca o IBGE pelo CEP; falha inesperada conta como "não encontrado" (não interrompe a análise). */
+	private String buscarIbgeNoCep(String cep, String municipio) {
+		try {
+			return ibgePorCep.apply(cep, municipio);
+		} catch (RuntimeException e) {
+			log.warn("Falha ao buscar o IBGE pelo CEP {}: {}", cep, e.getMessage());
+			return null;
+		}
 	}
 
 	/** Ocorrências de uma grafia de médico na planilha (agrupadas sem acento/caixa). */
@@ -208,9 +237,10 @@ public class ValidacaoPlanilhaService {
 	private void validarLinha(LinhaImportacaoDTO dto, int linha, List<ErroValidacao> erros) {
 
 		// Valor exibido nos avisos sobre dados do paciente (agrupa as linhas
-		// do mesmo paciente na tela e no log — ver AgrupamentoValidacao)
-		String paciente = dto.getPaciente() != null && !dto.getPaciente().isBlank()
-				? dto.getPaciente().trim() : "(paciente sem nome)";
+		// do mesmo paciente na tela e no log — ver AgrupamentoValidacao). Com o
+		// rótulo "Paciente:" — só o nome solto no item causava estranheza.
+		String paciente = "Paciente: " + (dto.getPaciente() != null && !dto.getPaciente().isBlank()
+				? dto.getPaciente().trim() : "(sem nome)");
 
 		// -------------------------------------------------------
 		// Regra 0a: Data de agendamento (= data do atendimento; define
@@ -252,9 +282,9 @@ public class ValidacaoPlanilhaService {
 				// o valor é a especialidade, para agrupar as linhas por ela
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 						ErroValidacao.TIPO_SERVICO_VAZIO_PROCEDIMENTO_FIXO,
-						"Tipo de servico nao informado - para " + EspecialidadeUtils.normalizar(especialidade)
+						"Tipo de servico nao informado - para " + EspecialidadeUtils.padronizar(especialidade)
 								+ " sera usado o procedimento fixo 0301010315",
-						EspecialidadeUtils.normalizar(especialidade)));
+						EspecialidadeUtils.padronizar(especialidade)));
 			} else {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 						ErroValidacao.TIPO_SERVICO_AUSENTE,
@@ -295,6 +325,45 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
+		// Regra 1b: Município — usado para achar o código IBGE (prd-ibge,
+		// obrigatório no BPA-I). Decisão de 08/10/2026:
+		// - vazio: ERRO (sem o nome não há a primeira busca, pela tabela de MS)
+		// - fora da tabela de MS: a análise já faz a busca completa pelo CEP
+		//   (CEPs do banco + APIs de CEP); só é ERRO se o IBGE não for
+		//   encontrado, pedindo para conferir a grafia do município e o CEP
+		// -------------------------------------------------------
+		String municipio = dto.getMunicipio();
+
+		if (municipio == null || municipio.isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.MUNICIPIO_AUSENTE,
+					"Municipio do paciente vazio na planilha - preencha o municipio",
+					paciente + " — município ausente"));
+		} else if (IbgeUtils.buscarPorNome(municipio) == null) {
+			String cepNormalizado = CepUtils.normalizar(dto.getCep());
+			String ibgePeloCep = buscarIbgeNoCep(cepNormalizado, municipio.trim());
+
+			if (ibgePeloCep != null) {
+				// Encontrado pelo CEP: não bloqueia, mas mostra o município que o
+				// CEP indica, para conferir se é o mesmo da planilha
+				String encontrado = IbgeUtils.nomeMunicipio(ibgePeloCep);
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.MUNICIPIO_PELO_CEP,
+						IbgeUtils.avisoMunicipioPeloCep(municipio.trim(), cepNormalizado, ibgePeloCep),
+						"\"" + municipio.trim() + "\" — CEP " + cepNormalizado + " → "
+								+ (encontrado != null ? encontrado : "IBGE " + ibgePeloCep)));
+			} else {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.MUNICIPIO_NAO_ENCONTRADO,
+						"Município \"" + municipio.trim() + "\" não encontrado e o CEP "
+								+ (cepNormalizado != null ? cepNormalizado : "(vazio)")
+								+ " também não foi encontrado - verifique se a grafia do município e o CEP"
+								+ " estão corretos",
+						"\"" + municipio.trim() + "\" — CEP " + (cepNormalizado != null ? cepNormalizado : "vazio")));
+			}
+		}
+
+		// -------------------------------------------------------
 		// Regra 2: CEP do endereço — ERRO bloqueante
 		// -------------------------------------------------------
 		String cep = dto.getCep();
@@ -312,19 +381,50 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
-		// Regra 3: CPF do paciente — ERRO bloqueante
+		// Regra 3: CPF do paciente — ERRO bloqueante (decisão de 08/10/2026):
+		// - vazio: erro, exceto com a coluna "Paciente sem CPF" = Sim
+		// - menos ou mais de 11 dígitos: erro (sem completar zeros — não dá
+		//   para garantir que o dígito que falta é um zero à esquerda)
+		// - dígitos todos iguais (00000000000, 11111111111...): CPF falso, erro
 		// -------------------------------------------------------
 		String cpf = dto.getCpfPaciente();
 
 		if (cpf == null || cpf.trim().isEmpty()) {
+			if (!"S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()))) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.CPF_AUSENTE,
+						"CPF do paciente não informado - para paciente sem CPF, marque a coluna"
+								+ " \"Paciente sem CPF\" = Sim",
+						paciente));
+			}
+		} else if ("S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()))) {
+			// CPF preenchido com "Paciente sem CPF" = Sim: contradição (decisão de 08/10/2026)
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
-					ErroValidacao.CPF_AUSENTE, "CPF do paciente não informado", paciente));
+					ErroValidacao.CPF_CONFLITO_SEM_CPF,
+					"CPF do paciente preenchido (" + cpf.trim() + ") com \"Paciente sem CPF\" = Sim - se o"
+							+ " paciente tem CPF, marque Nao; se nao tem, deixe o CPF vazio",
+					paciente));
 		} else if (!CpfUtils.isValido(cpf)) {
 			String cpfNormalizado = CpfUtils.normalizar(cpf);
+			int digitos = cpfNormalizado != null ? cpfNormalizado.length() : 0;
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CPF_INVALIDO,
-					"CPF com tamanho inválido (" + (cpfNormalizado != null ? cpfNormalizado.length() : 0)
-							+ " dígitos, esperado 11): " + cpf.trim(),
+					"CPF com tamanho inválido (" + digitos + " dígitos, esperado 11): " + cpf.trim()
+							+ (digitos > 0 && digitos < 11
+									? " - se o CPF começa com zero, formate a coluna como texto e digite os 11 dígitos"
+									: ""),
+					paciente + " — \"" + cpf.trim() + "\""));
+		} else if (CpfUtils.isFalso(cpf)) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CPF_FALSO,
+					"CPF do paciente com dígitos repetidos (" + cpf.trim() + ") - para paciente sem CPF,"
+							+ " deixe o CPF vazio e marque \"Paciente sem CPF\" = Sim",
+					paciente + " — \"" + cpf.trim() + "\""));
+		} else if (!CpfUtils.isDvValido(cpf)) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CPF_DV_INVALIDO,
+					"CPF do paciente invalido - digitos verificadores nao conferem (" + cpf.trim()
+							+ "); confira se algum digito foi digitado errado",
 					paciente + " — \"" + cpf.trim() + "\""));
 		}
 
@@ -338,7 +438,7 @@ public class ValidacaoPlanilhaService {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CPF_MEDICO_AUSENTE,
 					"CPF do medico nao informado (medico: " + dto.getMedico() + ")",
-					"médico: " + dto.getMedico()));
+					"Médico: " + dto.getMedico()));
 		} else if (!CpfUtils.isValido(cpfMedico)) {
 			String cpfMedicoNormalizado = CpfUtils.normalizar(cpfMedico);
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
@@ -347,7 +447,15 @@ public class ValidacaoPlanilhaService {
 							+ (cpfMedicoNormalizado != null ? cpfMedicoNormalizado.length() : 0)
 							+ " digitos, esperado 11): " + cpfMedico.trim()
 							+ " (medico: " + dto.getMedico() + ")",
-					"médico: " + dto.getMedico() + " — \"" + cpfMedico.trim() + "\""));
+					"Médico: " + dto.getMedico() + " — \"" + cpfMedico.trim() + "\""));
+		} else if (CpfUtils.isFalso(cpfMedico) || !CpfUtils.isDvValido(cpfMedico)) {
+			// Dígitos repetidos ou verificadores errados (decisão de 08/10/2026)
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CPF_MEDICO_DV_INVALIDO,
+					"CPF do medico invalido ("
+							+ (CpfUtils.isFalso(cpfMedico) ? "digitos repetidos" : "digitos verificadores nao conferem")
+							+ "): " + cpfMedico.trim() + " (medico: " + dto.getMedico() + ")",
+					"Médico: " + dto.getMedico() + " — \"" + cpfMedico.trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -355,7 +463,7 @@ public class ValidacaoPlanilhaService {
 		// ERRO bloqueante (decisão de 08/10/2026). Máscara é aceita (2251-25):
 		// a importação reduz aos dígitos (CboUtils).
 		// -------------------------------------------------------
-		String medico = "médico: " + dto.getMedico();
+		String medico = "Médico: " + dto.getMedico();
 		String cbo = dto.getCboMedico();
 
 		if (cbo == null || cbo.isBlank()) {
@@ -781,7 +889,7 @@ public class ValidacaoPlanilhaService {
 		}
 
 		if (!bloqueantes.isEmpty()) {
-			sb.append("\n--- ERROS (impedem a importação) ---\n");
+			sb.append("\n--- ERROS (necessário corrigir na planilha para gerar a remessa BPA-I) ---\n");
 			anexarGrupos(sb, bloqueantes);
 		}
 

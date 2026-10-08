@@ -63,10 +63,26 @@ public final class AgrupamentoValidacao {
 					"Aceitos: Teleconsulta, Teleinterconsulta (sem diferença de maiúsculas).", 4)),
 			Map.entry(ErroValidacao.CPF_AUSENTE, new InfoTipo(
 					"CPF do paciente não informado",
-					"Campo obrigatório. Corrija a planilha antes de importar.", 5)),
+					"Campo obrigatório. Para paciente sem CPF, marque a coluna \"Paciente sem CPF\" = Sim.", 5)),
 			Map.entry(ErroValidacao.CPF_INVALIDO, new InfoTipo(
 					"CPF do paciente com tamanho inválido",
 					"O CPF deve ter 11 dígitos.", 6)),
+			Map.entry(ErroValidacao.CPF_FALSO, new InfoTipo(
+					"CPF do paciente falso (dígitos repetidos)",
+					"CPF como 00000000000 ou 11111111111 juntaria pacientes diferentes num só. Para paciente"
+							+ " sem CPF, deixe o CPF vazio e marque a coluna \"Paciente sem CPF\" = Sim.", 6)),
+			Map.entry(ErroValidacao.CPF_CONFLITO_SEM_CPF, new InfoTipo(
+					"CPF preenchido com \"Paciente sem CPF\" = Sim",
+					"As duas informações se contradizem. Se o paciente tem CPF, marque \"Paciente sem CPF\" = Não;"
+							+ " se não tem, deixe o CPF vazio.", 6)),
+			Map.entry(ErroValidacao.CPF_DV_INVALIDO, new InfoTipo(
+					"CPF do paciente inválido (dígito verificador)",
+					"Os dígitos verificadores não conferem: algum dígito foi digitado errado. Um CPF errado pode"
+							+ " coincidir com o de outro paciente e juntar os dois.", 6)),
+			Map.entry(ErroValidacao.CPF_MEDICO_DV_INVALIDO, new InfoTipo(
+					"CPF do médico inválido",
+					"Dígitos repetidos ou verificadores que não conferem. Um CPF errado cria um segundo"
+							+ " cadastro do mesmo médico, com folha própria no BPA-I.", 8)),
 			Map.entry(ErroValidacao.CPF_MEDICO_AUSENTE, new InfoTipo(
 					"CPF do médico não informado",
 					"O CPF identifica o médico na importação. Campo obrigatório.", 7)),
@@ -102,6 +118,21 @@ public final class AgrupamentoValidacao {
 					"Sem CNS do profissional, a geração do BPA-I fica bloqueada. Cadastre o médico (ou a grafia"
 							+ " como apelido) em Configurações → CNS de Médicos. Quando o mesmo CPF já tem CNS,"
 							+ " ele é herdado (indicado no item).", 10)),
+			Map.entry(ErroValidacao.MUNICIPIO_AUSENTE, new InfoTipo(
+					"Município não informado na planilha",
+					"A coluna do município veio vazia. O município é usado para achar o código IBGE"
+							+ " (obrigatório no BPA-I). Preencha o município na planilha.", 9)),
+			Map.entry(ErroValidacao.MUNICIPIO_NAO_ENCONTRADO, new InfoTipo(
+					"Município e CEP não encontrados",
+					"O município não foi encontrado na tabela de MS e o CEP também não foi encontrado (CEPs já"
+							+ " importados e consulta na internet), então não há como obter o código IBGE"
+							+ " (obrigatório no BPA-I). Verifique se a grafia do município e o CEP estão"
+							+ " corretos.", 9)),
+			Map.entry(ErroValidacao.MUNICIPIO_PELO_CEP, new InfoTipo(
+					"Município identificado pelo CEP",
+					"O município da planilha não está na tabela de MS; o código IBGE foi obtido pelo CEP. Cada"
+							+ " item mostra o município da planilha → o município que o CEP indica. Confira se é"
+							+ " o mesmo: se não for, o CEP ou o município estão errados na planilha.", 11)),
 			Map.entry(ErroValidacao.HORA_INVALIDA, new InfoTipo(
 					"Horário de atendimento não reconhecido",
 					"Como a remessa BPA-I não utiliza o horário, o atendimento será importado com o horário"

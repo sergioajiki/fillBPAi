@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.service;
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.model.*;
 import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
+import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
 import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.repository.*;
@@ -86,6 +87,12 @@ public class AtendimentoImportacaoService {
 			// Pré-carrega folhas já atribuídas para propagar a novos atendimentos na importação
 			Map<String, String> mapaFolhas =
 					atendimentoRepository.buscarMapaFolhaPorEspecialidadeMedico();
+
+			// Código IBGE de todas as linhas ANTES de gravar qualquer coisa: se
+			// algum município/IBGE faltar, a importação da planilha inteira é
+			// bloqueada (decisão de 08/10/2026 — linhas não podem ser rejeitadas
+			// uma a uma por falta do IBGE)
+			verificarIbgeDeTodasAsLinhas(sheet, colunas);
 
 			// Linhas sem CNS resolvido, decididas no fim da planilha (herança pelo CPF)
 			List<PendenciaCns> pendentesCns = new ArrayList<>();
@@ -193,6 +200,20 @@ public class AtendimentoImportacaoService {
 	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel, Map<String, String> mapaFolhas, List<PendenciaCns> pendentesCns) {
 
 		// ==============================
+		// Código IBGE (antes de gravar qualquer coisa): tabela de MS pelo nome,
+		// CEPs já conhecidos, APIs de CEP. Sem IBGE a linha é rejeitada — mesma
+		// regra da análise (MUNICIPIO_NAO_ENCONTRADO, decisão de 08/10/2026).
+		// ==============================
+
+		IbgeUtils.IbgeResultado ibge = IbgeUtils.resolver(dto.getCep(), dto.getMunicipio());
+
+		if (ibge.getCodigoIbge() == null) {
+			// Não deveria acontecer: verificarIbgeDeTodasAsLinhas já bloqueou a
+			// planilha antes. Proteção caso a busca mude entre as duas passadas.
+			throw new IllegalArgumentException(mensagemIbgeNaoEncontrado(dto.getMunicipio(), dto.getCep()));
+		}
+
+		// ==============================
 		// Paciente (findOrCreate por CPF)
 		// ==============================
 
@@ -202,9 +223,9 @@ public class AtendimentoImportacaoService {
 		// Endereço (atualiza sempre com dados mais recentes)
 		// ==============================
 
-		String avisoIbge = atualizarEndereco(paciente, dto);
-		if (avisoIbge != null) {
-			resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: " + avisoIbge);
+		atualizarEndereco(paciente, dto, ibge.getCodigoIbge());
+		if (ibge.getAviso() != null) {
+			resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: " + ibge.getAviso());
 		}
 
 		// ==============================
@@ -372,6 +393,13 @@ public class AtendimentoImportacaoService {
 	 */
 	private Paciente buscarOuCriarPaciente(LinhaImportacaoDTO dto) {
 
+		// Paciente sem CPF ("Paciente sem CPF" = Sim, já validado no processador):
+		// o CPF é a chave do paciente no banco, então usa uma chave interna
+		// estável derivada do nome + nascimento. Nunca vai para o BPA-I.
+		if (dto.getCpfPaciente() == null || dto.getCpfPaciente().isBlank()) {
+			dto.setCpfPaciente(CpfUtils.chaveSemCpf(dto.getPaciente(), dto.getDataNascimento()));
+		}
+
 		return pacienteRepository.buscarPorCpf(dto.getCpfPaciente())
 				.map(paciente -> {
 					// Atualiza dados com a importação mais recente
@@ -407,7 +435,7 @@ public class AtendimentoImportacaoService {
 	 * Atualiza o endereço do paciente com os dados mais recentes.
 	 * Se não existir, cria um novo vinculado ao paciente.
 	 */
-	private String atualizarEndereco(Paciente paciente, LinhaImportacaoDTO dto) {
+	private void atualizarEndereco(Paciente paciente, LinhaImportacaoDTO dto, String codigoIbge) {
 
 		Endereco endereco = paciente.getEndereco();
 
@@ -430,13 +458,71 @@ public class AtendimentoImportacaoService {
 		endereco.setNumero(dto.getNumero());
 		endereco.setBairro(dto.getBairro());
 
-		// Resolve código IBGE do município via CEP (primário) ou nome (fallback)
-		IbgeUtils.IbgeResultado ibgeResultado =
-				IbgeUtils.resolver(dto.getCep(), dto.getMunicipio());
+		// Código IBGE já resolvido (e obrigatório) em criarOuAtualizarAtendimento
+		endereco.setCodigoIbge(codigoIbge);
+	}
 
-		endereco.setCodigoIbge(ibgeResultado.getCodigoIbge());
+	/**
+	 * Confere, antes de gravar qualquer linha, se todas têm município e código
+	 * IBGE (tabela de MS pelo nome, CEPs já conhecidos, APIs de CEP — mesma
+	 * busca da análise e da importação). Se alguma não tiver, lança exceção
+	 * com a lista de linhas e a importação da planilha inteira é bloqueada:
+	 * nenhuma linha é gravada. Os resultados ficam no cache do
+	 * {@link IbgeUtils}, então a importação em seguida não consulta de novo.
+	 *
+	 * @throws IllegalStateException com as linhas sem município ou sem IBGE
+	 */
+	private void verificarIbgeDeTodasAsLinhas(Sheet sheet, Map<String, Integer> colunas) {
 
-		return ibgeResultado.getAviso();
+		List<String> problemas = new ArrayList<>();
+
+		for (Row row : sheet) {
+
+			if (row.getRowNum() == 0) {
+				continue;
+			}
+
+			LinhaImportacaoDTO dto;
+			try {
+				dto = excelService.importarLinha(row, colunas);
+			} catch (Exception e) {
+				continue; // linha ilegível: o erro aparece no processamento normal da linha
+			}
+
+			String municipio = dto.getMunicipio();
+			int linha = row.getRowNum() + 1;
+
+			if (municipio == null || municipio.isBlank()) {
+				problemas.add("Linha " + linha + ": Município do paciente não informado.");
+				continue;
+			}
+
+			String cep = br.gov.ses.fillbpai.util.CepUtils.normalizar(dto.getCep());
+
+			if (IbgeUtils.resolver(cep, municipio).getCodigoIbge() == null) {
+				problemas.add("Linha " + linha + ": " + mensagemIbgeNaoEncontrado(municipio, cep));
+			}
+		}
+
+		if (!problemas.isEmpty()) {
+			throw new IllegalStateException("Importação bloqueada — código IBGE do município não encontrado em "
+					+ problemas.size() + " linha(s); nenhuma linha foi importada. Corrija a planilha e importe"
+					+ " novamente.\n" + String.join("\n", problemas));
+		}
+	}
+
+	private static String mensagemIbgeNaoEncontrado(String municipio, String cep) {
+		return "Município \"" + municipio + "\" não encontrado e o CEP " + cep + " também não foi encontrado"
+				+ " — verifique se a grafia do município e o CEP estão corretos.";
+	}
+
+	/**
+	 * Pré-carrega no cache do {@link IbgeUtils} os CEPs já resolvidos no banco,
+	 * para a busca do IBGE pelo CEP não ir à internet à toa. Usado antes da
+	 * importação e antes do "Analisar Planilha" ({@code MainController}).
+	 */
+	public void preCarregarCacheIbge() {
+		IbgeUtils.preCarregarCacheDb(carregarCepIbgeDoBanco());
 	}
 
 	/**

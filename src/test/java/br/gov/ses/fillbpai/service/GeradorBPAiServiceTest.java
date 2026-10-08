@@ -43,7 +43,7 @@ class GeradorBPAiServiceTest {
 
 		Paciente paciente = new Paciente();
 		paciente.setNome("MARIA DA SILVA SANTOS");
-		paciente.setCpf("12345678900");
+		paciente.setCpf("12345678909");
 		paciente.setSexo("F");
 		paciente.setRaca("BRANCA");
 		paciente.setDataNascimento(LocalDate.of(1990, 1, 1));
@@ -118,6 +118,26 @@ class GeradorBPAiServiceTest {
 		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha).hasSize(351);
+	}
+
+	@Test
+	void validarIbgeBloqueiaAGeracaoQuandoAlgumAtendimentoEstaSemCodigoIbge() {
+		AtendimentoBPAi comIbge = criarAtendimentoCompleto();
+		AtendimentoBPAi semIbge = criarAtendimentoCompleto();
+		semIbge.getPaciente().setNome("JOSE SEM IBGE");
+		semIbge.getPaciente().getEndereco().setCodigoIbge(null);
+
+		org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.validarIbge(List.of(comIbge, semIbge)))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessageContaining("sem código IBGE")
+				.hasMessageContaining("JOSE SEM IBGE")
+				.hasMessageNotContaining("MARIA DA SILVA SANTOS");
+	}
+
+	@Test
+	void validarIbgeNaoBloqueiaQuandoTodosTemCodigoIbge() {
+		org.assertj.core.api.Assertions.assertThatCode(
+				() -> service.validarIbge(List.of(criarAtendimentoCompleto()))).doesNotThrowAnyException();
 	}
 
 	@Test
@@ -209,7 +229,7 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(277, 288)).isEqualTo("67999999999"); // seq 35 prd-ddtel_pcnte
 		assertThat(linha.substring(288, 328)).isEqualTo(" ".repeat(40)); // seq 36 prd-email_pcnte
 		assertThat(linha.substring(328, 338)).isEqualTo(" ".repeat(10)); // seq 37 prd-ine
-		assertThat(linha.substring(338, 349)).isEqualTo("12345678900");  // seq 38 prd-cpf_pcnte
+		assertThat(linha.substring(338, 349)).isEqualTo("12345678909");  // seq 38 prd-cpf_pcnte
 		assertThat(linha.substring(349, 350)).isEqualTo("N");            // seq "38" dup. prd-situacao_rua
 		assertThat(linha.substring(350, 351)).isEqualTo("N");            // seq 39 prd-sem_cpf (CPF preenchido)
 	}
@@ -259,6 +279,28 @@ class GeradorBPAiServiceTest {
 		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
+		assertThat(linha.substring(350, 351)).isEqualTo("S");
+	}
+
+	@Test
+	void pacienteSemCpfComChaveInternaNaoEnviaAChaveNoCampoDeCpf() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setCpf(
+				br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpf("MARIA", LocalDate.of(1990, 1, 1)));
+		atendimento.setPacienteSemCpf("S");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linhaCpfVazio;
+		{
+			AtendimentoBPAi semCpf = criarAtendimentoCompleto();
+			semCpf.getPaciente().setCpf(null);
+			semCpf.setPacienteSemCpf("S");
+			linhaCpfVazio = registro(service.gerarConteudoParcial(List.of(semCpf), "202412"), 0);
+		}
+
+		assertThat(linha).hasSize(351);
+		// Mesmo registro de um paciente com CPF vazio: a chave interna nunca vai para o arquivo
+		assertThat(linha).isEqualTo(linhaCpfVazio);
 		assertThat(linha.substring(350, 351)).isEqualTo("S");
 	}
 

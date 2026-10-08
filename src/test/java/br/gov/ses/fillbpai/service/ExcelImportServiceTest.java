@@ -43,11 +43,11 @@ class ExcelImportServiceTest {
 
 	@Test
 	void importarLinhaComCelulaNumericaFormataSemNotacaoCientifica() {
-		celula(0).setCellValue(12345678900.0);
+		celula(0).setCellValue(12345678909.0);
 
 		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("CPF_PACIENTE", 0));
 
-		assertThat(dto.getCpfPaciente()).isEqualTo("12345678900");
+		assertThat(dto.getCpfPaciente()).isEqualTo("12345678909");
 	}
 
 	@Test
@@ -74,6 +74,49 @@ class ExcelImportServiceTest {
 		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("HORA_ATENDIMENTO", 0));
 
 		assertThat(dto.getHoraAtendimentoString()).isEqualTo("08:30");
+	}
+
+	@Test
+	void importarLinhaComCelulaDataEHoraNaColunaDeHorarioLeAHora() {
+		// Comum em planilhas exportadas de sistemas: a coluna de horário vem como
+		// data+hora. Antes a leitura devolvia só a data e o horário se perdia.
+		Cell cell = celula(0);
+		CellStyle estilo = workbook.createCellStyle();
+		estilo.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("dd/mm/yyyy hh:mm"));
+		cell.setCellStyle(estilo);
+		cell.setCellValue(LocalDateTime.of(2024, 12, 25, 8, 30));
+
+		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("HORA_ATENDIMENTO", 0));
+
+		assertThat(dto.getHoraAtendimentoString()).isEqualTo("08:30");
+	}
+
+	@Test
+	void importarLinhaComCelulaSoDeDataNaColunaDeHorarioNaoInventaMeiaNoite() {
+		// Só data (hora 00:00) na coluna de horário: mantém a data, que vira
+		// aviso HORA_INVALIDA — em vez de gravar um horário 00:00 que não existe
+		Cell cell = celula(0);
+		CellStyle estilo = workbook.createCellStyle();
+		estilo.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("dd/mm/yyyy"));
+		cell.setCellStyle(estilo);
+		cell.setCellValue(LocalDateTime.of(2024, 12, 25, 0, 0));
+
+		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("HORA_ATENDIMENTO", 0));
+
+		assertThat(dto.getHoraAtendimentoString()).isEqualTo("2024-12-25");
+	}
+
+	@Test
+	void importarLinhaComCelulaDataEHoraNaColunaDeDataContinuaLendoSoAData() {
+		Cell cell = celula(0);
+		CellStyle estilo = workbook.createCellStyle();
+		estilo.setDataFormat(workbook.getCreationHelper().createDataFormat().getFormat("dd/mm/yyyy hh:mm"));
+		cell.setCellStyle(estilo);
+		cell.setCellValue(LocalDateTime.of(2024, 12, 25, 8, 30));
+
+		LinhaImportacaoDTO dto = service.importarLinha(row, Map.of("DATA_AGENDAMENTO", 0));
+
+		assertThat(dto.getDataAgendamentoString()).isEqualTo("2024-12-25");
 	}
 
 	@Test

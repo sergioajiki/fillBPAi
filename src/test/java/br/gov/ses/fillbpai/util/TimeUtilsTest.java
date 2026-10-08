@@ -29,6 +29,25 @@ class TimeUtilsTest {
 		assertThat(TimeUtils.parse("08.30")).isEqualTo(LocalTime.of(8, 30));
 	}
 
+	@Test
+	void parseAceitaFormatoComH() {
+		// Forma comum de escrever horário no Brasil
+		assertThat(TimeUtils.parse("8h30")).isEqualTo(LocalTime.of(8, 30));
+		assertThat(TimeUtils.parse("08h30")).isEqualTo(LocalTime.of(8, 30));
+		assertThat(TimeUtils.parse("8H30")).isEqualTo(LocalTime.of(8, 30));
+		assertThat(TimeUtils.parse("8 h 30")).isEqualTo(LocalTime.of(8, 30));
+		assertThat(TimeUtils.parse("8h30min")).isEqualTo(LocalTime.of(8, 30));
+		assertThat(TimeUtils.parse("14h")).isEqualTo(LocalTime.of(14, 0));
+		assertThat(TimeUtils.parse("8h")).isEqualTo(LocalTime.of(8, 0));
+	}
+
+	@Test
+	void parseComFormatoComHForaDoIntervaloContinuaInvalido() {
+		assertThatThrownBy(() -> TimeUtils.parse("25h00")).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> TimeUtils.parse("8h75")).isInstanceOf(IllegalArgumentException.class);
+		assertThatThrownBy(() -> TimeUtils.parse("h30")).isInstanceOf(IllegalArgumentException.class);
+	}
+
 	@ParameterizedTest
 	@ValueSource(strings = { "25h30", "não é uma hora" })
 	void parseComFormatoNaoReconhecidoLancaExcecao(String valor) {

@@ -70,7 +70,7 @@ class AtendimentoBPAiRepositoryTest {
 	void salvarEBuscarTodosDevolveOsAtendimentosPersistidos() {
 
 		entityManager.getTransaction().begin();
-		Paciente paciente = criarPaciente("12345678900");
+		Paciente paciente = criarPaciente("12345678909");
 		Medico medico = criarMedico("98765432100", "JOAO DA SILVA");
 		criarAtendimento(paciente, medico, "CARDIOLOGIA", LocalDate.of(2024, 12, 25), "03.01.01.030-7", null);
 		entityManager.getTransaction().commit();
@@ -109,7 +109,7 @@ class AtendimentoBPAiRepositoryTest {
 	void buscarDuplicataEncontraPelaChaveNaturalExata() {
 
 		entityManager.getTransaction().begin();
-		Paciente paciente = criarPaciente("12345678900");
+		Paciente paciente = criarPaciente("12345678909");
 		Medico medico = criarMedico("98765432100", "JOAO DA SILVA");
 		LocalDate data = LocalDate.of(2024, 12, 25);
 		criarAtendimento(paciente, medico, "CARDIOLOGIA", data, "03.01.01.030-7", null);
@@ -129,7 +129,7 @@ class AtendimentoBPAiRepositoryTest {
 	void buscarDuplicataComSigtapDiferenteNaoEncontra() {
 
 		entityManager.getTransaction().begin();
-		Paciente paciente = criarPaciente("12345678900");
+		Paciente paciente = criarPaciente("12345678909");
 		Medico medico = criarMedico("98765432100", "JOAO DA SILVA");
 		LocalDate data = LocalDate.of(2024, 12, 25);
 		criarAtendimento(paciente, medico, "CARDIOLOGIA", data, "03.01.01.030-7", null);

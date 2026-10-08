@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>6 de 27 colunas revisadas — especialidade e CBO: recomendações 12 a 14 implementadas (349 testes), 15 pendente; data e tipo de serviço: recomendações 1 e 2 implementadas (<code>mvnw.cmd test</code>: 322 testes); estabelecimento: recomendações 7 a 9 e 11 implementadas (335 testes); horário: diagnóstico</strong></span>
+      <span>Status: <strong>8 de 27 colunas revisadas — CPF do paciente e do médico: Decisões 9 e 9b implementadas (387 testes); município: recomendações 18 a 20 implementadas (397 testes); especialidade e CBO: recomendações 12 a 15 implementadas (352 testes); data e tipo de serviço: recomendações 1 e 2 implementadas (<code>mvnw.cmd test</code>: 322 testes); estabelecimento: recomendações 7 a 9 e 11 implementadas (335 testes); horário: recomendação 10 implementada (358 testes)</strong></span>
       <span>Data: <strong>08/10/2026</strong></span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -131,6 +131,8 @@
       <a href="#estabelecimento-corrigido">Estabelecimento — o que mudou</a>
       <a href="#especialidade">Especialidade</a>
       <a href="#cbo">CBO</a>
+      <a href="#municipio">Município</a>
+      <a href="#cpf-paciente">CPF do paciente</a>
       <a href="#padrao">Padrão encontrado</a>
       <a href="#implementado">O que mudou</a>
       <a href="#recomendacoes">Recomendações</a>
@@ -153,8 +155,8 @@
       <span>MEDICO (ver runbook próprio)</span>
       <span>CPF_MEDICO (ver runbook próprio)</span>
       <span class="feito">CBO_MEDICO ✓</span>
-      <span>MUNICIPIO</span>
-      <span>CPF_PACIENTE</span>
+      <span class="feito">MUNICIPIO ✓</span>
+      <span class="feito">CPF_PACIENTE ✓</span>
       <span>PACIENTE</span>
       <span>CNS_PACIENTE</span>
       <span>RACA_PACIENTE</span>
@@ -729,6 +731,155 @@
 
   <!-- ======================================================= -->
 
+  <section id="municipio">
+    <h2>Município (<code>MUNICIPIO</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Para que serve</h4>
+        <p>
+          O nome do município só é usado para achar o <strong>código IBGE</strong> do município de residência
+          do paciente, que vai para o BPA-I (<code>prd-ibge</code>, seq 12, 6 posições — o código de 7
+          dígitos sem o verificador). Sem código, o campo sai em branco.
+        </p>
+      </li>
+      <li>
+        <h4>Resolução — <code>IbgeUtils.resolver(cep, município)</code>, em cascata</h4>
+        <p>
+          1) Pelo <strong>nome</strong>, na tabela <code>dados/municipios_ibge.csv</code> — que tem só os
+          <strong>79 municípios de MS</strong>; compara sem acento e sem diferença de maiúsculas, mas exige o
+          nome exato. 2) Pelo <strong>CEP</strong>, nos CEPs já resolvidos em importações anteriores. 3) Pelo
+          CEP, na internet (API ViaCEP). Se nada funcionar: aviso no log e IBGE em branco.
+        </p>
+      </li>
+      <li>
+        <h4>Verificação</h4>
+        <p>Nenhuma na análise. Só o aviso na importação quando o IBGE não é encontrado.</p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <p>Teste feito com um CEP inexistente, para isolar a busca pelo nome:</p>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação (só pelo nome)</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>CAMPO GRANDE</code>, <code>Três Lagoas</code></td><td>sem alerta</td><td class="ok">IBGE encontrado</td></tr>
+          <tr><td class="caso"><code>Campo Grande - MS</code>, <code>CAMPO GRANDE/MS</code></td><td>sem alerta</td><td class="falha">não encontrado pelo nome</td></tr>
+          <tr><td class="caso"><code>Campo  Grande</code> (dois espaços)</td><td>sem alerta</td><td class="falha">não encontrado pelo nome</td></tr>
+          <tr><td class="caso"><code>Cuiabá</code> (fora de MS)</td><td>sem alerta</td><td class="falha">não encontrado pelo nome</td></tr>
+          <tr><td class="caso">Vazio</td><td>sem alerta</td><td class="falha">não encontrado pelo nome</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Nos casos "não encontrado pelo nome", o código ainda pode vir do CEP (banco ou internet). Só fica em
+      branco se o CEP também não resolver — por exemplo, CEP novo e sem internet no momento da importação.
+    </p>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">O IBGE em branco só aparece depois da importação</p>
+      <p>
+        A análise não confere o município. Quando nem o nome nem o CEP resolvem, o atendimento entra com
+        <code>prd-ibge</code> em branco e o único sinal é um aviso no log. O município de residência é
+        informação básica do registro — um BPA-I com o campo em branco tende a ser rejeitado no SIA.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Variações simples do nome falham</p>
+      <p>
+        <code>Campo Grande - MS</code>, <code>CAMPO GRANDE/MS</code> e espaços duplos não batem com a tabela. O
+        resultado depende então do CEP — e, para um CEP ainda não visto, da internet durante a importação.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Pacientes de fora de MS dependem do CEP</p>
+      <p>
+        A tabela só tem MS. Paciente de município vizinho (MT, SP, PR, GO) sempre cai na busca por CEP.
+        Ampliar a tabela para o Brasil todo exigiria tratar nomes repetidos em estados diferentes (ex.:
+        "Bonito" existe em MS, PA, PE e BA) — por isso a busca por nome hoje é segura só para MS.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Nome e CEP podem discordar</p>
+      <p>
+        Quando o nome bate com a tabela, o CEP nem é consultado. Se a planilha tiver "CAMPO GRANDE" com um
+        CEP de Dourados, vale o nome, sem aviso. Não dá para saber qual dos dois está certo sem conferir.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="cpf-paciente">
+    <h2>CPF do paciente (<code>CPF_PACIENTE</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Verificação</h4>
+        <p>
+          Já existe: vazio → <code>CPF_AUSENTE</code>; diferente de 11 dígitos depois de tirar pontos e
+          hífen → <code>CPF_INVALIDO</code>. Os dois bloqueiam, na análise e na importação. <strong>Os dígitos
+          verificadores não são conferidos.</strong>
+        </p>
+      </li>
+      <li>
+        <h4>Uso</h4>
+        <p>
+          Vai para o BPA-I (<code>prd-cpf-pcnte</code>, seq 38, 11 posições). E é a <strong>chave do
+          paciente</strong> no banco: um CPF = um paciente, com nome, nascimento, endereço etc. atualizados pela
+          última linha importada com aquele CPF. Também entra na chave contra duplicação dos atendimentos.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Importação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>123.456.789-00</code></td><td>sem alerta</td><td class="ok">12345678900</td></tr>
+          <tr><td class="caso">Número <code>01234567890</code> (o Excel guarda <code>1234567890</code>)</td><td><code>CPF_INVALIDO</code> (10 dígitos)</td><td class="falha">linha recusada</td></tr>
+          <tr><td class="caso"><code>11111111111</code>, <code>00000000000</code></td><td>sem alerta</td><td class="falha">aceito como CPF válido</td></tr>
+          <tr><td class="caso">12 dígitos</td><td><code>CPF_INVALIDO</code></td><td>linha recusada</td></tr>
+          <tr><td class="caso">Texto (<code>NAO TEM</code>)</td><td><code>CPF_INVALIDO</code></td><td>linha recusada ("não informado")</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">CPF que começa com zero é recusado quando a célula é número <span class="pill risco">Grave</span></p>
+      <p>
+        Se a coluna de CPF estiver como número no Excel (o padrão quando se digita só os dígitos), o zero à
+        esquerda some: <code>01234567890</code> vira <code>1234567890</code>, com 10 dígitos, e a linha é
+        bloqueada como CPF inválido. Cerca de 1 em cada 10 CPFs começa com zero — numa planilha grande, isso
+        trava a importação inteira até alguém formatar a coluna como texto e redigitar.
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">CPF "de preenchimento" junta pacientes diferentes</p>
+      <p>
+        Sem conferir os dígitos verificadores, <code>00000000000</code> ou <code>11111111111</code> (usados às
+        vezes para "sem CPF") passam. Como o CPF é a chave do paciente, <strong>todos os atendimentos com o
+        mesmo CPF falso viram um único paciente</strong> — com o nome, nascimento e endereço da última linha.
+        O BPA-I sai com dados trocados entre pessoas diferentes.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">CPF digitado errado também passa</p>
+      <p>
+        Um dígito trocado gera outro CPF de 11 dígitos, aceito sem aviso — e pode inclusive coincidir com o
+        CPF de outro paciente já cadastrado, juntando os dois.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
   <section id="padrao">
     <h2>Padrão encontrado</h2>
     <p>
@@ -877,12 +1028,37 @@
         </p>
       </li>
       <li>
-        <h4>Horário: aceitar <code>8h30</code> e ler a hora de célula data+hora</h4>
+        <h4>Horário: aceitar <code>8h30</code> e ler a hora de célula data+hora <span class="pill ok">✓ Implementado</span></h4>
         <p>
           <code>TimeUtils</code> aceitar <code>8h30</code>/<code>08h30</code>/<code>8h</code>; e, para a coluna
           de horário, quando a célula for data+hora, ler a parte da hora em vez da data. Baixa prioridade:
           o horário não vai para o BPA-I.
         </p>
+        <p><strong>Análise de viabilidade (08/10/2026) — viável, mudança pequena e isolada. Implementado como descrito abaixo (<code>TimeUtils.parse()</code> com o formato com "h"; <code>ExcelImportService.getHora()</code> para a coluna de horário):</strong></p>
+        <ul class="plain">
+          <li>
+            <strong>Formato <code>8h30</code>:</strong> só em <code>TimeUtils.parse()</code>, que já é a regra
+            única da análise e da importação. Converter antes de tentar os formatos atuais:
+            <code>8h30</code>, <code>08h30</code>, <code>8H30</code>, <code>8h</code> (→ 08:00) e
+            <code>8h30min</code>. Sem efeito nos formatos que já funcionam.
+          </li>
+          <li>
+            <strong>Célula data+hora:</strong> a leitura de célula de data é genérica
+            (<code>ExcelImportService.getString()</code>) e devolve só a data quando o ano não é 1899 — é o
+            certo para as colunas de data, então a mudança precisa ser <strong>só para a coluna de
+            horário</strong>: uma leitura própria que, nessa coluna, pegue a hora da célula. Cuidado: se a
+            célula de horário trouxer só uma data (hora 00:00), devolver a data como hoje (vira aviso
+            <code>HORA_INVALIDA</code>), para não inventar um horário 00:00.
+          </li>
+          <li>
+            <strong>Riscos:</strong> baixos. O horário não vai para o BPA-I nem para a chave contra
+            duplicação; o pior caso de erro é um horário diferente na coluna "Hora" da tabela.
+          </li>
+          <li>
+            <strong>Testes:</strong> <code>TimeUtilsTest</code> (formatos novos), <code>ExcelImportServiceTest</code>
+            (célula data+hora e célula só data na coluna de horário) e um caso na análise.
+          </li>
+        </ul>
       </li>
       <li>
         <h4>Estabelecimento não informado: avisar <span class="pill ok">✓ Implementado</span></h4>
@@ -919,12 +1095,112 @@
         </p>
       </li>
       <li>
-        <h4>Especialidade: padronizar a grafia <span class="pill aberto">Pendente — Decisão 8</span></h4>
+        <h4>Especialidade: padronizar a grafia <span class="pill ok">✓ Implementado</span></h4>
         <p>
           Gravar a especialidade em maiúsculas (e sem espaços duplos), para <code>Cardiologia</code> e
           <code>CARDIOLOGIA</code> serem a mesma especialidade na árvore e na folha. Atenção: atendimentos já
           gravados com outra caixa continuariam separados até serem reimportados (ou corrigidos de uma vez
           no banco). Ver <a href="#abertas">Decisão 8</a>.
+        </p>
+      </li>
+      <li>
+        <h4>CPF: recuperar o zero à esquerda <span class="pill">Descartada</span></h4>
+        <p>
+          Quando a célula de CPF for <strong>número</strong> (não texto) e tiver 9 ou 10 dígitos, completar com
+          zeros à esquerda até 11.
+        </p>
+        <p>
+          <strong>Descartada (08/10/2026):</strong> não é garantido que o dígito que falta seja um zero à
+          esquerda. CPF com menos de 11 dígitos continua sendo <code>ERRO</code>; a mensagem agora orienta:
+          "se o CPF começa com zero, formate a coluna como texto e digite os 11 dígitos".
+        </p>
+      </li>
+      <li>
+        <h4>CPF falso, dígito verificador e paciente sem CPF <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Implementado conforme a <a href="#abertas">Decisão 9</a>:
+        </p>
+        <ul class="plain">
+          <li><strong>CPF vazio:</strong> <code>ERRO</code> <code>CPF_AUSENTE</code>, exceto quando a coluna
+            "Paciente sem CPF" existe e vale Sim. Nesse caso o atendimento é importado; o paciente recebe uma
+            chave interna (<code>SC</code> + 12 caracteres do nome e nascimento, <code>CpfUtils.chaveSemCpf()</code>),
+            estável entre reimportações, que nunca vai para o BPA-I (CPF sai vazio, <code>prd_sem_cpf = S</code>)
+            nem aparece na tela.</li>
+          <li><strong>CPF com os 11 dígitos iguais</strong> (<code>00000000000</code>, <code>11111111111</code>...):
+            <code>ERRO</code> <code>CPF_FALSO</code>, na análise e na importação.</li>
+          <li><strong>Menos (ou mais) de 11 dígitos:</strong> continua <code>ERRO</code> <code>CPF_INVALIDO</code>.</li>
+        </ul>
+        <p>
+          <strong>Dígitos verificadores (Decisão 9b):</strong> <code>CpfUtils.isDvValido()</code> (módulo 11). Paciente
+          com verificador errado → <code>ERRO</code> <code>CPF_DV_INVALIDO</code>; médico com dígitos repetidos ou
+          verificador errado → <code>ERRO</code> <code>CPF_MEDICO_DV_INVALIDO</code> (agrupado pelo médico na
+          análise). Os CPFs de dígitos repetidos passam no cálculo dos verificadores, por isso são conferidos à
+          parte. Os 5 CPFs fictícios dos testes que não passavam na conferência (ex.: <code>12345678900</code>)
+          foram trocados por CPFs fictícios válidos (ex.: <code>12345678909</code>).
+        </p>
+      </li>
+      <li>
+        <h4>Município: tolerar UF e espaços no nome <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Antes de procurar na tabela, tirar sufixos de UF (<code>- MS</code>, <code>/MS</code>,
+          <code>(MS)</code>) e juntar espaços repetidos. Mudança pequena em <code>IbgeUtils</code>.
+        </p>
+      </li>
+      <li>
+        <h4>Município: conferir na análise <span class="pill ok">✓ Implementado (revisado)</span></h4>
+        <p>
+          Primeira versão: <code>AVISO</code> quando o nome não estava na tabela de MS, sem consultar o CEP.
+        </p>
+        <p>
+          <strong>Revisado (08/10/2026):</strong>
+        </p>
+        <ul class="plain">
+          <li><strong>Município vazio:</strong> <code>ERRO</code> <code>MUNICIPIO_AUSENTE</code> ("Município não
+            informado na planilha", item "Paciente: X — município ausente"), na análise e na importação — sem o
+            nome não há a primeira busca, pela tabela de MS.</li>
+          <li><strong>Município fora da tabela:</strong> a análise já faz a busca completa pelo CEP (CEPs do banco,
+            pré-carregados pelo <code>MainController</code>, e APIs de CEP). Encontrado → <code>AVISO</code> <code>MUNICIPIO_PELO_CEP</code> ("Município identificado pelo CEP"), mostrando o município que o CEP indica (ex.: <code>"Douradoz" — CEP 78020000 → Cuiabá/MT</code>) para o usuário conferir, também no log de importação; nome oficial pela tabela <code>dados/municipios_brasil.csv</code> (5.571 municípios do IBGE). Não
+            encontrado → <code>ERRO</code> <code>MUNICIPIO_NAO_ENCONTRADO</code> ("Município e CEP não encontrados": o município não foi
+            encontrado e o CEP também não), pedindo para conferir a grafia do município e o CEP, agrupado por município + CEP.</li>
+          <li><strong>Importação:</strong> confere o IBGE de <em>todas</em> as linhas antes de gravar qualquer coisa
+            (<code>verificarIbgeDeTodasAsLinhas</code>). Se alguma estiver sem município ou sem IBGE, a planilha
+            inteira é bloqueada — nenhuma linha é gravada — com a lista de linhas e a mesma orientação (decidido em
+            08/10/2026: linhas não podem ser rejeitadas uma a uma). O bloqueio na geração (Recomendação 20) continua como proteção para dados
+            antigos.</li>
+          <li><strong>Custo:</strong> a análise passa a usar a internet para CEPs novos de municípios fora da tabela
+            — uma consulta por CEP diferente (fica em cache para a importação logo em seguida).</li>
+        </ul>
+      </li>
+      <li>
+        <h4>Geração: bloquear IBGE em branco <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Igual ao CNS do profissional: <code>GeradorBPAiService</code> recusar gerar se algum atendimento
+          estiver sem código IBGE, com a lista de pacientes, para corrigir antes de enviar. Ver
+          <a href="#abertas">Decisão 10</a>.
+        </p>
+      </li>
+      <li>
+        <h4>CEP: API reserva quando o ViaCEP falhar <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Hoje a busca do IBGE pela internet usa só o ViaCEP. Consultadas em 08/10/2026 com o CEP 79002-000
+          (Campo Grande), estas APIs gratuitas devolveram o código IBGE <code>5002704</code>:
+        </p>
+        <ul class="plain">
+          <li><strong>BrasilAPI</strong> — <code>brasilapi.com.br/api/cep/v1/{cep}</code>, campo <code>ibge.city</code>. Projeto
+            aberto que consulta várias fontes (respondeu via OpenCEP); infraestrutura independente do ViaCEP.</li>
+          <li><strong>OpenCEP</strong> — <code>opencep.com/v1/{cep}</code>, campo <code>ibge</code>. Resposta no mesmo formato
+            do ViaCEP — o código de leitura atual serviria quase sem mudança.</li>
+          <li><strong>AwesomeAPI</strong> — <code>cep.awesomeapi.com.br/json/{cep}</code>, campo <code>city_ibge</code>.</li>
+          <li><strong>Postmon</strong> — não respondeu no teste; não recomendado.</li>
+        </ul>
+        <p>
+          Implementado (<code>IbgeUtils.buscarPorCep()</code>, 403 testes; conferido com as APIs reais e o ViaCEP
+          simulado fora do ar): tentar ViaCEP; se falhar (sem resposta, erro, CEP não encontrado), tentar BrasilAPI e
+          depois OpenCEP, cada um com tempo-limite curto. O resultado continua indo para o cache de CEPs do
+          banco, então cada CEP só é consultado uma vez. São serviços gratuitos sem garantia de
+          disponibilidade — por isso vale ter mais de um. Resultado "não encontrado" só fica no cache quando
+          as três respondem que o CEP não existe; falha de rede não é guardada. Achado: o ViaCEP hoje responde
+          CEP inexistente com <code>"erro": "true"</code> (com aspas), que o código antigo não reconhecia.
         </p>
       </li>
     </ol>
@@ -994,10 +1270,43 @@
       </p>
     </div>
     <div class="callout aberto">
-      <span class="pill aberto">8 · Padronizar a especialidade em maiúsculas?</span>
+      <span class="pill ok">✓ 8 · Especialidade em maiúsculas</span>
       <p>
-        Muda como a especialidade aparece na tela (sempre em maiúsculas) e só vale para novas importações.
-        Confirmar se pode.
+        Decidido (08/10/2026): sim. <code>EspecialidadeUtils.padronizar()</code> (sem o prefixo "Médico",
+        maiúsculas, espaços repetidos reduzidos a um; acentos mantidos) é aplicado na importação. Só vale
+        para novas importações — atendimentos antigos com outra caixa ficam separados até serem reimportados.
+
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 9 · Regras do CPF do paciente</span>
+      <p>
+        Decidido (08/10/2026): CPF vazio é <code>ERRO</code>, exceto com a coluna "Paciente sem CPF" = Sim; CPF
+        falso (<code>00000000000</code>, <code>11111111111</code>...) é <code>ERRO</code>; CPF com menos de 11
+        dígitos é <code>ERRO</code>, sem completar zeros, porque não é garantido que o CPF foi digitado com os
+        zeros à esquerda. Implementado (Recomendação 17).
+      </p>
+      <p>
+        Complemento (08/10/2026): CPF <strong>preenchido</strong> com "Paciente sem CPF" = Sim também é
+        <code>ERRO</code> (<code>CPF_CONFLITO_SEM_CPF</code>), na análise e na importação — as duas informações se
+        contradizem e o BPA-I sairia com CPF e "sem CPF" ao mesmo tempo.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 9b · Dígitos verificadores: erro para paciente e médico</span>
+      <p>
+        Decidido (08/10/2026): <code>ERRO</code> para paciente e médico. Vale só para novas importações — o
+        que já está no banco não é revisado. Antes de usar com uma planilha grande, vale rodar o "Analisar
+        Planilha" para ver quantas linhas passam a ser bloqueadas.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill ok">✓ 10 · IBGE em branco bloqueia a geração</span>
+      <p>
+        Decidido (08/10/2026): sim. <code>GeradorBPAiService.validarIbge()</code> roda junto com a conferência do
+        CNS do profissional, nas gerações parcial e completa, e lista médico/paciente/data dos atendimentos
+        sem IBGE. Observação: o chip de pendências da tela ainda mostra só a falta de CNS — o IBGE em branco
+        aparece ao clicar em "Gerar BPA-I".
       </p>
     </div>
   </section>

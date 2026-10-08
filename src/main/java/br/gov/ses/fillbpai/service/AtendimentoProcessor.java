@@ -57,7 +57,7 @@ public class AtendimentoProcessor {
 
 		avisos.addAll(separarEstabelecimento(dto));
 		separarEspecialidadeEMedico(dto);
-		dto.setEspecialidadeMedico(EspecialidadeUtils.normalizar(dto.getEspecialidadeMedico()));
+		dto.setEspecialidadeMedico(EspecialidadeUtils.padronizar(dto.getEspecialidadeMedico()));
 
 		// ===============================
 		// 2. Definir SIGTAP
@@ -295,9 +295,38 @@ public class AtendimentoProcessor {
 
 		String cpf = dto.getCpfPaciente();
 
-		if (!isNullOrEmpty(cpf) && !CpfUtils.isValido(cpf)) {
+		if (isNullOrEmpty(cpf)) {
+			return; // vazio: tratado em validarCamposObrigatorios (aceito só com "Paciente sem CPF" = Sim)
+		}
+
+		// CPF preenchido com "Paciente sem CPF" = Sim: contradição (decisão de 08/10/2026)
+		if ("S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()))) {
 			throw new IllegalArgumentException(
-					"CPF com tamanho inválido (" + cpf.length() + " dígitos, esperado 11): " + cpf);
+					"CPF preenchido com \"Paciente sem CPF\" = Sim (" + cpf + ") — se o paciente tem CPF,"
+							+ " marque Não; se não tem, deixe o CPF vazio.");
+		}
+
+		// Menos de 11 dígitos é erro — não se completa com zeros (decisão de
+		// 08/10/2026: não dá para garantir que o dígito que falta é um zero à
+		// esquerda perdido pelo Excel). A mensagem orienta a corrigir.
+		if (!CpfUtils.isValido(cpf)) {
+			throw new IllegalArgumentException(
+					"CPF com tamanho inválido (" + cpf.length() + " dígitos, esperado 11): " + cpf
+							+ (cpf.length() < 11
+									? " — se o CPF começa com zero, formate a coluna como texto e digite os 11 dígitos"
+									: ""));
+		}
+
+		if (CpfUtils.isFalso(cpf)) {
+			throw new IllegalArgumentException(
+					"CPF do paciente inválido (dígitos repetidos): " + cpf
+							+ " — para paciente sem CPF, deixe o CPF vazio e marque \"Paciente sem CPF\" = Sim");
+		}
+
+		if (!CpfUtils.isDvValido(cpf)) {
+			throw new IllegalArgumentException(
+					"CPF do paciente inválido (dígitos verificadores não conferem): " + cpf
+							+ " — confira se algum dígito foi digitado errado");
 		}
 	}
 
@@ -364,6 +393,15 @@ public class AtendimentoProcessor {
 			throw new IllegalArgumentException(
 					"CPF do médico com tamanho inválido (" + cpf.length() + " dígitos, esperado 11): " + cpf
 							+ " (médico: " + dto.getMedico() + ").");
+		}
+
+		// Dígitos repetidos ou verificadores errados — ERRO (decisão de
+		// 08/10/2026). Um CPF digitado errado criava um "segundo médico" no
+		// banco, com folha própria no BPA-I.
+		if (CpfUtils.isFalso(cpf) || !CpfUtils.isDvValido(cpf)) {
+			throw new IllegalArgumentException(
+					"CPF do médico inválido (" + (CpfUtils.isFalso(cpf) ? "dígitos repetidos" : "dígitos verificadores não conferem")
+							+ "): " + cpf + " (médico: " + dto.getMedico() + ").");
 		}
 	}
 
@@ -493,8 +531,17 @@ public class AtendimentoProcessor {
 			throw new IllegalArgumentException("Paciente não informado.");
 		}
 
-		if (isNullOrEmpty(dto.getCpfPaciente())) {
-			throw new IllegalArgumentException("CPF do paciente não informado.");
+		// Município: sem o nome não há a primeira busca do IBGE (tabela de MS) —
+		// ERRO, mesma regra da análise (MUNICIPIO_AUSENTE, decisão de 08/10/2026)
+		if (isNullOrEmpty(dto.getMunicipio())) {
+			throw new IllegalArgumentException("Município do paciente não informado.");
+		}
+
+		// CPF vazio só é aceito com a coluna "Paciente sem CPF" = Sim (decisão
+		// de 08/10/2026); o paciente recebe uma chave interna na importação
+		if (isNullOrEmpty(dto.getCpfPaciente()) && !"S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()))) {
+			throw new IllegalArgumentException(
+					"CPF do paciente não informado — para paciente sem CPF, marque a coluna \"Paciente sem CPF\" = Sim.");
 		}
 
 		if (isNullOrEmpty(dto.getDataAgendamentoString())) {

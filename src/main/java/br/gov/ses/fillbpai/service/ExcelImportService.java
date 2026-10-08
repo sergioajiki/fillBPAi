@@ -39,7 +39,7 @@ public class ExcelImportService {
 
 		dto.setTipoServico(getString(row, colunas, "TIPO_SERVICO"));
 		dto.setDataAgendamentoString(getString(row, colunas, "DATA_AGENDAMENTO"));
-		dto.setHoraAtendimentoString(getString(row, colunas, "HORA_ATENDIMENTO"));
+		dto.setHoraAtendimentoString(getHora(row, colunas, "HORA_ATENDIMENTO"));
 		dto.setEstabelecimento(getString(row, colunas, "ESTABELECIMENTO"));
 
 		// Campos ESPECIALIDADE_MEDICO e MEDICO: especialidade e nome do médico
@@ -93,6 +93,43 @@ public class ExcelImportService {
 		}
 
 		return getString(row.getCell(indice));
+	}
+
+	/**
+	 * Leitura própria da coluna de horário. Célula de data+hora (comum em
+	 * planilhas exportadas de sistemas, ex.: {@code 25/12/2024 08:30}) devolve
+	 * a <b>hora</b> — a leitura genérica ({@link #getString(Cell)}) devolve só
+	 * a data, o que é certo para as colunas de data, mas aqui perdia o
+	 * horário. Se a célula tiver só a data (hora 00:00), segue a leitura
+	 * genérica (devolve a data, que vira aviso HORA_INVALIDA) para não gravar
+	 * um horário 00:00 que não existe.
+	 */
+	private String getHora(Row row, Map<String, Integer> colunas, String campo) {
+
+		Integer indice = colunas.get(campo);
+
+		if (indice == null) {
+			return null;
+		}
+
+		Cell cell = row.getCell(indice);
+
+		if (cell != null) {
+
+			CellType tipo = cell.getCellType() == CellType.FORMULA
+					? cell.getCachedFormulaResultType() : cell.getCellType();
+
+			if (tipo == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+
+				var dateTime = cell.getLocalDateTimeCellValue();
+
+				if (dateTime.getYear() != 1899 && !dateTime.toLocalTime().equals(java.time.LocalTime.MIDNIGHT)) {
+					return dateTime.toLocalTime().toString();
+				}
+			}
+		}
+
+		return getString(cell);
 	}
 
 	/**
