@@ -389,18 +389,16 @@ class AtendimentoImportacaoServiceTest {
 	// ===== Tipo de serviço vazio =====
 
 	@Test
-	void importarComTipoDeServicoVazioRejeitaALinhaEReimportarNaoDuplica() throws IOException {
+	void importarComTipoDeServicoVazioBloqueiaAPlanilha() throws IOException {
 
 		String[] semTipo = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		semTipo[0] = null;
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, semTipo);
 
-		ImportacaoResultado primeira = service.importar(caminho);
-		service.importar(caminho);
-
-		assertThat(primeira.getTotalSucesso()).isEqualTo(0);
-		assertThat(primeira.getErros()).singleElement()
-				.satisfies(erro -> assertThat(erro).contains("Tipo de serviço não informado"));
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("Importação bloqueada")
+				.hasMessageContaining("Linha 2")
+				.hasMessageContaining("Tipo de serviço não informado");
 
 		entityManager.clear();
 		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
@@ -409,23 +407,20 @@ class AtendimentoImportacaoServiceTest {
 	// ===== Médico sem CPF / erro de gravação =====
 
 	@Test
-	void importarComMedicoSemCpfRejeitaSoAquelaLinhaEGravaAsDemais() throws IOException {
+	void importarComMedicoSemCpfBloqueiaAPlanilhaInteira() throws IOException {
 
 		String[] valida = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		String[] semCpfMedico = linhaValida("11122233396", "JOSE SOUZA", null, "DR SEM CPF", "CARDIOLOGIA");
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, semCpfMedico, valida);
 
-		ImportacaoResultado resultado = service.importar(caminho);
-
-		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
-		assertThat(resultado.getTotalErro()).isEqualTo(1);
-		assertThat(resultado.getErros()).singleElement()
-				.satisfies(erro -> assertThat(erro).startsWith("Linha 2").contains("CPF do médico não informado"));
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("nenhuma linha foi importada")
+				.hasMessageContaining("Linha 2 - Erro")
+				.hasMessageContaining("CPF do médico não informado");
 
 		entityManager.clear();
-		assertThat(atendimentoRepository.buscarTodos()).singleElement()
-				.satisfies(a -> assertThat(a.getPaciente().getNome()).isEqualTo("MARIA SILVA"));
+		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
 	}
 
 	@Test
@@ -683,11 +678,11 @@ class AtendimentoImportacaoServiceTest {
 				CABECALHO_COMPLETO.length + 1);
 		linha[CABECALHO_COMPLETO.length] = "Sim";
 
-		ImportacaoResultado resultado = service.importar(salvarPlanilha(cabecalhoComColuna, linha));
+		String caminho = salvarPlanilha(cabecalhoComColuna, linha);
 
-		assertThat(resultado.getTotalSucesso()).isZero();
-		assertThat(resultado.getErros()).singleElement()
-				.satisfies(erro -> assertThat(erro).contains("CPF preenchido com \"Paciente sem CPF\" = Sim"));
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("nenhuma linha foi importada")
+				.hasMessageContaining("CPF preenchido com \"Paciente sem CPF\" = Sim");
 	}
 
 	@Test
@@ -803,17 +798,98 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
-	void importarComLinhaInvalidaRegistraErroSemInterromperAsDemais() throws IOException {
+	void importarComLinhaInvalidaBloqueiaAPlanilhaInteiraSemGravarNada() throws IOException {
 
 		String[] linhaSemPaciente = linhaValida("12345678909", null, "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		String[] linhaOk = linhaValida("22233344405", "PACIENTE VALIDO", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linhaSemPaciente, linhaOk);
 
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("Importação bloqueada — 1 linha(s) com erro; nenhuma linha foi importada")
+				.hasMessageContaining("Linha 2 - Erro")
+				.hasMessageContaining("Paciente não informado");
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
+	}
+
+	// ===== Conferência de linhas / duplicidade dentro da planilha =====
+
+	@Test
+	void importarInformaAConferenciaDeLinhasNovasEAtualizadas() throws IOException {
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				linhaValida("22233344405", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+
+		ImportacaoResultado primeira = service.importar(caminho);
+		ImportacaoResultado segunda = service.importar(caminho);
+
+		assertThat(primeira.getLinhasPlanilha()).isEqualTo(2);
+		assertThat(primeira.getTotalSucesso()).isEqualTo(2);
+		assertThat(primeira.getTotalNovos()).isEqualTo(2);
+		assertThat(segunda.getTotalAtualizados()).isEqualTo(2);
+		assertThat(segunda.getTotalNovos()).isZero();
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).hasSize(2);
+	}
+
+	@Test
+	void importarIgnoraLinhasVaziasNaContagem() throws IOException {
+
+		String[] vazia = new String[CABECALHO_COMPLETO.length];
+		String[] soEspacos = new String[CABECALHO_COMPLETO.length];
+		soEspacos[0] = "   ";
+		soEspacos[5] = " ";
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				vazia, soEspacos);
+
 		ImportacaoResultado resultado = service.importar(caminho);
 
-		assertThat(resultado.getTotalErro()).isEqualTo(1);
-		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
-		assertThat(atendimentoRepository.buscarTodos()).hasSize(1);
+		assertThat(resultado.getLinhasPlanilha()).isEqualTo(1);
+		assertThat(resultado.getErros()).isEmpty();
+	}
+
+	@Test
+	void importarComLinhaRepetidaNoMesmoHorarioBloqueiaAPlanilha() throws IOException {
+
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha, linha.clone());
+
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("nenhuma linha foi importada")
+				.hasMessageContaining("Linha 3 - Erro")
+				.hasMessageContaining("Linha repetida")
+				.hasMessageContaining("da linha 2");
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
+	}
+
+	@Test
+	void importarMesmoAtendimentoComHorarioDiferenteGravaOsDoisComAvisoDeSuspeita() throws IOException {
+
+		String[] manha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] tarde = manha.clone();
+		tarde[2] = "14:00";
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, manha, tarde);
+
+		ImportacaoResultado resultado = service.importar(caminho);
+		ImportacaoResultado reimportacao = service.importar(caminho);
+
+		assertThat(resultado.getTotalNovos()).isEqualTo(2);
+		assertThat(resultado.getAvisos()).anySatisfy(a -> assertThat(a)
+				.startsWith("Linha 3")
+				.contains("Suspeita de atendimento duplicado")
+				.contains("08:30 × 14:00"));
+		assertThat(reimportacao.getTotalAtualizados()).isEqualTo(2);
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).hasSize(2);
 	}
 }

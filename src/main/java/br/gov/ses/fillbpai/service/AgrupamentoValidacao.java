@@ -51,6 +51,21 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.DATA_AUSENTE, new InfoTipo(
 					"Data de agendamento não informada",
 					"É a data do atendimento: vai para o BPA-I e define a competência. Campo obrigatório.", 1)),
+			Map.entry(ErroValidacao.LINHA_ILEGIVEL, new InfoTipo(
+					"Linha não pôde ser lida",
+					"Falha inesperada ao ler as células da linha. Confira se há células com conteúdo"
+							+ " estranho (imagem, erro de fórmula, texto muito longo) e salve a planilha de novo.", 0)),
+			Map.entry(ErroValidacao.LINHA_DUPLICADA, new InfoTipo(
+					"Linha repetida",
+					"Mesmo paciente, médico, data, procedimento e horário de outra linha: as duas virariam"
+							+ " um único atendimento e uma linha seria perdida. Remova a repetição ou corrija o"
+							+ " horário.", 1)),
+			Map.entry(ErroValidacao.PACIENTE_AUSENTE, new InfoTipo(
+					"Nome do paciente não informado",
+					"Campo obrigatório no BPA-I. Preencha o nome do paciente.", 5)),
+			Map.entry(ErroValidacao.DATA_NASCIMENTO_INVALIDA, new InfoTipo(
+					"Data de nascimento em formato não reconhecido",
+					"Use dd/MM/aaaa (ex.: 25/12/1980), ou formate a coluna como data no Excel.", 5)),
 			Map.entry(ErroValidacao.DATA_INVALIDA, new InfoTipo(
 					"Data de agendamento em formato não reconhecido",
 					"Use dd/MM/aaaa (ex.: 25/12/2024), ou formate a coluna como data no Excel.", 2)),
@@ -133,6 +148,11 @@ public final class AgrupamentoValidacao {
 					"O município da planilha não está na tabela de MS; o código IBGE foi obtido pelo CEP. Cada"
 							+ " item mostra o município da planilha → o município que o CEP indica. Confira se é"
 							+ " o mesmo: se não for, o CEP ou o município estão errados na planilha.", 11)),
+			Map.entry(ErroValidacao.SUSPEITA_DUPLICIDADE, new InfoTipo(
+					"Suspeita de atendimento duplicado",
+					"Mesmo paciente, médico, data e procedimento de outra linha, mas com horário diferente."
+							+ " As duas linhas serão importadas como atendimentos separados — confira se não é"
+							+ " uma repetição na planilha.", 12)),
 			Map.entry(ErroValidacao.HORA_INVALIDA, new InfoTipo(
 					"Horário de atendimento não reconhecido",
 					"Como a remessa BPA-I não utiliza o horário, o atendimento será importado com o horário"

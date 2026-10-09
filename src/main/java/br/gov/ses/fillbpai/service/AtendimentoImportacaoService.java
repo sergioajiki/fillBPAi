@@ -16,6 +16,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -97,14 +98,26 @@ public class AtendimentoImportacaoService {
 			// Linhas sem CNS resolvido, decididas no fim da planilha (herança pelo CPF)
 			List<PendenciaCns> pendentesCns = new ArrayList<>();
 
+			// Linhas do mesmo atendimento dentro da planilha (mesmo horário → erro,
+			// horário diferente → aviso de suspeita, importadas separadas)
+			DetectorDuplicidade duplicidade = new DetectorDuplicidade();
+
+			// Atendimento gravado por linha da planilha — conferência final (B)
+			Map<Integer, AtendimentoBPAi> atendimentoPorLinha = new LinkedHashMap<>();
+			int linhasComDados = 0;
+
 			transaction.begin();
 
 			for (Row row : sheet) {
 
-				// Ignora cabeçalho
-				if (row.getRowNum() == 0) {
+				// Ignora cabeçalho e linhas sem nenhum valor (formatação ou
+				// conteúdo apagado) — mesma regra da análise
+				if (row.getRowNum() == 0 || excelService.isLinhaVazia(row)) {
 					continue;
 				}
+
+				linhasComDados++;
+				int linhaExcel = row.getRowNum() + 1;
 
 				try {
 
@@ -119,19 +132,32 @@ public class AtendimentoImportacaoService {
 					// 3. Coleta avisos com referência à linha da planilha
 					for (String aviso : avisos) {
 						resultado.adicionarAviso(
-								"Linha " + (row.getRowNum() + 1) + " - Aviso: " + aviso);
+								"Linha " + linhaExcel + " - Aviso: " + aviso);
 					}
 
-					// 4. Cria/encontra entidades normalizadas e monta o atendimento
+					// 4. Mesmo atendimento em outra linha desta planilha
+					DetectorDuplicidade.Ocorrencia ocorrencia = duplicidade.registrar(linhaExcel, dto);
+
+					if (ocorrencia != null && ocorrencia.tipo() == DetectorDuplicidade.Tipo.REPETIDA) {
+						throw new IllegalArgumentException(DetectorDuplicidade.mensagemRepetida(ocorrencia));
+					}
+
+					if (ocorrencia != null) {
+						resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: "
+								+ DetectorDuplicidade.mensagemSuspeita(ocorrencia, dto.getHoraAtendimento()));
+					}
+
+					// 5. Cria/encontra entidades normalizadas e monta o atendimento
 					// findOrUpdate: se já existe atendimento idêntico, atualiza (evita duplicatas)
 					AtendimentoBPAi atendimento =
-							criarOuAtualizarAtendimento(dto, resultado, row.getRowNum() + 1, mapaFolhas, pendentesCns);
+							criarOuAtualizarAtendimento(dto, resultado, linhaExcel, mapaFolhas, pendentesCns);
 
 					// Grava a linha agora: um erro do banco (ex.: valor maior que a
 					// coluna) aparece nesta linha, e não numa linha seguinte ou no commit.
 					entityManager.flush();
 
 					importados.add(atendimento);
+					atendimentoPorLinha.put(linhaExcel, atendimento);
 
 					resultado.adicionarSucesso();
 
@@ -139,7 +165,7 @@ public class AtendimentoImportacaoService {
 
 					// Captura erro específico da linha
 					String mensagemErro =
-							"Linha " + (row.getRowNum() + 1)
+							"Linha " + linhaExcel
 									+ " - Erro: " + e.getClass().getSimpleName()
 									+ " -> " + e.getMessage();
 
@@ -157,9 +183,23 @@ public class AtendimentoImportacaoService {
 				}
 			}
 
+			// (A) Tudo ou nada: todas as linhas da planilha devem ser importadas
+			// (decisão de 09/10/2026). Uma linha com erro cancela a planilha inteira.
+			if (!resultado.getErros().isEmpty()) {
+				transaction.rollback();
+				throw new IllegalStateException("Importação bloqueada — " + resultado.getErros().size()
+						+ " linha(s) com erro; nenhuma linha foi importada. Corrija a planilha e importe"
+						+ " novamente.\n" + String.join("\n", resultado.getErros()));
+			}
+
+			// (B) Conferência: cada linha com dados virou um atendimento próprio
+			conferirLinhasImportadas(linhasComDados, atendimentoPorLinha);
+
 			resolverCnsPendentes(pendentesCns, resultado);
 
 			transaction.commit();
+
+			resultado.setLinhasPlanilha(linhasComDados);
 
 		} catch (IOException e) {
 
@@ -242,17 +282,20 @@ public class AtendimentoImportacaoService {
 
 		// ==============================
 		// Deduplicação: busca atendimento existente
-		// Chave natural: paciente + médico + data + sigtap
+		// Chave natural: paciente + médico + data + sigtap + horário — horário
+		// diferente é outro atendimento (decisão de 09/10/2026); a mesma
+		// planilha reimportada continua atualizando em vez de duplicar
 		// ==============================
 
 		AtendimentoBPAi atendimento = atendimentoRepository
-				.buscarDuplicata(paciente, medico, dto.getDataAgendamento(), dto.getSigtap())
+				.buscarDuplicata(paciente, medico, dto.getDataAgendamento(), dto.getSigtap(), dto.getHoraAtendimento())
 				.orElse(null);
 
 		boolean atualizacao = atendimento != null;
 
 		if (atualizacao) {
 
+			resultado.contarAtualizado();
 			resultado.adicionarAviso(
 					"Linha " + linhaExcel + " - Aviso: Atendimento já existente atualizado"
 							+ " (paciente: " + paciente.getNome()
@@ -260,6 +303,7 @@ public class AtendimentoImportacaoService {
 							+ ", data: " + dto.getDataAgendamento() + ")");
 		} else {
 
+			resultado.contarNovo();
 			atendimento = new AtendimentoBPAi();
 			atendimento.setPaciente(paciente);
 			atendimento.setMedico(medico);
@@ -463,6 +507,37 @@ public class AtendimentoImportacaoService {
 	}
 
 	/**
+	 * Conferência final da importação (decisão de 09/10/2026 — todas as linhas
+	 * da planilha devem ser importadas): o número de linhas com dados tem que
+	 * bater com o número de linhas gravadas e com o número de atendimentos
+	 * distintos. Duas linhas que caíssem no mesmo atendimento (uma
+	 * sobrescrevendo a outra) fariam a conta não fechar.
+	 *
+	 * @throws IllegalStateException se a conta não fechar — a transação é desfeita
+	 */
+	private void conferirLinhasImportadas(int linhasComDados, Map<Integer, AtendimentoBPAi> atendimentoPorLinha) {
+
+		Map<AtendimentoBPAi, Integer> primeiraLinha = new java.util.IdentityHashMap<>();
+		List<String> sobrepostas = new ArrayList<>();
+
+		atendimentoPorLinha.forEach((linha, atendimento) -> {
+			Integer anterior = primeiraLinha.putIfAbsent(atendimento, linha);
+			if (anterior != null) {
+				sobrepostas.add("Linha " + linha + " gravou no mesmo atendimento da linha " + anterior);
+			}
+		});
+
+		int distintos = primeiraLinha.size();
+
+		if (atendimentoPorLinha.size() != linhasComDados || distintos != linhasComDados) {
+			throw new IllegalStateException("Importação bloqueada — conferência de linhas não bate: a planilha tem "
+					+ linhasComDados + " linha(s) com dados, seriam gravados " + distintos
+					+ " atendimento(s); nenhuma linha foi importada."
+					+ (sobrepostas.isEmpty() ? "" : "\n" + String.join("\n", sobrepostas)));
+		}
+	}
+
+	/**
 	 * Confere, antes de gravar qualquer linha, se todas têm município e código
 	 * IBGE (tabela de MS pelo nome, CEPs já conhecidos, APIs de CEP — mesma
 	 * busca da análise e da importação). Se alguma não tiver, lança exceção
@@ -478,7 +553,7 @@ public class AtendimentoImportacaoService {
 
 		for (Row row : sheet) {
 
-			if (row.getRowNum() == 0) {
+			if (row.getRowNum() == 0 || excelService.isLinhaVazia(row)) {
 				continue;
 			}
 

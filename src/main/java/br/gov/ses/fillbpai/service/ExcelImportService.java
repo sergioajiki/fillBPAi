@@ -22,6 +22,28 @@ import java.util.Map;
 public class ExcelImportService {
 
 	/**
+	 * Linha sem nenhum valor (todas as células vazias, só espaços ou fórmula
+	 * com resultado vazio) — ex.: linha formatada ou com conteúdo apagado,
+	 * que o Excel ainda grava no arquivo. Ignorada do mesmo jeito na análise,
+	 * na importação e na contagem de linhas da planilha.
+	 */
+	public boolean isLinhaVazia(Row row) {
+
+		if (row == null) {
+			return true;
+		}
+
+		for (org.apache.poi.ss.usermodel.Cell cell : row) {
+			String valor = getString(cell);
+			if (valor != null && !valor.isBlank()) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Converte uma linha do Excel em um LinhaImportacaoDTO.
 	 * <p>
 	 * Cada célula é buscada pelo campo canônico, não pelo índice fixo — o

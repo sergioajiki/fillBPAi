@@ -120,9 +120,31 @@ class AtendimentoBPAiRepositoryTest {
 		Medico medicoRecarregado = entityManager.find(Medico.class, medico.getId());
 
 		Optional<AtendimentoBPAi> encontrado = repository.buscarDuplicata(
-				pacienteRecarregado, medicoRecarregado, data, "03.01.01.030-7");
+				pacienteRecarregado, medicoRecarregado, data, "03.01.01.030-7", null);
 
 		assertThat(encontrado).isPresent();
+	}
+
+	@Test
+	void buscarDuplicataConsideraOHorario() {
+
+		entityManager.getTransaction().begin();
+		Paciente paciente = criarPaciente("12345678909");
+		Medico medico = criarMedico("98765432100", "JOAO DA SILVA");
+		LocalDate data = LocalDate.of(2024, 12, 25);
+		criarAtendimento(paciente, medico, "CARDIOLOGIA", data, "03.01.01.030-7", null)
+				.setHoraAtendimento(java.time.LocalTime.of(8, 0));
+		entityManager.getTransaction().commit();
+		entityManager.clear();
+
+		Paciente p = entityManager.find(Paciente.class, paciente.getId());
+		Medico m = entityManager.find(Medico.class, medico.getId());
+
+		assertThat(repository.buscarDuplicata(p, m, data, "03.01.01.030-7", java.time.LocalTime.of(8, 0)))
+				.isPresent();
+		assertThat(repository.buscarDuplicata(p, m, data, "03.01.01.030-7", java.time.LocalTime.of(9, 0)))
+				.isEmpty();
+		assertThat(repository.buscarDuplicata(p, m, data, "03.01.01.030-7", null)).isEmpty();
 	}
 
 	@Test
@@ -140,7 +162,7 @@ class AtendimentoBPAiRepositoryTest {
 		Medico medicoRecarregado = entityManager.find(Medico.class, medico.getId());
 
 		Optional<AtendimentoBPAi> encontrado = repository.buscarDuplicata(
-				pacienteRecarregado, medicoRecarregado, data, "08.04.01.006-4");
+				pacienteRecarregado, medicoRecarregado, data, "08.04.01.006-4", null);
 
 		assertThat(encontrado).isEmpty();
 	}

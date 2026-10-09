@@ -1203,6 +1203,33 @@
           CEP inexistente com <code>"erro": "true"</code> (com aspas), que o código antigo não reconhecia.
         </p>
       </li>
+      <li>
+        <h4>Todas as linhas da planilha importadas <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Decisão de 09/10/2026: nas planilhas recebidas, todas as linhas devem ser importadas — nenhuma linha
+          pode ser descartada por erro. Antes havia quatro caminhos para uma linha sumir: erro de linha na
+          importação (o resto era gravado), campos que a importação rejeitava mas a análise não conferia, duas
+          linhas do mesmo atendimento virando um registro só, e linhas "vazias" do Excel virando erro.
+        </p>
+        <ul class="plain">
+          <li><strong>A · Tudo ou nada:</strong> qualquer linha com erro na importação cancela a planilha inteira
+            (nada é gravado), com a lista de linhas na mensagem.</li>
+          <li><strong>B · Conferência de linhas:</strong> antes de gravar, linhas com dados na planilha = linhas
+            gravadas = atendimentos distintos; se não bater, cancela. O log mostra
+            <code>Linhas da planilha: 120 · Importadas: 120 (115 novas, 5 atualizadas) ✓ conferido</code>.</li>
+          <li><strong>C · Análise = importação:</strong> nome do paciente vazio (<code>PACIENTE_AUSENTE</code>),
+            data de nascimento em formato errado (<code>DATA_NASCIMENTO_INVALIDA</code>) e linha que não pôde ser
+            lida (<code>LINHA_ILEGIVEL</code>, antes ignorada em silêncio) passam a ser ERRO no "Analisar Planilha".</li>
+          <li><strong>D · Linhas vazias:</strong> linha só com formatação, espaços ou conteúdo apagado é ignorada
+            do mesmo jeito na análise, na importação e na contagem.</li>
+          <li><strong>Duplicidade:</strong> mesmo paciente + médico + data + procedimento em duas linhas. Mesmo
+            horário (ou os dois sem horário) → ERRO <code>LINHA_DUPLICADA</code> ("Linha repetida"), porque uma linha
+            sobrescreveria a outra. Horário diferente → AVISO <code>SUSPEITA_DUPLICIDADE</code> ("Suspeita de
+            atendimento duplicado", ex.: <code>08:30 × 14:00</code>), e as duas são importadas como atendimentos
+            separados. O horário passou a fazer parte da chave de deduplicação no banco; reimportar a mesma
+            planilha continua atualizando em vez de duplicar.</li>
+        </ul>
+      </li>
     </ol>
   </section>
 

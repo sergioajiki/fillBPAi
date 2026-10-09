@@ -145,9 +145,14 @@ public class MainController {
 
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("Total processados: ").append(resultado.getTotalProcessados()).append("\n");
-		sb.append("Sucesso: ").append(resultado.getTotalSucesso()).append("\n");
-		sb.append("Erros: ").append(resultado.getTotalErro()).append("\n");
+		// Conferência: toda linha com dados da planilha foi gravada (a importação
+		// é cancelada inteira se alguma falhar — ver AtendimentoImportacaoService)
+		sb.append("Linhas da planilha: ").append(resultado.getLinhasPlanilha())
+				.append(" · Importadas: ").append(resultado.getTotalSucesso())
+				.append(" (").append(resultado.getTotalNovos()).append(" novas, ")
+				.append(resultado.getTotalAtualizados()).append(" atualizadas)")
+				.append(resultado.getLinhasPlanilha() == resultado.getTotalSucesso() ? " ✓ conferido" : " ✗ NÃO CONFERE")
+				.append("\n");
 		sb.append("Avisos: ").append(resultado.getTotalAvisos()).append("\n");
 		sb.append("\n");
 

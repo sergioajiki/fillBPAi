@@ -80,6 +80,19 @@ public class AtendimentoBPAiRepository {
      */
     public Optional<AtendimentoBPAi> buscarDuplicata(
             Paciente paciente, Medico medico,
+            LocalDate dataAgendamento, String sigtap, java.time.LocalTime hora) {
+
+        // Horário faz parte da chave: mesmo paciente/médico/data/procedimento
+        // com horário diferente é outro atendimento (importado separado, com
+        // aviso de suspeita). Sem horário casa só com registro sem horário.
+        return buscarDuplicata(paciente, medico, dataAgendamento, sigtap).stream()
+                .filter(a -> java.util.Objects.equals(a.getHoraAtendimento(), hora))
+                .findFirst();
+    }
+
+    /** Todos os atendimentos com a chave sem o horário — ver a versão com horário. */
+    private List<AtendimentoBPAi> buscarDuplicata(
+            Paciente paciente, Medico medico,
             LocalDate dataAgendamento, String sigtap) {
 
         List<AtendimentoBPAi> resultados = entityManager
@@ -96,9 +109,7 @@ public class AtendimentoBPAiRepository {
                 .setParameter("sigtap", sigtap)
                 .getResultList();
 
-        return resultados.isEmpty()
-                ? Optional.empty()
-                : Optional.of(resultados.get(0));
+        return resultados;
     }
 
 }

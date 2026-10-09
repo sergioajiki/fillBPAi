@@ -138,6 +138,21 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Grafia de médico não encontrada em Configurações → CNS de Médicos (um aviso por grafia, com as linhas) — CNS herdado do mesmo CPF quando conhecido; senão a geração do BPA-I fica bloqueada até informar o CNS. AVISO, não bloqueia. */
 	public static final String CNS_PROFISSIONAL_NAO_CADASTRADO = "CNS_PROFISSIONAL_NAO_CADASTRADO";
 
+	/** Nome do paciente não informado — ERRO bloqueante (a importação rejeitaria a linha). */
+	public static final String PACIENTE_AUSENTE = "PACIENTE_AUSENTE";
+
+	/** Data de nascimento preenchida em formato não reconhecido por {@code DateUtils} — ERRO bloqueante. */
+	public static final String DATA_NASCIMENTO_INVALIDA = "DATA_NASCIMENTO_INVALIDA";
+
+	/** Linha que não pôde ser lida (falha inesperada na leitura das células) — ERRO bloqueante. */
+	public static final String LINHA_ILEGIVEL = "LINHA_ILEGIVEL";
+
+	/** Mesmo paciente, médico, data, procedimento e horário de uma linha anterior — viraria um só atendimento. ERRO bloqueante. */
+	public static final String LINHA_DUPLICADA = "LINHA_DUPLICADA";
+
+	/** Mesmo paciente, médico, data e procedimento de uma linha anterior, com horário diferente — importado separado. AVISO, não bloqueia. */
+	public static final String SUSPEITA_DUPLICIDADE = "SUSPEITA_DUPLICIDADE";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

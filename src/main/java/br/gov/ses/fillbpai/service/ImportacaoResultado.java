@@ -15,7 +15,8 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
  * - Lista de registros válidos importados
  *
  * Diferença entre erro e aviso:
- * - ERRO: linha rejeitada, NÃO persistida no banco (ex: CPF ausente, data inválida)
+ * - ERRO: linha com problema — a importação da planilha inteira é cancelada (nada é gravado;
+ *   todas as linhas da planilha devem ser importadas, decisão de 09/10/2026)
  * - AVISO: linha importada com sucesso, mas com dados atípicos (ex: CNS formato legado)
  */
 public class ImportacaoResultado {
@@ -77,6 +78,39 @@ public class ImportacaoResultado {
 		for (String aviso : avisos) {
 			adicionarAviso(aviso);
 		}
+	}
+
+	/** Linhas com dados na planilha (sem cabeçalho e linhas vazias) — conferência da importação. */
+	private int linhasPlanilha;
+
+	/** Atendimentos criados nesta importação. */
+	private int totalNovos;
+
+	/** Atendimentos que já existiam (reimportação) e foram atualizados. */
+	private int totalAtualizados;
+
+	public void contarNovo() {
+		totalNovos++;
+	}
+
+	public void contarAtualizado() {
+		totalAtualizados++;
+	}
+
+	public int getTotalNovos() {
+		return totalNovos;
+	}
+
+	public int getTotalAtualizados() {
+		return totalAtualizados;
+	}
+
+	public int getLinhasPlanilha() {
+		return linhasPlanilha;
+	}
+
+	public void setLinhasPlanilha(int linhasPlanilha) {
+		this.linhasPlanilha = linhasPlanilha;
 	}
 
 	public int getTotalProcessados() {

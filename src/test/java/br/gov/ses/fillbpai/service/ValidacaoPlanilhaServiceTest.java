@@ -677,6 +677,7 @@ class ValidacaoPlanilhaServiceTest {
 		soCodigo[COL_ESTABELECIMENTO] = "1234567";
 		String[] codigoHifen = linhaValida();
 		codigoHifen[COL_ESTABELECIMENTO] = "12345 -";
+		codigoHifen[COL_DATA_AGENDAMENTO] = "26/12/2024"; // linhas distintas (não repetidas)
 
 		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, soCodigo, codigoHifen));
 
@@ -705,12 +706,16 @@ class ValidacaoPlanilhaServiceTest {
 		vazio[COL_ESTABELECIMENTO] = null;
 		String[] espacos = linhaValida();
 		espacos[COL_ESTABELECIMENTO] = "   ";
+		espacos[COL_DATA_AGENDAMENTO] = "26/12/2024"; // linhas distintas (não repetidas)
 		String[] hifen = linhaValida();
 		hifen[COL_ESTABELECIMENTO] = " - ";
+		hifen[COL_DATA_AGENDAMENTO] = "27/12/2024";
 		String[] travessao = linhaValida();
 		travessao[COL_ESTABELECIMENTO] = "—";
+		travessao[COL_DATA_AGENDAMENTO] = "28/12/2024";
 		String[] zero = linhaValida();
 		zero[COL_ESTABELECIMENTO] = "0";
+		zero[COL_DATA_AGENDAMENTO] = "29/12/2024";
 
 		List<ErroValidacao> erros = service.validar(
 				salvarPlanilha(CABECALHO_COMPLETO, vazio, espacos, hifen, travessao, zero));
@@ -805,6 +810,7 @@ class ValidacaoPlanilhaServiceTest {
 		hifen[COL_CBO] = "2251-25";
 		String[] ponto = linhaValida();
 		ponto[COL_CBO] = "225.125";
+		ponto[COL_DATA_AGENDAMENTO] = "26/12/2024"; // linhas distintas (não repetidas)
 
 		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, hifen, ponto))).isEmpty();
 	}
@@ -857,6 +863,7 @@ class ValidacaoPlanilhaServiceTest {
 		String[] psicologo = linhaValida();
 		psicologo[COL_TIPO_SERVICO] = null;
 		psicologo[COL_ESPECIALIDADE] = "Médico Psicólogo";
+		psicologo[COL_DATA_AGENDAMENTO] = "26/12/2024"; // linhas distintas (não repetidas)
 
 		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, nutricionista, psicologo));
 
@@ -928,7 +935,7 @@ class ValidacaoPlanilhaServiceTest {
 		String[] iso = linhaValida();
 		iso[COL_DATA_AGENDAMENTO] = "2024-12-25";
 		String[] hifen = linhaValida();
-		hifen[COL_DATA_AGENDAMENTO] = "25-12-2024";
+		hifen[COL_DATA_AGENDAMENTO] = "26-12-2024"; // dia diferente: linhas distintas
 
 		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, iso, hifen))).isEmpty();
 	}
@@ -995,7 +1002,7 @@ class ValidacaoPlanilhaServiceTest {
 	@Test
 	void validarComHerancaDeCnsIndicaAHerancaNoValor() throws IOException {
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaComMedico("RODRIGO S. GRILO", "98765432100", "12345678909"),
+				linhaComMedico("RODRIGO S. GRILO", "98765432100", "11144477735"), // outro paciente: linhas distintas
 				linhaValida());
 
 		assertThat(service.validar(caminho)).singleElement()
@@ -1023,7 +1030,7 @@ class ValidacaoPlanilhaServiceTest {
 	void validarComGrafiaNaoCadastradaMasMesmoCpfComGrafiaCadastradaNaPlanilhaAvisaHeranca() throws IOException {
 		// Grafia abreviada vem ANTES da cadastrada — a herança não depende da ordem
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaComMedico("RODRIGO S. GRILO", "98765432100", "12345678909"),
+				linhaComMedico("RODRIGO S. GRILO", "98765432100", "11144477735"), // outro paciente: linhas distintas
 				linhaValida());
 
 		List<ErroValidacao> erros = service.validar(caminho);
@@ -1103,5 +1110,68 @@ class ValidacaoPlanilhaServiceTest {
 		String log = service.gerarLogTxt(List.of(), "planilha_teste.xlsx");
 
 		assertThat(log).contains("apta para importação");
+	}
+
+	// ===== Todas as linhas importadas: nome, nascimento, duplicidade, linhas vazias =====
+
+	@Test
+	void validarSemNomeDoPacienteGeraErro() throws IOException {
+		String[] linha = linhaValida();
+		linha[10] = null; // PACIENTE
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.PACIENTE_AUSENTE);
+			assertThat(e.valor()).isEqualTo("Paciente: (sem nome) — CPF 12345678909");
+		});
+	}
+
+	@Test
+	void validarComDataDeNascimentoInvalidaGeraErro() throws IOException {
+		String[] linha = linhaValida();
+		linha[14] = "31/02/1990x"; // DATA DE NASCIMENTO
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.DATA_NASCIMENTO_INVALIDA);
+			assertThat(e.valor()).isEqualTo("Paciente: MARIA SILVA — \"31/02/1990x\"");
+		});
+	}
+
+	@Test
+	void validarComLinhaRepetidaNoMesmoHorarioGeraErro() throws IOException {
+		List<ErroValidacao> erros = service.validar(
+				salvarPlanilha(CABECALHO_COMPLETO, linhaValida(), linhaValida()));
+
+		assertThat(erros).singleElement().satisfies(e -> {
+			assertThat(e.linha()).isEqualTo(3);
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.LINHA_DUPLICADA);
+			assertThat(e.detalhe()).contains("da linha 2");
+			assertThat(e.valor()).contains("MARIA SILVA").contains("25/12/2024").contains("linhas 2 e 3");
+		});
+	}
+
+	@Test
+	void validarMesmoAtendimentoComHorarioDiferenteGeraSoAvisoDeSuspeita() throws IOException {
+		String[] tarde = linhaValida();
+		tarde[COL_HORA_ATENDIMENTO] = "14:00";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, linhaValida(), tarde));
+
+		assertThat(erros).singleElement().satisfies(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.SUSPEITA_DUPLICIDADE);
+			assertThat(e.valor()).endsWith("08:30 × 14:00");
+		});
+	}
+
+	@Test
+	void validarIgnoraLinhasVazias() throws IOException {
+		String[] vazia = new String[CABECALHO_COMPLETO.length];
+		String[] soEspacos = new String[CABECALHO_COMPLETO.length];
+		soEspacos[COL_CEP] = "   ";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linhaValida(), vazia, soEspacos))).isEmpty();
 	}
 }

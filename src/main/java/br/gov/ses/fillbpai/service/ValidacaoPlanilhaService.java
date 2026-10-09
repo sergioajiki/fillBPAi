@@ -72,6 +72,9 @@ public class ValidacaoPlanilhaService {
 	/** Serviço de leitura de linhas Excel, reutilizado da importação. */
 	private final ExcelImportService excelService = new ExcelImportService();
 
+	/** Mesmo processamento da importação — usado para montar a chave de duplicidade. */
+	private final AtendimentoProcessor processor = new AtendimentoProcessor();
+
 	/** Resolve os campos canônicos a partir do cabeçalho, por nome. */
 	private final PlanilhaColumnMapper columnMapper = new PlanilhaColumnMapper();
 
@@ -185,10 +188,14 @@ public class ValidacaoPlanilhaService {
 			Map<String, GrafiaMedico> grafiasMedico = new LinkedHashMap<>();
 			Map<String, String> cnsPorCpfNaPlanilha = new HashMap<>();
 
+			// Linhas do mesmo atendimento (paciente + médico + data + procedimento)
+			DetectorDuplicidade duplicidade = new DetectorDuplicidade();
+
 			for (Row row : sheet) {
 
-				// Pula o cabeçalho (linha de índice 0)
-				if (row.getRowNum() == 0) {
+				// Pula o cabeçalho (linha de índice 0) e linhas sem nenhum valor
+				// (formatação ou conteúdo apagado) — mesma regra da importação
+				if (row.getRowNum() == 0 || excelService.isLinhaVazia(row)) {
 					continue;
 				}
 
@@ -206,8 +213,13 @@ public class ValidacaoPlanilhaService {
 					validarLinha(dto, numeroLinha, erros);
 					registrarMedico(dto, numeroLinha, mapeamento.especialidadeMedicoCombinados(),
 							grafiasMedico, cnsPorCpfNaPlanilha);
+					verificarDuplicidade(row, colunas, numeroLinha, duplicidade, erros);
 				} catch (Exception e) {
-					log.warn("Erro ao ler linha {}: {} — linha ignorada.", numeroLinha, e.getMessage());
+					// Toda linha com dados precisa ser importada: linha ilegível bloqueia
+					log.warn("Erro ao ler linha {}: {}", numeroLinha, e.getMessage());
+					erros.add(new ErroValidacao(numeroLinha, ErroValidacao.Severidade.ERRO,
+							ErroValidacao.LINHA_ILEGIVEL,
+							"Linha nao pode ser lida: " + e.getMessage()));
 				}
 			}
 
@@ -263,6 +275,33 @@ public class ValidacaoPlanilhaService {
 						"Data de agendamento \"" + data.trim() + "\" em formato nao reconhecido"
 								+ " (use dd/MM/aaaa, ex.: 25/12/2024)",
 						"\"" + data.trim() + "\""));
+			}
+		}
+
+		// -------------------------------------------------------
+		// Regra 0c: Nome do paciente e data de nascimento — a importação
+		// rejeitaria a linha (AtendimentoProcessor); antes a análise não
+		// olhava esses campos e a linha sumia na importação. ERRO bloqueante.
+		// Nascimento vazio continua aceito (só o formato é conferido).
+		// -------------------------------------------------------
+		if (dto.getPaciente() == null || dto.getPaciente().isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.PACIENTE_AUSENTE, "Nome do paciente nao informado",
+					"Paciente: (sem nome) — CPF " + (dto.getCpfPaciente() == null || dto.getCpfPaciente().isBlank()
+							? "não informado" : dto.getCpfPaciente().trim())));
+		}
+
+		String nascimento = dto.getDataNascimentoString();
+
+		if (nascimento != null && !nascimento.isBlank()) {
+			try {
+				DateUtils.parse(nascimento);
+			} catch (IllegalArgumentException e) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.DATA_NASCIMENTO_INVALIDA,
+						"Data de nascimento \"" + nascimento.trim() + "\" em formato nao reconhecido"
+								+ " (use dd/MM/aaaa, ex.: 25/12/1980)",
+						paciente + " — \"" + nascimento.trim() + "\""));
 			}
 		}
 
@@ -619,6 +658,49 @@ public class ValidacaoPlanilhaService {
 								+ " importado com o horario vazio",
 						"\"" + hora.trim() + "\""));
 			}
+		}
+	}
+
+	/**
+	 * Linhas do mesmo atendimento na planilha ({@link DetectorDuplicidade}),
+	 * com a mesma chave da importação: o DTO é lido de novo e passado pelo
+	 * {@link AtendimentoProcessor} (CPF, SIGTAP, data e hora normalizados).
+	 * Linha que o processador rejeita já tem o erro apontado pelas outras
+	 * regras e fica fora da comparação.
+	 * <ul>
+	 *   <li>Mesmo horário → ERRO {@code LINHA_DUPLICADA} (uma linha seria perdida)</li>
+	 *   <li>Horário diferente → AVISO {@code SUSPEITA_DUPLICIDADE} (importadas separadas)</li>
+	 * </ul>
+	 */
+	private void verificarDuplicidade(Row row, Map<String, Integer> colunas, int linha,
+			DetectorDuplicidade duplicidade, List<ErroValidacao> erros) {
+
+		LinhaImportacaoDTO dto = excelService.importarLinha(row, colunas);
+
+		try {
+			processor.processar(dto);
+		} catch (IllegalArgumentException e) {
+			return;
+		}
+
+		DetectorDuplicidade.Ocorrencia ocorrencia = duplicidade.registrar(linha, dto);
+
+		if (ocorrencia == null) {
+			return;
+		}
+
+		String valor = "Paciente: " + dto.getPaciente().trim() + " — " + dto.getMedico() + ", "
+				+ dto.getDataAgendamento().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+				+ " (linhas " + ocorrencia.linhaAnterior() + " e " + linha + ")";
+
+		if (ocorrencia.tipo() == DetectorDuplicidade.Tipo.REPETIDA) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO, ErroValidacao.LINHA_DUPLICADA,
+					DetectorDuplicidade.mensagemRepetida(ocorrencia), valor));
+		} else {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO, ErroValidacao.SUSPEITA_DUPLICIDADE,
+					DetectorDuplicidade.mensagemSuspeita(ocorrencia, dto.getHoraAtendimento()),
+					valor + " — " + DetectorDuplicidade.descreverHora(ocorrencia.horaAnterior()) + " × "
+							+ DetectorDuplicidade.descreverHora(dto.getHoraAtendimento())));
 		}
 	}
 
