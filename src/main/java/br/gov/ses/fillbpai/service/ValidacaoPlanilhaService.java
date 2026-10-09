@@ -169,7 +169,7 @@ public class ValidacaoPlanilhaService {
 
 			// Mapeia os campos canônicos pelo nome do cabeçalho — independente
 			// da ordem das colunas e ignorando colunas extras não reconhecidas.
-			PlanilhaColumnMapper.ResultadoMapeamento mapeamento = columnMapper.mapear(cabecalho);
+			PlanilhaColumnMapper.ResultadoMapeamento mapeamento = columnMapper.mapear(sheet);
 
 			if (!reportarEstrutura(mapeamento, erros)) {
 				return erros;
@@ -551,7 +551,21 @@ public class ValidacaoPlanilhaService {
 		// -------------------------------------------------------
 		String especialidadeLinha = EspecialidadeUtils.normalizar(especialidadeDaLinha(dto));
 
-		if (especialidadeLinha == null || especialidadeLinha.isBlank()) {
+		// Formato legado (uma célula "ESPECIALIDADE - NOME"): célula sem o
+		// separador gravaria o nome do médico como especialidade e o médico
+		// sem nome. ERRO (mesma regra de AtendimentoProcessor)
+		String combinado = dto.getEspecialidadeMedico();
+		boolean legadoSemSeparador = combinado != null && !combinado.isBlank() && combinado.equals(dto.getMedico())
+				&& StringUtils.separarEspecialidadeEMedico(combinado)[1] == null;
+
+		if (legadoSemSeparador) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.ESPECIALIDADE_MEDICO_SEM_SEPARADOR,
+					"A coluna \"Especialidade/Medico\" (formato antigo) nao traz \"ESPECIALIDADE - NOME\": \""
+							+ combinado.trim() + "\" - se a especialidade esta em outra coluna, coloque o"
+							+ " cabecalho \"Especialidade\" nela",
+					"\"" + combinado.trim() + "\""));
+		} else if (especialidadeLinha == null || especialidadeLinha.isBlank()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.ESPECIALIDADE_AUSENTE,
 					"Especialidade nao informada (medico: " + dto.getMedico() + ")",
@@ -867,11 +881,11 @@ public class ValidacaoPlanilhaService {
 			 Workbook workbook = new XSSFWorkbook(fis)) {
 
 			Sheet sheet = workbook.getSheetAt(0);
-			return columnMapper.mapear(sheet.getRow(0));
+			return columnMapper.mapear(sheet);
 
 		} catch (IOException e) {
 			log.error("Falha ao reler cabeçalho da planilha: {}", caminhoArquivo, e);
-			return columnMapper.mapear(null);
+			return columnMapper.mapear((Row) null);
 		}
 	}
 
@@ -905,6 +919,17 @@ public class ValidacaoPlanilhaService {
 					ErroValidacao.ESTRUTURA_INVALIDA,
 					"Mais de uma coluna do cabeçalho corresponde ao campo: " + campo));
 			valida = false;
+		}
+
+		// Coluna com dados mas sem cabeçalho: não é lida — antes sumia em
+		// silêncio (ex.: especialidade com o título apagado)
+		for (String coluna : mapeamento.colunasSemCabecalho()) {
+			erros.add(new ErroValidacao(1, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.COLUNA_SEM_CABECALHO,
+					"Coluna sem cabecalho, com dados: " + coluna + " - nao sera lida. CORRIJA NA PLANILHA:"
+							+ " escreva o nome da coluna no cabecalho (nao se resolve em Configuracoes, porque"
+							+ " a coluna nao tem nome para cadastrar como alias)",
+					coluna));
 		}
 
 		return valida;

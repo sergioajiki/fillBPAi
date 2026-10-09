@@ -120,8 +120,13 @@ public class MainController {
 			Alert alert = new Alert(Alert.AlertType.ERROR);
 			alert.setTitle("Erro na Importação");
 			alert.setHeaderText("Não foi possível importar a planilha");
-			alert.setContentText(e.getMessage());
-			alert.showAndWait();
+
+			// A mensagem pode listar muitas linhas ("Importação bloqueada — N
+			// linha(s)..."): largura limitada, quebra de linha e rolagem, para a
+			// janela nunca passar dos limites do monitor
+			VBox mensagem = new VBox(labelQuebrado(e.getMessage()));
+			mensagem.setPadding(new Insets(10));
+			exibirComRolagem(alert, mensagem, 760);
 			return;
 		}
 
@@ -532,12 +537,47 @@ public class MainController {
 					"Colunas do cabeçalho não reconhecidas (podem corresponder às acima):", entreAspas));
 		}
 
+		if (!mapeamento.colunasSemCabecalho().isEmpty()) {
+			conteudo.getChildren().add(blocoComTitulo(
+					"Colunas com dados mas sem cabeçalho (podem corresponder às acima):",
+					mapeamento.colunasSemCabecalho()));
+
+			// Coluna sem cabeçalho não tem nome para cadastrar como alias: a única
+			// correção é na planilha — destacado para não ser confundido com a
+			// instrução de Configurações abaixo
+			boolean especialidadeSoComNomes = mapeamento.camposFaltando().contains("ESPECIALIDADE_MEDICO")
+					&& mapeamento.indices().containsKey("MEDICO");
+
+			Label correcaoNaPlanilha = labelQuebrado(
+					"⚠ Corrija na planilha: escreva o nome da coluna no cabeçalho"
+							+ (especialidadeSoComNomes
+									? " — na coluna das especialidades, escreva \"Especialidade\""
+									: "")
+							+ ", salve o arquivo e analise de novo. Este problema não se resolve em "
+							+ "Configurações: uma coluna sem cabeçalho não tem nome para cadastrar como alias."
+							+ (especialidadeSoComNomes
+									? " (A coluna \"Especialidade/Médico\" traz só nomes de médico, sem "
+											+ "\"ESPECIALIDADE - NOME\", por isso não foi lida no formato antigo.)"
+									: ""));
+			correcaoNaPlanilha.setStyle("-fx-background-color: #F6E1DF; -fx-border-color: #B3261E; "
+					+ "-fx-border-width: 1; -fx-border-radius: 4; -fx-background-radius: 4; "
+					+ "-fx-padding: 8 10; -fx-text-fill: #5F1A14; -fx-font-weight: bold;");
+			conteudo.getChildren().add(correcaoNaPlanilha);
+
+		} else if (mapeamento.camposFaltando().contains("ESPECIALIDADE_MEDICO")
+				&& mapeamento.indices().containsKey("MEDICO")) {
+			Label instrucaoEspecialidade = labelQuebrado(
+					"A coluna \"Especialidade/Médico\" traz só nomes de médico (sem \"ESPECIALIDADE - NOME\"), "
+							+ "então ela não foi tratada como o formato antigo. Coloque o cabeçalho "
+							+ "\"Especialidade\" na coluna das especialidades.");
+			conteudo.getChildren().add(instrucaoEspecialidade);
+		}
+
 		if (!mapeamento.camposFaltando().isEmpty() || !mapeamento.colunasNaoReconhecidas().isEmpty()) {
-			Label instrucaoAusentes = new Label(
-					"Se uma dessas colunas corresponder a um campo obrigatório da lista: "
+			Label instrucaoAusentes = labelQuebrado(
+					"Se uma coluna com nome no cabeçalho corresponder a um campo obrigatório da lista: "
 							+ "cadastre-a como alias em Configurações → Colunas da Planilha, "
 							+ "ou renomeie-a na planilha para o nome esperado.");
-			instrucaoAusentes.setWrapText(true);
 			conteudo.getChildren().add(instrucaoAusentes);
 		}
 
@@ -556,12 +596,11 @@ public class MainController {
 
 			conteudo.getChildren().add(blocoComTitulo("Colunas duplicadas:", itensDuplicados));
 
-			Label instrucaoDuplicadas = new Label(
+			Label instrucaoDuplicadas = labelQuebrado(
 					"Duas colunas do cabeçalho apontam para o mesmo campo. Se for repetição "
 							+ "por engano, remova ou renomeie uma delas na planilha. Se as duas "
 							+ "forem nomes válidos, revise os aliases cadastrados em Configurações "
 							+ "→ Colunas da Planilha — pode ser necessário remover um deles.");
-			instrucaoDuplicadas.setWrapText(true);
 			conteudo.getChildren().add(instrucaoDuplicadas);
 		}
 
@@ -599,19 +638,20 @@ public class MainController {
 		conteudo.getChildren().add(new javafx.scene.layout.HBox(10, btnAbrirConfiguracoes, btnSalvarLog));
 		conteudo.setPadding(new Insets(10));
 
-		alert.getDialogPane().setContent(conteudo);
-		alert.showAndWait();
+		// Largura limitada (760 px ou 90% do monitor) e rolagem: sem isso os textos
+		// longos ficavam numa linha só e a janela passava dos limites do monitor
+		exibirComRolagem(alert, conteudo, 760);
 	}
 
 	/** Monta um bloco com título em negrito seguido de uma lista de itens com marcador. */
 	private VBox blocoComTitulo(String titulo, List<String> itens) {
 
-		Label labelTitulo = new Label(titulo);
-		labelTitulo.setStyle("-fx-font-weight: bold;");
+		Label labelTitulo = labelQuebrado(titulo);
+		labelTitulo.setStyle("-fx-font-weight: bold; -fx-text-fill: #1E2521;");
 
 		VBox bloco = new VBox(2, labelTitulo);
 		for (String item : itens) {
-			bloco.getChildren().add(new Label("•  " + item));
+			bloco.getChildren().add(labelQuebrado("•  " + item));
 		}
 
 		return bloco;
@@ -820,6 +860,16 @@ public class MainController {
 	 * de linha até uma linha só, cortando-os com reticências.
 	 */
 	private void exibirComRolagem(Alert alert, javafx.scene.layout.Region conteudo) {
+		exibirComRolagem(alert, conteudo, 1100);
+	}
+
+	/**
+	 * Igual a {@link #exibirComRolagem(Alert, javafx.scene.layout.Region)}, com
+	 * a largura máxima informada (sempre limitada a 90% do monitor). Sem largura
+	 * definida, o JavaFX dimensiona a janela pelo texto de cada Label numa linha
+	 * só — com textos longos a janela passava dos limites do monitor.
+	 */
+	private void exibirComRolagem(Alert alert, javafx.scene.layout.Region conteudo, double larguraMaxima) {
 
 		ScrollPane rolagem = new ScrollPane(conteudo);
 		rolagem.setFitToWidth(true);
@@ -834,8 +884,8 @@ public class MainController {
 
 		javafx.geometry.Rectangle2D tela = javafx.stage.Screen.getPrimary().getVisualBounds();
 
-		// Largura: 1100 px, limitada a 90% da largura útil do monitor
-		alert.getDialogPane().setPrefWidth(Math.min(1100, tela.getWidth() * 0.9));
+		// Largura: a informada (1100 px por padrão), limitada a 90% da largura útil do monitor
+		alert.getDialogPane().setPrefWidth(Math.min(larguraMaxima, tela.getWidth() * 0.9));
 
 		// Altura limitada ANTES de abrir: o JavaFX dimensiona a janela pela
 		// altura preferida do conteúdo, que o maxHeight do DialogPane limita.

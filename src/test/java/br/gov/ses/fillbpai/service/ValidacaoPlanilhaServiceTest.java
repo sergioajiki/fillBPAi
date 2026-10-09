@@ -1148,6 +1148,45 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarComEspecialidadeSemCabecalhoESoNomesDeMedicoReportaColunaFaltandoEColunaSemCabecalho()
+			throws IOException {
+		// Caso real: a coluna da especialidade veio sem título e "ESPECIALIDADE/MEDICO" só com nomes
+		String[] cabecalho = CABECALHO_COMPLETO.clone();
+		cabecalho[COL_ESPECIALIDADE] = null;
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(cabecalho, linhaValida()));
+
+		assertThat(erros).anySatisfy(e -> {
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.ESTRUTURA_INVALIDA);
+			assertThat(e.detalhe()).contains("ESPECIALIDADE_MEDICO");
+		});
+		assertThat(erros).anySatisfy(e -> {
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.COLUNA_SEM_CABECALHO);
+			assertThat(e.valor()).startsWith("coluna E (ex.: \"");
+		});
+		assertThat(erros).noneMatch(e -> e.tipoErro().equals(ErroValidacao.FORMATO_LEGADO_ESPECIALIDADE_MEDICO));
+	}
+
+	@Test
+	void validarPlanilhaLegadoComLinhaSemSeparadorGeraErroNaLinha() throws IOException {
+		String[] semSeparador = linhaLegado();
+		semSeparador[4] = "JOSE SOUZA"; // ESPECIALIDADE/MEDICO sem "ESPECIALIDADE - NOME"
+		semSeparador[1] = "26/12/2024";
+		String[] outra = linhaLegado();
+		outra[1] = "27/12/2024";
+
+		List<ErroValidacao> erros = service.validar(
+				salvarPlanilha(CABECALHO_LEGADO, linhaLegado(), semSeparador, outra));
+
+		assertThat(erros).filteredOn(e -> e.severidade() == ErroValidacao.Severidade.ERRO).singleElement()
+				.satisfies(e -> {
+					assertThat(e.linha()).isEqualTo(3);
+					assertThat(e.tipoErro()).isEqualTo(ErroValidacao.ESPECIALIDADE_MEDICO_SEM_SEPARADOR);
+					assertThat(e.valor()).isEqualTo("\"JOSE SOUZA\"");
+				});
+	}
+
+	@Test
 	void validarComPlanilhaLegadoNaoReportaEstruturaInvalidaEGeraAvisoComExemploReal() throws IOException {
 		String caminho = salvarPlanilha(CABECALHO_LEGADO, linhaLegado());
 

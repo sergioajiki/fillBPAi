@@ -154,12 +154,85 @@ class PlanilhaColumnMapperTest {
 
 	@Test
 	void mapearComCabecalhoNuloReportaTodosOsCamposComoFaltando() {
-		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(null);
+		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear((Row) null);
 
 		assertThat(resultado.estruturaValida()).isFalse();
 		assertThat(resultado.indices()).isEmpty();
 		assertThat(resultado.camposFaltando()).hasSize(24);
 		assertThat(resultado.camposOpcionaisFaltando())
 				.containsExactly("COD_LOGRADOURO", "SITUACAO_RUA", "PACIENTE_SEM_CPF");
+	}
+
+	// ===== Mapeamento pela planilha (cabeçalho + dados) =====
+
+	/** Planilha com o cabeçalho e uma coluna de dados por índice (demais células vazias). */
+	private Sheet criarPlanilha(String[] cabecalho, int coluna, String... valores) {
+		Workbook workbook = new XSSFWorkbook();
+		Sheet sheet = workbook.createSheet();
+		Row header = sheet.createRow(0);
+		for (int i = 0; i < cabecalho.length; i++) {
+			if (cabecalho[i] != null) {
+				header.createCell(i).setCellValue(cabecalho[i]);
+			}
+		}
+		for (int i = 0; i < valores.length; i++) {
+			sheet.createRow(i + 1).createCell(coluna).setCellValue(valores[i]);
+		}
+		return sheet;
+	}
+
+	/** Cabeçalho completo com a coluna "Especialidade" (índice 4) sem título. */
+	private String[] cabecalhoSemTituloDaEspecialidade() {
+		String[] cabecalho = CABECALHO_COMPLETO.clone();
+		cabecalho[4] = null;
+		return cabecalho;
+	}
+
+	@Test
+	void mapearPlanilhaSemTituloDaEspecialidadeESoNomesDeMedicoReportaEspecialidadeFaltando() {
+		Sheet sheet = criarPlanilha(cabecalhoSemTituloDaEspecialidade(), 5, "JOAO DA SILVA", "MARIA SOUZA");
+		sheet.getRow(1).createCell(4).setCellValue("CARDIOLOGIA");
+
+		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(sheet);
+
+		assertThat(resultado.estruturaValida()).isFalse();
+		assertThat(resultado.especialidadeMedicoCombinados()).isFalse();
+		assertThat(resultado.camposFaltando()).containsExactly("ESPECIALIDADE_MEDICO");
+		assertThat(resultado.colunasSemCabecalho()).containsExactly("coluna E (ex.: \"CARDIOLOGIA\")");
+	}
+
+	@Test
+	void mapearPlanilhaLegadoComSeparadorContinuaCombinada() {
+		Sheet sheet = criarPlanilha(cabecalhoSemTituloDaEspecialidade(), 5,
+				"CARDIOLOGIA - JOAO DA SILVA", "PEDIATRIA - MARIA SOUZA", "JOSE SEM ESPECIALIDADE");
+
+		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(sheet);
+
+		// 2 de 3 com separador: formato antigo confirmado; a linha sem separador vira erro de linha
+		assertThat(resultado.estruturaValida()).isTrue();
+		assertThat(resultado.especialidadeMedicoCombinados()).isTrue();
+		assertThat(resultado.indices()).containsEntry("ESPECIALIDADE_MEDICO", 5);
+		assertThat(resultado.colunasSemCabecalho()).isEmpty();
+	}
+
+	@Test
+	void mapearPlanilhaCompletaNaoApontaColunaSemCabecalho() {
+		Sheet sheet = criarPlanilha(CABECALHO_COMPLETO, 4, "CARDIOLOGIA");
+
+		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(sheet);
+
+		assertThat(resultado.estruturaValida()).isTrue();
+		assertThat(resultado.colunasSemCabecalho()).isEmpty();
+	}
+
+	@Test
+	void mapearApontaColunaExtraSemCabecalhoComDados() {
+		String[] cabecalho = Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		Sheet sheet = criarPlanilha(cabecalho, CABECALHO_COMPLETO.length, "", "OBSERVACAO");
+
+		PlanilhaColumnMapper.ResultadoMapeamento resultado = mapper.mapear(sheet);
+
+		assertThat(resultado.estruturaValida()).isTrue();
+		assertThat(resultado.colunasSemCabecalho()).containsExactly("coluna AB (ex.: \"OBSERVACAO\")");
 	}
 }

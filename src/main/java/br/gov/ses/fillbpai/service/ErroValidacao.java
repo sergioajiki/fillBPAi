@@ -159,6 +159,12 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CNS do paciente com 15 dígitos mas dígito verificador errado (paciente com CPF — o CNS não vai para o BPA-I). AVISO, não bloqueia. */
 	public static final String CNS_DV_INVALIDO = "CNS_DV_INVALIDO";
 
+	/** Planilha no formato antigo (especialidade e médico na mesma célula) com célula sem o separador "ESPECIALIDADE - NOME". ERRO bloqueante. */
+	public static final String ESPECIALIDADE_MEDICO_SEM_SEPARADOR = "ESPECIALIDADE_MEDICO_SEM_SEPARADOR";
+
+	/** Coluna com dados mas com o cabeçalho vazio — não é lida. AVISO, não bloqueia (a falta de campo obrigatório já é ERRO de estrutura). */
+	public static final String COLUNA_SEM_CABECALHO = "COLUNA_SEM_CABECALHO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

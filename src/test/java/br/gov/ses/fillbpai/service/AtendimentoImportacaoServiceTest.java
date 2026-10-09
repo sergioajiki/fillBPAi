@@ -704,6 +704,38 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarComEspecialidadeSemCabecalhoBloqueiaPelaEstruturaSemGravar() throws IOException {
+		// Caso real: coluna da especialidade sem título; "ESPECIALIDADE/MEDICO" só com nomes de médico.
+		// Antes: gravava especialidade = nome do médico e médico sem nome.
+		String[] cabecalho = CABECALHO_COMPLETO.clone();
+		cabecalho[4] = "";
+
+		String caminho = salvarPlanilha(cabecalho,
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
+
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("Estrutura da planilha inválida")
+				.hasMessageContaining("ESPECIALIDADE_MEDICO")
+				.hasMessageContaining("colunas com dados mas sem cabeçalho: coluna E (ex.: \"CARDIOLOGIA\")");
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).isEmpty();
+	}
+
+	@Test
+	void importarPlanilhaLegadoComCelulaSemSeparadorBloqueia() throws IOException {
+		String caminho = salvarPlanilha(CABECALHO_LEGADO,
+				linhaLegado("12345678909", "MARIA SILVA", "98765432100", "CARDIOLOGIA - JOAO DA SILVA"),
+				linhaLegado("22233344405", "JOSE SOUZA", "98765432100", "CARDIOLOGIA - JOAO DA SILVA"),
+				linhaLegado("11144477735", "ANA LIMA", "98765432100", "JOAO DA SILVA"));
+
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("nenhuma linha foi importada")
+				.hasMessageContaining("Linha 4 - Erro")
+				.hasMessageContaining("não traz \"ESPECIALIDADE - NOME\": \"JOAO DA SILVA\"");
+	}
+
+	@Test
 	void importarPlanilhaLegadoSeparaEspecialidadeEMedicoAoPersistir() throws IOException {
 
 		String caminho = salvarPlanilha(CABECALHO_LEGADO,

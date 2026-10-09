@@ -130,6 +130,7 @@
       <a href="#estabelecimento">Estabelecimento</a>
       <a href="#estabelecimento-corrigido">Estabelecimento — o que mudou</a>
       <a href="#especialidade">Especialidade</a>
+      <a href="#especialidade-sem-cabecalho">Especialidade sem cabeçalho</a>
       <a href="#cbo">CBO</a>
       <a href="#municipio">Município</a>
       <a href="#cpf-paciente">CPF do paciente</a>
@@ -661,6 +662,108 @@
         chaves de folha: o mesmo médico pode ganhar <strong>duas folhas</strong> no BPA-I e aparecer duas
         vezes na tela. Cardiologia × Cardiologista também ficam separados (são nomes diferentes de fato).
       </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="especialidade-sem-cabecalho">
+    <h2>Especialidade sem cabeçalho <span class="pill ok">✓ Corrigido</span></h2>
+    <p>
+      Verificado em 09/10/2026: a planilha chegou com a coluna das especialidades <strong>sem título</strong> e a
+      coluna "Especialidade/Médico" trazendo só o nome do médico. Pergunta: qual coluna o sistema procura nesse caso?
+    </p>
+
+    <h3>O que acontecia</h3>
+    <ol class="plano">
+      <li>
+        <h4>Coluna sem título era ignorada</h4>
+        <p>
+          O <code>PlanilhaColumnMapper</code> acha as colunas pelo nome do cabeçalho. Cabeçalho vazio não casa com
+          nenhum nome, e a coluna era descartada em silêncio — nem aparecia na lista de "colunas não reconhecidas".
+        </p>
+      </li>
+      <li>
+        <h4>Virava o "formato antigo"</h4>
+        <p>
+          Sem coluna "Especialidade" e com "Especialidade/Médico" presente, o sistema concluía que a planilha era do
+          formato antigo (especialidade e médico na mesma célula, <code>CARDIOLOGIA - JOAO DA SILVA</code>). Por isso
+          a especialidade não contava como coluna obrigatória ausente e <strong>a tela de erro de estrutura não
+          aparecia</strong>.
+        </p>
+      </li>
+      <li>
+        <h4>Dados trocados gravados</h4>
+        <p>
+          Sem o " - " para separar, a célula <code>JOAO DA SILVA</code> virava a especialidade e o médico ficava sem
+          nome. Confirmado com teste de sondagem (cabeçalho ausente, só espaços ou desconhecido): a análise dava só
+          avisos e a importação gravava <code>especialidade = JOAO DA SILVA</code>, <code>médico = null</code>, sem
+          erro. Consequências: árvore com médicos no lugar das especialidades, CNS do profissional impossível de
+          achar, folhas e procedimento errados.
+        </p>
+      </li>
+    </ol>
+
+    <h3>Correções</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Correção</th><th>Efeito</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="caso">1</td>
+            <td>Formato antigo: cada célula "Especialidade/Médico" precisa do " - "</td>
+            <td><code>ERRO</code> <code>ESPECIALIDADE_MEDICO_SEM_SEPARADOR</code> na análise e na importação
+              (<code>AtendimentoProcessor.separarEspecialidadeEMedico</code>) — nunca mais grava o nome do médico como
+              especialidade.</td>
+          </tr>
+          <tr>
+            <td class="caso">2</td>
+            <td>Colunas com dados mas sem cabeçalho são apontadas</td>
+            <td>Na tela de estrutura ("coluna E (ex.: "CARDIOLOGIA")"), no aviso <code>COLUNA_SEM_CABECALHO</code> da
+              análise (mesmo com a estrutura válida) e na mensagem de erro da importação.</td>
+          </tr>
+          <tr>
+            <td class="caso">3</td>
+            <td>Formato antigo só quando o conteúdo confirma</td>
+            <td><code>PlanilhaColumnMapper.mapear(Sheet)</code> olha os dados: sem coluna "Especialidade", a coluna
+              "Especialidade/Médico" só é lida no formato antigo se ao menos metade das células preenchidas tiver o
+              " - ". Só nomes de médico → <code>ESPECIALIDADE_MEDICO</code> entra como coluna obrigatória ausente e a
+              tela de estrutura aparece.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Planilhas no formato antigo continuam aceitas (ainda podem chegar). Numa planilha antiga misturada, com a
+      maioria das células em "ESPECIALIDADE - NOME", só as células sem o separador viram erro de linha.
+    </p>
+
+    <h3>A correção é sempre na planilha</h3>
+    <div class="callout risco">
+      <p class="kicker">Coluna sem cabeçalho não se resolve em Configurações</p>
+      <p>
+        Uma coluna sem título não tem nome para cadastrar como alias em Configurações → Colunas da Planilha. A tela
+        de estrutura mostra um quadro vermelho em destaque: <em>"⚠ Corrija na planilha: escreva o nome da coluna no
+        cabeçalho — na coluna das especialidades, escreva "Especialidade" —, salve o arquivo e analise de novo."</em>
+        A instrução de cadastrar alias passou a valer só para colunas que têm nome. O aviso da análise e a mensagem
+        da importação repetem a orientação.
+      </p>
+    </div>
+
+    <h3>Como fica o caso real</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Antes</th><th>Agora</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="falha">Sem tela de erro; atendimento gravado com especialidade = nome do médico e médico sem
+              nome.</td>
+            <td class="ok">Tela de estrutura: "Colunas obrigatórias não encontradas: ESPECIALIDADE_MEDICO" + "Colunas
+              com dados mas sem cabeçalho: coluna E (ex.: "CARDIOLOGIA")" + quadro vermelho com a correção na planilha.
+              Nada é gravado.</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </section>
 
@@ -1607,6 +1710,15 @@
           Masculino, Indeterminado). Assim a importação nunca falha no banco e o gerador nunca precisa do
           <code>F</code> padrão — que fica só para dados antigos, com aviso. Detalhar na revisão da coluna
           <code>SEXO_PACIENTE</code>.
+        </p>
+      </li>
+      <li>
+        <h4>Especialidade sem cabeçalho: não gravar dados trocados <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          As três correções de <a href="#especialidade-sem-cabecalho">Especialidade sem cabeçalho</a>: separador
+          obrigatório no formato antigo (<code>ESPECIALIDADE_MEDICO_SEM_SEPARADOR</code>), colunas sem cabeçalho
+          apontadas (<code>COLUNA_SEM_CABECALHO</code>, com a orientação de corrigir na planilha) e formato antigo só
+          quando o conteúdo confirma. 441 testes.
         </p>
       </li>
     </ol>

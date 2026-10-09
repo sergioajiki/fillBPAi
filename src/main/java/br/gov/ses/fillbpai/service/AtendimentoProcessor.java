@@ -261,6 +261,15 @@ public class AtendimentoProcessor {
 
 		String[] partes = StringUtils.separarEspecialidadeEMedico(especialidade);
 
+		// Sem o separador o nome do médico viraria a especialidade e o médico
+		// ficaria sem nome (caso real: coluna da especialidade sem cabeçalho)
+		if (partes[1] == null) {
+			throw new IllegalArgumentException(
+					"A coluna \"Especialidade/Médico\" (formato antigo) não traz \"ESPECIALIDADE - NOME\": \""
+							+ especialidade.trim() + "\" — se a especialidade está em outra coluna, coloque o"
+							+ " cabeçalho \"Especialidade\" nela.");
+		}
+
 		dto.setEspecialidadeMedico(partes[0]);
 		dto.setMedico(partes[1]);
 	}

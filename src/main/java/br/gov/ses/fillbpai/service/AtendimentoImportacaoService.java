@@ -70,7 +70,7 @@ public class AtendimentoImportacaoService {
 			// ausentes produziria erros de linha enganosos (ex.: "CPF não
 			// informado" em toda linha) em vez de apontar a causa real.
 			PlanilhaColumnMapper.ResultadoMapeamento mapeamento =
-					columnMapper.mapear(sheet.getRow(0));
+					columnMapper.mapear(sheet);
 
 			if (!mapeamento.estruturaValida()) {
 				throw new IllegalStateException(
@@ -703,6 +703,12 @@ public class AtendimentoImportacaoService {
 			}
 			sb.append("colunas duplicadas no cabeçalho: ")
 					.append(String.join(", ", mapeamento.camposDuplicados()));
+		}
+
+		if (!mapeamento.colunasSemCabecalho().isEmpty()) {
+			sb.append("; colunas com dados mas sem cabeçalho: ")
+					.append(String.join(", ", mapeamento.colunasSemCabecalho()))
+					.append(" — corrija na planilha: escreva o nome da coluna no cabeçalho");
 		}
 
 		return sb.toString();

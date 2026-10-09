@@ -99,6 +99,11 @@ public class ExcelImportService {
 		return dto;
 	}
 
+	/** Valor de uma célula com as mesmas regras da leitura das linhas (fórmula pelo resultado, U+00A0). */
+	public String lerCelula(Cell cell) {
+		return getString(cell);
+	}
+
 	/**
 	 * Busca o valor de um campo canônico na linha, usando o índice de coluna
 	 * resolvido para esse campo. Campo ausente do mapa (não encontrado no

@@ -60,6 +60,17 @@ public final class AgrupamentoValidacao {
 					"Mesmo paciente, médico, data, procedimento e horário de outra linha: as duas virariam"
 							+ " um único atendimento e uma linha seria perdida. Remova a repetição ou corrija o"
 							+ " horário.", 1)),
+			Map.entry(ErroValidacao.ESPECIALIDADE_MEDICO_SEM_SEPARADOR, new InfoTipo(
+					"Especialidade/Médico sem \"ESPECIALIDADE - NOME\"",
+					"A planilha não tem coluna \"Especialidade\", então a coluna \"Especialidade/Médico\" foi lida"
+							+ " no formato antigo, com os dois valores na mesma célula. Estas células não trazem o"
+							+ " separador: o nome do médico viraria a especialidade. Se a especialidade está em outra"
+							+ " coluna, coloque o cabeçalho \"Especialidade\" nela.", 8)),
+			Map.entry(ErroValidacao.COLUNA_SEM_CABECALHO, new InfoTipo(
+					"Coluna sem cabeçalho",
+					"Coluna com dados, mas com o cabeçalho vazio — não é lida na importação. A correção é na"
+							+ " planilha: escreva o nome da coluna no cabeçalho, salve e analise de novo. Não se"
+							+ " resolve em Configurações, porque a coluna não tem nome para cadastrar como alias.", 15)),
 			Map.entry(ErroValidacao.CNS_OBRIGATORIO_SEM_CPF, new InfoTipo(
 					"Paciente sem CPF sem CNS válido",
 					"Com \"Paciente sem CPF\" = Sim, o CNS é o documento que identifica o paciente no BPA-I e"

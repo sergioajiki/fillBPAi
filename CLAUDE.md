@@ -55,7 +55,8 @@ Tipos de ERRO (bloqueantes):
 - **CPF_MEDICO_AUSENTE** / **CPF_MEDICO_INVALIDO** — CPF do médico ausente ou diferente de 11 dígitos; também rejeitado por `AtendimentoProcessor` antes de gravar (antes, um CPF fictício maior que a coluna derrubava a transação da planilha inteira)
 - **RACA_AUSENTE** — raça do paciente não informada (campo obrigatório no layout do BPA-I, seq 21 prd-raca)
 - **RACA_INVALIDA** — raça presente mas não reconhecida por `RacaUtils` (grafia incorreta) — mensagem sugere conferir a grafia
-- **ESTRUTURA_INVALIDA** — coluna obrigatória ausente do cabeçalho ou nome de coluna ambíguo (casa com mais de um campo canônico)
+- **ESTRUTURA_INVALIDA** — coluna obrigatória ausente do cabeçalho ou nome de coluna ambíguo (casa com mais de um campo canônico). O mapeamento olha também os dados (`PlanilhaColumnMapper.mapear(Sheet)`, usado pela análise e pela importação): sem coluna "Especialidade", a coluna "Especialidade/Médico" só é tratada como formato legado se ao menos metade das células preenchidas tiver o separador "ESPECIALIDADE - NOME"; senão `ESPECIALIDADE_MEDICO` conta como coluna obrigatória ausente (caso real: coluna da especialidade sem título e "Especialidade/Médico" só com nomes — antes gravava o nome do médico como especialidade e o médico sem nome). A tela de estrutura (`MainController.mostrarDialogoErroEstrutura`) lista também as colunas com dados mas sem cabeçalho (`colunasSemCabecalho`: letra da coluna + exemplo)
+- **ESPECIALIDADE_MEDICO_SEM_SEPARADOR** — planilha legado (formato confirmado pelo conteúdo) com célula "Especialidade/Médico" sem o separador "ESPECIALIDADE - NOME"; também rejeitado pelo `AtendimentoProcessor.separarEspecialidadeEMedico`
 
 Tipos de AVISO (não bloqueantes):
 - **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização (não bloqueia a importação)
@@ -64,6 +65,7 @@ Tipos de AVISO (não bloqueantes):
 - **RACA_INDIGENA** — raça do paciente informada como Indígena — exige preenchimento da etnia
 - **ETNIA_NAO_ENCONTRADA** — etnia preenchida mas não encontrada na tabela oficial (`EtniaUtils`); só é considerada quando a raça é Indígena, ignorada para as demais raças mesmo se preenchida
 - **FORMATO_LEGADO_ESPECIALIDADE_MEDICO** — planilha antiga com coluna "Especialidade/Médico" combinada numa única célula; separado automaticamente na importação
+- **COLUNA_SEM_CABECALHO** — coluna com dados mas com o cabeçalho vazio (valor "coluna E (ex.: \"CARDIOLOGIA\")"); não é lida na importação. A correção é sempre na planilha (escrever o nome no cabeçalho) — não há nome para cadastrar como alias em Configurações; a tela de estrutura destaca isso num quadro vermelho
 - **COLUNA_OPCIONAL_AUSENTE** — coluna opcional (`COD_LOGRADOURO`, `SITUACAO_RUA` ou `PACIENTE_SEM_CPF`) não encontrada no cabeçalho; mensagem específica por campo (`ValidacaoPlanilhaService.mensagemColunaOpcionalAusente`) explica o fallback usado
 - **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
 - **PACIENTE_SEM_CPF_INVALIDO** — coluna "Paciente sem CPF" presente mas valor da célula não reconhecido (mesmas regras de `SimNaoUtils`) — valor será derivado automaticamente a partir do CPF do paciente
