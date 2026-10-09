@@ -36,6 +36,56 @@ public class CnsUtils {
 	}
 
 	/**
+	 * CNS de paciente sem CPF ("Paciente sem CPF" = Sim): é o documento que
+	 * identifica o paciente no BPA-I (seq 10, {@code prd-cnspac}), então é
+	 * obrigatório com exatamente 15 dígitos (decisão de 09/10/2026).
+	 *
+	 * @param cns valor bruto da célula (pontos/espaços são ignorados)
+	 */
+	public static boolean isCnsSemCpfValido(String cns) {
+		String limpo = normalizar(cns);
+		return limpo != null && limpo.length() == 15 && isDvValido(limpo);
+	}
+
+	/**
+	 * Confere o dígito verificador do CNS (algoritmo do Ministério da Saúde,
+	 * sem consulta externa): 15 dígitos, primeiro dígito 1 ou 2 (definitivo)
+	 * ou 7, 8, 9 (provisório), e soma dos dígitos multiplicados pelos pesos
+	 * 15 a 1 divisível por 11. O layout do BPA-I pede "CNS do paciente com
+	 * dígito verificador válido" (seq 10).
+	 *
+	 * @param cns valor bruto ou normalizado (o que não é dígito é ignorado)
+	 * @return {@code false} também para vazio ou tamanho diferente de 15
+	 */
+	public static boolean isDvValido(String cns) {
+
+		String limpo = normalizar(cns);
+
+		if (limpo == null || limpo.length() != 15 || "12789".indexOf(limpo.charAt(0)) < 0) {
+			return false;
+		}
+
+		int soma = 0;
+		for (int i = 0; i < 15; i++) {
+			soma += (limpo.charAt(i) - '0') * (15 - i);
+		}
+
+		return soma % 11 == 0;
+	}
+
+	/** Motivo do CNS de paciente sem CPF não ser aceito — para as mensagens de erro. */
+	public static String motivoCnsSemCpfInvalido(String cns) {
+		String limpo = normalizar(cns);
+		if (limpo == null || limpo.isEmpty()) {
+			return "CNS não informado";
+		}
+		if (limpo.length() != 15) {
+			return "CNS com " + limpo.length() + " dígitos";
+		}
+		return "CNS com dígito verificador inválido";
+	}
+
+	/**
 	 * Processa o CNS: normaliza e valida.
 	 * Retorna o resultado contendo o CNS limpo e eventuais avisos.
 	 *
@@ -71,6 +121,11 @@ public class CnsUtils {
 		if (cnsLimpo.length() > 15) {
 			avisos.add("CNS com formato incomum (" + cnsLimpo.length()
 					+ " dígitos, esperado 15): " + cnsLimpo);
+		} else if (!isDvValido(cnsLimpo)) {
+			// 15 dígitos com dígito verificador errado — aceito com aviso
+			// (paciente sem CPF é barrado antes, em AtendimentoProcessor)
+			avisos.add("CNS do paciente com dígito verificador inválido (CNS_DV_INVALIDO): " + cnsLimpo
+					+ " — confira se algum dígito foi digitado errado");
 		}
 
 		return new CnsResultado(cnsLimpo, avisos);

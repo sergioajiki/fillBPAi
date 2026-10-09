@@ -50,6 +50,44 @@ class CnsUtilsTest {
 		assertThat(resultado.getAvisos()).hasSize(1);
 	}
 
+	// ===== Dígito verificador (recomendação 25) =====
+
+	@Test
+	void isDvValidoAceitaCnsDefinitivoEProvisorio() {
+		assertThat(CnsUtils.isDvValido("700207960618529")).isTrue();  // provisório (7)
+		assertThat(CnsUtils.isDvValido("123456789010000")).isTrue();  // definitivo (1)
+		assertThat(CnsUtils.isDvValido("200000000010009")).isTrue();  // definitivo (2)
+		assertThat(CnsUtils.isDvValido("700 2079 6061 8529")).isTrue(); // com máscara
+	}
+
+	@Test
+	void isDvValidoRecusaDigitoErradoPrimeiroDigitoInvalidoETamanhoErrado() {
+		assertThat(CnsUtils.isDvValido("700207960618528")).isFalse(); // último dígito trocado
+		assertThat(CnsUtils.isDvValido("700207960618592")).isFalse(); // dois dígitos invertidos
+		assertThat(CnsUtils.isDvValido("300000000000000")).isFalse(); // começa com 3
+		assertThat(CnsUtils.isDvValido("000000000000000")).isFalse();
+		assertThat(CnsUtils.isDvValido("70020796061852")).isFalse();
+		assertThat(CnsUtils.isDvValido(null)).isFalse();
+	}
+
+	@Test
+	void processarComQuinzeDigitosEDvErradoGeraAviso() {
+		CnsUtils.CnsResultado resultado = CnsUtils.processar("700207960618528");
+
+		assertThat(resultado.getCns()).isEqualTo("700207960618528");
+		assertThat(resultado.getAvisos()).singleElement().asString()
+				.contains("CNS_DV_INVALIDO").contains("dígito verificador");
+	}
+
+	@Test
+	void isCnsSemCpfValidoExigeQuinzeDigitosEDvValido() {
+		assertThat(CnsUtils.isCnsSemCpfValido("700207960618529")).isTrue();
+		assertThat(CnsUtils.isCnsSemCpfValido("700207960618528")).isFalse();
+		assertThat(CnsUtils.motivoCnsSemCpfInvalido("700207960618528")).isEqualTo("CNS com dígito verificador inválido");
+		assertThat(CnsUtils.motivoCnsSemCpfInvalido("12345")).isEqualTo("CNS com 5 dígitos");
+		assertThat(CnsUtils.motivoCnsSemCpfInvalido(null)).isEqualTo("CNS não informado");
+	}
+
 	@Test
 	void processarComMaisDeQuinzeDigitosAceitaComAvisoDeFormatoIncomum() {
 		String cnsLegado = "7000094731924063";

@@ -133,6 +133,9 @@
       <a href="#cbo">CBO</a>
       <a href="#municipio">Município</a>
       <a href="#cpf-paciente">CPF do paciente</a>
+      <a href="#nome-paciente">Nome do paciente</a>
+      <a href="#cns-paciente">CNS do paciente</a>
+      <a href="#criticas-bpa">Críticas do programa BPA</a>
       <a href="#padrao">Padrão encontrado</a>
       <a href="#implementado">O que mudou</a>
       <a href="#recomendacoes">Recomendações</a>
@@ -880,6 +883,278 @@
 
   <!-- ======================================================= -->
 
+  <section id="nome-paciente">
+    <h2>Nome do paciente (<code>PACIENTE</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Verificação</h4>
+        <p>
+          Vazio → <code>PACIENTE_AUSENTE</code> (<code>ERRO</code>, na análise desde 09/10/2026 e na importação).
+          Nada mais é conferido: tamanho, caracteres e grafia passam como vieram.
+        </p>
+      </li>
+      <li>
+        <h4>Gravação</h4>
+        <p>
+          Gravado <strong>como digitado</strong> (caixa, acentos, espaços repetidos), até 200 caracteres. O paciente
+          é identificado pelo CPF: cada linha importada com aquele CPF <strong>sobrescreve o nome</strong> — vale
+          o da última linha. Para paciente sem CPF, o nome (sem acento, caixa e espaços extras) + nascimento
+          formam a chave interna (<code>CpfUtils.chaveSemCpf</code>).
+        </p>
+      </li>
+      <li>
+        <h4>BPA-I</h4>
+        <p>
+          <code>prd-nmpac</code> (seq 19, 30 posições, ALFA): o gerador troca quebras de linha por espaço,
+          substitui caracteres fora do ISO-8859-1 e <strong>corta em 30 caracteres</strong>. Acentos e
+          minúsculas vão como estão.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>BPA-I (prd-nmpac)</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>MARIA DA SILVA</code></td><td>sem alerta</td><td class="ok"><code>MARIA DA SILVA</code></td></tr>
+          <tr><td class="caso"><code>maria  da silva</code></td><td>sem alerta</td><td><code>maria  da silva</code> (minúsculas, espaço duplo)</td></tr>
+          <tr><td class="caso"><code>MARIA APARECIDA DOS SANTOS OLIVEIRA</code> (35)</td><td>sem alerta</td><td class="falha"><code>MARIA APARECIDA DOS SANTOS OLI</code> — cortado no meio da palavra</td></tr>
+          <tr><td class="caso"><code>RN DE JOANA</code>, <code>MARIA 2</code>, <code>-</code>, <code>TESTE</code></td><td>sem alerta</td><td class="falha">vai como nome</td></tr>
+          <tr><td class="caso">Mesmo CPF: linha 2 <code>MARIA SILVA</code>, linha 9 <code>JOSE SOUZA</code></td><td>sem alerta</td><td class="falha">as duas linhas saem como <code>JOSE SOUZA</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Mesmo CPF com nomes diferentes vira um paciente só, sem aviso <span class="pill risco">Grave</span></p>
+      <p>
+        Se um CPF for digitado no lugar de outro (cópia de linha, CPF da mãe no atendimento do filho), as duas
+        pessoas viram um único paciente e o BPA-I sai com o nome, nascimento e endereço da última linha para
+        todos os atendimentos. O dígito verificador não pega esse caso — o CPF é válido, só é de outra pessoa.
+        Hoje nada avisa: nem dentro da planilha, nem comparando com o nome já gravado no banco.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Nome acima de 30 caracteres é cortado no meio</p>
+      <p>
+        O layout aceita 30 posições. Nomes completos longos são comuns e saem truncados
+        (<code>…DOS SANTOS OLI</code>) sem que ninguém veja antes da remessa.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Grafia não padronizada</p>
+      <p>
+        O nome vai como digitado: minúsculas, espaços duplos e acentos chegam ao BPA-I, e a mesma pessoa
+        aparece com grafias diferentes na tela. Números, símbolos ou uma palavra só (<code>TESTE</code>,
+        <code>RN DE …</code>, <code>-</code>) também passam.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="cns-paciente">
+    <h2>CNS do paciente (<code>CNS_PACIENTE</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Verificação</h4>
+        <p>
+          Só o tamanho, depois de tirar o que não é dígito (<code>CnsUtils</code>): vazio ou menos de 15
+          dígitos → <code>CNS_INVALIDO</code>; mais de 15 → <code>CNS_INCOMUM</code>. Os dois são
+          <code>AVISO</code>. <strong>O dígito verificador não é conferido</strong>, embora o layout peça
+          "CNS do paciente com dígito verificador válido".
+        </p>
+      </li>
+      <li>
+        <h4>Gravação</h4>
+        <p>
+          Em <code>Paciente.cns</code>, trocado pelo valor de cada linha importada com o mesmo CPF —
+          <strong>inclusive por vazio</strong>: uma linha sem CNS apaga o CNS que o paciente já tinha.
+          Aparece na tabela da tela.
+        </p>
+      </li>
+      <li>
+        <h4>BPA-I</h4>
+        <p>
+          <strong>Não vai.</strong> <code>prd-cnspac</code> (seq 10) sai sempre com 15 brancos. O layout 2026 diz
+          (observação 2, última página): <em>"Deve-se identificar o paciente por apenas um documento: ou o CPF ou o
+          CNS. Sendo assim, se informado o CPF, não informar o CNS e vice-versa."</em> Com CPF preenchido, os
+          brancos estão corretos.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Analisar Planilha</th><th>Resultado</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>700 2079 6061 8529</code></td><td>sem alerta</td><td class="ok">gravado <code>700207960618529</code></td></tr>
+          <tr><td class="caso">15 dígitos com um digitado errado</td><td>sem alerta</td><td class="falha">aceito</td></tr>
+          <tr><td class="caso">Vazio (paciente com CPF)</td><td><code>CNS_INVALIDO</code> (aviso)</td><td class="falha">apaga o CNS que o paciente já tinha</td></tr>
+          <tr><td class="caso">16 ou mais dígitos</td><td><code>CNS_INCOMUM</code> (aviso)</td><td class="falha">aceito e gravado assim</td></tr>
+          <tr><td class="caso">Vazio, paciente sem CPF</td><td><code>CNS_INVALIDO</code> (aviso)</td><td class="falha">BPA-I sem CPF e sem CNS</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Paciente sem CPF sai sem nenhum documento no BPA-I <span class="pill risco">Grave</span></p>
+      <p>
+        Desde 08/10/2026, "Paciente sem CPF" = Sim permite importar com o CPF vazio. Nesse caso o BPA-I sai com
+        <code>prd-cpf-pcnte</code> em branco <strong>e</strong> <code>prd-cnspac</code> em branco — o paciente não
+        é identificado por documento nenhum. Pela regra do layout ("ou o CPF ou o CNS"), sem CPF é o CNS que
+        deveria ir no seq 10. O layout diz que o campo é obrigatório "quando o procedimento exigir"; é provável
+        que a teleconsulta exija, mas isso precisa ser confirmado no SIA.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Linha sem CNS apaga o CNS conhecido</p>
+      <p>
+        Se o paciente veio com CNS numa planilha e sem CNS na seguinte, o CNS gravado é perdido. Hoje isso só
+        afeta a tela, mas passa a importar se o CNS for para o BPA-I (paciente sem CPF).
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Aviso de CNS ausente é ruído quando há CPF</p>
+      <p>
+        Com CPF preenchido o CNS não vai para o BPA-I, mas cada linha sem CNS gera um aviso
+        <code>CNS_INVALIDO</code>. Numa planilha em que a coluna vem quase sempre vazia, esse grupo enche a tela
+        de avisos sem efeito na remessa e esconde os que importam.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">"Mais de 15 dígitos" não é um formato antigo</p>
+      <p>
+        O CNS tem sempre 15 dígitos (começa com 1 ou 2 — definitivo — ou 7, 8, 9 — provisório). Mais de 15 é
+        quase sempre dois números colados ou lixo. Além disso, o Excel guarda no máximo 15 dígitos
+        significativos numa célula numérica: um número de 16 ou mais dígitos já chega com os últimos trocados
+        por zero. Hoje esse valor é aceito e gravado como "incomum".
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="criticas-bpa">
+    <h2>Críticas do programa BPA (DATASUS)</h2>
+    <p>
+      Fonte: histórico de versões do programa BPA (versões 04.01 a 05.00, de 26/04/2024 a 07/07/2026), lido em
+      09/10/2026. O programa BPA é quem recebe o arquivo gerado pelo fillBPAi e o exporta para o SIA.
+    </p>
+    <div class="callout risco">
+      <p class="kicker">Registro com crítica é descartado em silêncio <span class="pill risco">Grave</span></p>
+      <p>
+        Versão 05.00: <em>"Registros com crítica, não são exportados para o SIA."</em> O BPA não recusa o
+        arquivo inteiro — descarta cada atendimento criticado, e cada um é produção perdida. É o mesmo princípio
+        de "nenhuma linha pode se perder" adotado na importação (<a href="#recomendacoes">Recomendação 22</a>),
+        agora do lado do DATASUS: <strong>toda regra que o BPA critica precisa ser barrada antes, no "Analisar
+        Planilha" ou na geração</strong>.
+      </p>
+    </div>
+
+    <h3>O que o histórico confirma ou muda</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Versão</th><th>O que diz</th><th>Para o fillBPAi</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="caso">04.06 · 04.07</td>
+            <td>Não é permitido informar CNS e CPF do paciente no mesmo atendimento.</td>
+            <td class="ok">Confirma o seq 10 (CNS) em branco quando há CPF. Se o CNS passar a ir para paciente sem CPF
+              (<a href="#recomendacoes">Recomendação 23</a>), nunca pode ir junto com o CPF.</td>
+          </tr>
+          <tr>
+            <td class="caso">04.01 · 04.02</td>
+            <td>Paciente sem CPF e sem CNS é aceito em procedimento que não exige CNS.</td>
+            <td>A <a href="#abertas">Decisão 11</a> depende do procedimento, não é uma regra geral.</td>
+          </tr>
+          <tr>
+            <td class="caso">04.14</td>
+            <td>Procedimento com atributo "CPF obrigatório" só aceita CPF; com "CNS obrigatório" aceita CNS ou CPF.</td>
+            <td>Também depende dos atributos do procedimento no SIGTAP.</td>
+          </tr>
+          <tr>
+            <td class="caso">05.00</td>
+            <td>Novo campo "Pessoa sem CPF/Registro Civil" para as exceções dos procedimentos com atributo
+              complementar "058 – Obrigatório CPF".</td>
+            <td class="ok">Confirma o seq 39 (<code>prd_sem_cpf</code>). O caso "sem CPF" foi criado justamente para
+              procedimentos que exigem CPF.</td>
+          </tr>
+          <tr>
+            <td class="caso">04.03</td>
+            <td>Crítica para CPF <code>00000000000</code> vindo de outros sistemas.</td>
+            <td class="ok">Já barrado (<code>CPF_FALSO</code>, todos os dígitos iguais).</td>
+          </tr>
+          <tr>
+            <td class="caso">04.13</td>
+            <td>Crítica de quantidade máxima por CPF/CNS.</td>
+            <td class="falha">Atinge a "suspeita de duplicidade": dois atendimentos do mesmo paciente e procedimento
+              podem passar do limite do SIGTAP e um deles ser descartado.</td>
+          </tr>
+          <tr>
+            <td class="caso">04.13</td>
+            <td>Data de realização aceita da competência atual até 3 competências anteriores.</td>
+            <td class="falha">Remessa com mais de 3 meses de atraso perde os atendimentos. Hoje nada avisa.</td>
+          </tr>
+          <tr>
+            <td class="caso">04.11</td>
+            <td>Sexo <code>I</code> (indeterminado) válido a partir de 01/2026.</td>
+            <td>A importação já aceita <code>I</code>/Indeterminado. Problemas no sexo vazio ou não reconhecido: ver abaixo.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas encontrados no sexo (leitura do código, sem teste)</h3>
+    <div class="callout risco">
+      <p class="kicker">Sexo vazio vai como "F" no BPA-I</p>
+      <p>
+        <code>GeradorBPAiService</code> (seq 11, <code>prd-sexo</code>) usa <code>F</code> quando o paciente não tem
+        sexo gravado. Um paciente masculino com a célula vazia sai como feminino — dado errado e possível crítica
+        de compatibilidade com o CID ou o procedimento.
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">Valor não reconhecido derruba a importação</p>
+      <p>
+        <code>AtendimentoProcessor.normalizarSexo</code> aceita F/M/I e Feminino/Masculino/Indeterminado; outro valor
+        (<code>FEM</code>, <code>Fem.</code>) é mantido como veio. A coluna no banco tem 1 caractere, então a gravação
+        falha e — com o "tudo ou nada" — a planilha inteira é cancelada com uma mensagem de erro de banco. A análise
+        não confere o sexo. Fica para a revisão da coluna <code>SEXO_PACIENTE</code>.
+      </p>
+    </div>
+
+    <h3>A conferir no SIGTAP</h3>
+    <div class="callout aberto">
+      <p class="kicker">Atributos e quantidade máxima dos dois procedimentos</p>
+      <p>
+        Em <code>sigtap.datasus.gov.br</code>, consultar teleconsulta <code>0301010307</code> e teleinterconsulta
+        <code>0804010064</code>:
+      </p>
+      <ul class="plain">
+        <li><strong>Atributos complementares</strong> — "058 – Obrigatório CPF" e/ou "CNS obrigatório". A
+          <a href="#abertas">Decisão 11</a> já foi fechada sem depender disso (paciente sem CPF sempre com CNS de 15
+          dígitos); a consulta serve para confirmar que o BPA aceita esse caminho para os nossos procedimentos.</li>
+        <li><strong>Quantidade máxima</strong> — se for 1 por competência, o aviso
+          <code>SUSPEITA_DUPLICIDADE</code> deve dizer que o segundo atendimento pode ser descartado pelo BPA.</li>
+      </ul>
+      <p>
+        Enviar o CNS no seq 10 quando não há CPF não contraria nenhuma das regras acima — essa parte da
+        Recomendação 23 vale em qualquer cenário.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
   <section id="padrao">
     <h2>Padrão encontrado</h2>
     <p>
@@ -1230,6 +1505,110 @@
             planilha continua atualizando em vez de duplicar.</li>
         </ul>
       </li>
+      <li>
+        <h4>Paciente sem CPF: CNS no BPA-I e obrigatório <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Regra decidida em 09/10/2026 (<a href="#abertas">Decisão 11</a>), na análise e na importação:
+        </p>
+        <ul class="plain">
+          <li>CPF vazio e a planilha <strong>sem</strong> a coluna "Paciente sem CPF" → <code>ERRO</code>
+            <code>CPF_AUSENTE</code>.</li>
+          <li>CPF vazio e "Paciente sem CPF" = <strong>Não</strong> (ou vazio/não reconhecido) → <code>ERRO</code>
+            <code>CPF_AUSENTE</code>.</li>
+          <li>CPF vazio e "Paciente sem CPF" = <strong>Sim</strong> → o CNS do paciente é obrigatório com exatamente
+            15 dígitos; vazio ou com outro tamanho → <code>ERRO</code> <code>CNS_OBRIGATORIO_SEM_CPF</code>
+            ("Paciente sem CPF sem CNS válido"). Nesse caso o aviso <code>CNS_INVALIDO</code> não se repete.</li>
+        </ul>
+        <p>
+          No BPA-I, o paciente sem CPF sai com o CNS em <code>prd-cnspac</code> (seq 10) e o CPF (seq 38) em branco;
+          com CPF, o seq 10 continua em branco — nunca os dois juntos (críticas 04.06/04.07). Achado na
+          implementação: o seq 38 de paciente sem CPF saía <code>00000000000</code>, CPF que o BPA critica (04.03) e
+          descarta — corrigido para brancos, o default do layout. O dígito verificador do CNS ainda não é conferido
+          (recomendação seguinte).
+        </p>
+      </li>
+      <li>
+        <h4>Mesmo CPF com nomes diferentes: avisar <span class="pill risco">Alta</span></h4>
+        <p>
+          Novo <code>AVISO</code> (ex.: <code>CPF_COM_NOMES_DIFERENTES</code>) quando o mesmo CPF aparece na
+          planilha com nomes que não batem (comparando sem acento, caixa e espaços extras), ou com um nome diferente
+          do já gravado no banco. Item: <code>CPF 123… — "MARIA SILVA" (linhas 2, 5) × "JOSE SOUZA" (linha 9)</code>.
+          Pequenas variações (<code>MARIA DA SILVA</code> × <code>MARIA SILVA</code>) também aparecem — é aviso, não
+          erro, porque pode ser só grafia. Ver <a href="#abertas">Decisão 12</a>.
+        </p>
+      </li>
+      <li>
+        <h4>CNS: conferir o dígito verificador <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>CnsUtils.isDvValido</code>: 15 dígitos, primeiro dígito 1, 2, 7, 8 ou 9, e soma ponderada (pesos
+          15 a 1) divisível por 11 — algoritmo do Ministério da Saúde, sem consulta externa. Pega um dígito
+          trocado e a maioria das inversões de dois dígitos.
+        </p>
+        <ul class="plain">
+          <li>Paciente <strong>com CPF</strong>: <code>AVISO</code> <code>CNS_DV_INVALIDO</code> ("CNS do paciente
+            com dígito verificador inválido"), na análise e no log de importação — o CNS não vai para o BPA-I.</li>
+          <li>Paciente <strong>sem CPF</strong>: <code>ERRO</code> <code>CNS_OBRIGATORIO_SEM_CPF</code>, com o
+            motivo na mensagem ("CNS não informado", "CNS com 14 dígitos" ou "CNS com dígito verificador
+            inválido").</li>
+        </ul>
+      </li>
+      <li>
+        <h4>CNS: tratar mais de 15 dígitos como inválido <span class="pill">Média</span></h4>
+        <p>
+          Juntar <code>CNS_INCOMUM</code> em <code>CNS_INVALIDO</code>: o CNS tem sempre 15 dígitos. Não gravar o
+          valor de 16 ou mais dígitos (fica vazio, com aviso).
+        </p>
+      </li>
+      <li>
+        <h4>CNS: não apagar o CNS conhecido <span class="pill">Média</span></h4>
+        <p>
+          Linha sem CNS (ou com CNS inválido) mantém o CNS que o paciente já tem no banco, em vez de gravar
+          vazio por cima.
+        </p>
+      </li>
+      <li>
+        <h4>CNS ausente com CPF: não avisar <span class="pill">Média</span></h4>
+        <p>
+          Com CPF preenchido o CNS não vai para o BPA-I. Tirar o aviso de CNS vazio nesse caso (continua
+          avisando CNS preenchido mas inválido). Ver <a href="#abertas">Decisão 13</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Nome: padronizar e avisar acima de 30 caracteres <span class="pill">Média</span></h4>
+        <p>
+          Gravar o nome em maiúsculas, com espaços repetidos reduzidos (como a especialidade). Nome com mais de 30
+          caracteres → <code>AVISO</code> mostrando como vai sair no BPA-I
+          (<code>"MARIA APARECIDA DOS SANTOS OLIVEIRA" → "MARIA APARECIDA DOS SANTOS OLI"</code>), para quem
+          quiser abreviar na planilha. Acentos: ver <a href="#abertas">Decisão 14</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Nome suspeito: avisar <span class="pill">Baixa</span></h4>
+        <p>
+          <code>AVISO</code> para nome com números ou símbolos, ou com uma palavra só (<code>TESTE</code>,
+          <code>MARIA 2</code>, <code>-</code>). <code>RN DE …</code> (recém-nascido sem nome) é um caso real —
+          entra no aviso, mas não bloqueia.
+        </p>
+      </li>
+      <li>
+        <h4>Geração: avisar competência com mais de 3 meses <span class="pill risco">Alta</span></h4>
+        <p>
+          O BPA só aceita atendimentos da competência atual até 3 anteriores (versão 04.13); o resto é descartado.
+          Ao gerar o BPA-I, se a competência escolhida for anterior a (mês atual − 3), mostrar um alerta antes de
+          salvar: <em>"Atendimentos de MM/AAAA podem ser descartados pelo BPA (aceita até 3 competências
+          anteriores)"</em>. Alerta, não bloqueio — a regra exata ("competência atual" do SIA) precisa ser
+          confirmada. Ver <a href="#criticas-bpa">Críticas do programa BPA</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Sexo: não inventar "F" e conferir na análise <span class="pill risco">Alta</span></h4>
+        <p>
+          Sexo vazio ou não reconhecido vira <code>ERRO</code> no "Analisar Planilha" (aceitos: F, M, I, Feminino,
+          Masculino, Indeterminado). Assim a importação nunca falha no banco e o gerador nunca precisa do
+          <code>F</code> padrão — que fica só para dados antigos, com aviso. Detalhar na revisão da coluna
+          <code>SEXO_PACIENTE</code>.
+        </p>
+      </li>
     </ol>
   </section>
 
@@ -1334,6 +1713,36 @@
         CNS do profissional, nas gerações parcial e completa, e lista médico/paciente/data dos atendimentos
         sem IBGE. Observação: o chip de pendências da tela ainda mostra só a falta de CNS — o IBGE em branco
         aparece ao clicar em "Gerar BPA-I".
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 11 · Paciente sem CPF: exigir CNS</span>
+      <p>
+        Decidido (09/10/2026): CPF vazio sem a coluna "Paciente sem CPF", ou com ela = Não, é erro; com ela = Sim, o
+        CNS do paciente é obrigatório com 15 dígitos, senão é erro. Vale para qualquer procedimento, sem depender dos
+        atributos do SIGTAP. Implementado — ver <a href="#recomendacoes">Recomendação 23</a>.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">12 · Mesmo CPF com nomes diferentes: aviso ou erro?</span>
+      <p>
+        Recomendo <code>AVISO</code>, porque variação de grafia é comum e bloquearia muitas planilhas. Erro só
+        faria sentido se os nomes não tiverem nenhuma palavra em comum.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">13 · CNS vazio com CPF: continuar avisando?</span>
+      <p>
+        Recomendo tirar o aviso: o CNS não vai para o BPA-I quando há CPF. Se o núcleo quiser o CNS para outro uso
+        (cadastro, auditoria), mantém.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">14 · Acentos no nome do BPA-I</span>
+      <p>
+        Hoje vão com acento (o arquivo é ISO-8859-1, que tem os acentos). O layout só diz "caracteres
+        alfanuméricos". Se o SIA já recusou ou trocou acentos em alguma remessa, remover na geração; se não,
+        manter.
       </p>
     </div>
   </section>

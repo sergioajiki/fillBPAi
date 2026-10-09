@@ -290,6 +290,81 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarSemCpfComPacienteSemCpfSimESemCnsGeraErro() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_CPF_PACIENTE] = null;
+		linha[COL_PACIENTE_SEM_CPF] = "Sim";
+		linha[COL_CNS_PACIENTE] = null;
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement()
+				.satisfies(erro -> {
+					assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+					assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_OBRIGATORIO_SEM_CPF);
+					assertThat(erro.valor()).isEqualTo("Paciente: MARIA SILVA — CNS não informado");
+				});
+	}
+
+	@Test
+	void validarSemCpfComPacienteSemCpfSimECnsSemOs15DigitosGeraErro() throws IOException {
+		String[] curto = linhaValida();
+		curto[COL_CPF_PACIENTE] = null;
+		curto[COL_PACIENTE_SEM_CPF] = "Sim";
+		curto[COL_CNS_PACIENTE] = "70020796061852"; // 14
+		String[] longo = curto.clone();
+		longo[COL_CNS_PACIENTE] = "7002079606185290"; // 16
+		longo[COL_DATA_AGENDAMENTO] = "26/12/2024"; // linhas distintas
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, curto, longo));
+
+		assertThat(erros).hasSize(2).allSatisfy(erro -> {
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_OBRIGATORIO_SEM_CPF);
+		});
+		assertThat(erros.get(0).detalhe()).contains("CNS com 14 dígitos");
+	}
+
+	@Test
+	void validarSemCpfComPacienteSemCpfSimECnsComDvErradoGeraErro() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_CPF_PACIENTE] = null;
+		linha[COL_PACIENTE_SEM_CPF] = "Sim";
+		linha[COL_CNS_PACIENTE] = "700207960618528"; // último dígito trocado
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement()
+				.satisfies(erro -> {
+					assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+					assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_OBRIGATORIO_SEM_CPF);
+					assertThat(erro.detalhe()).contains("CNS com dígito verificador inválido");
+				});
+	}
+
+	@Test
+	void validarComCpfECnsComDvErradoGeraSoAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_CNS_PACIENTE] = "700207960618528";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement()
+				.satisfies(erro -> {
+					assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+					assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_DV_INVALIDO);
+					assertThat(erro.valor()).isEqualTo("Paciente: MARIA SILVA — 700207960618528");
+				});
+	}
+
+	@Test
+	void validarSemCpfSemAColunaPacienteSemCpfGeraErroCpfAusente() throws IOException {
+		String[] cabecalho = java.util.Arrays.copyOf(CABECALHO_COMPLETO, COL_PACIENTE_SEM_CPF);
+		String[] linha = java.util.Arrays.copyOf(linhaValida(), COL_PACIENTE_SEM_CPF);
+		linha[COL_CPF_PACIENTE] = null;
+
+		assertThat(service.validar(salvarPlanilha(cabecalho, linha)))
+				.anySatisfy(erro -> {
+					assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+					assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CPF_AUSENTE);
+				});
+	}
+
+	@Test
 	void validarSemCpfComPacienteSemCpfNaoContinuaErro() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_CPF_PACIENTE] = null;

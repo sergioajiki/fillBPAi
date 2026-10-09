@@ -153,6 +153,12 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Mesmo paciente, médico, data e procedimento de uma linha anterior, com horário diferente — importado separado. AVISO, não bloqueia. */
 	public static final String SUSPEITA_DUPLICIDADE = "SUSPEITA_DUPLICIDADE";
 
+	/** Paciente sem CPF ("Paciente sem CPF" = Sim) sem CNS de 15 dígitos — o CNS é o documento do paciente no BPA-I. ERRO bloqueante. */
+	public static final String CNS_OBRIGATORIO_SEM_CPF = "CNS_OBRIGATORIO_SEM_CPF";
+
+	/** CNS do paciente com 15 dígitos mas dígito verificador errado (paciente com CPF — o CNS não vai para o BPA-I). AVISO, não bloqueia. */
+	public static final String CNS_DV_INVALIDO = "CNS_DV_INVALIDO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

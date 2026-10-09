@@ -669,6 +669,24 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarPacienteSemCpfSemCnsBloqueiaAPlanilha() throws IOException {
+
+		String[] cabecalhoComColuna = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalhoComColuna[CABECALHO_COMPLETO.length] = "Paciente sem CPF";
+		String[] linha = java.util.Arrays.copyOf(
+				linhaValida(null, "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 1);
+		linha[11] = "12345"; // CNS DO PACIENTE com 5 dígitos
+		linha[CABECALHO_COMPLETO.length] = "Sim";
+
+		String caminho = salvarPlanilha(cabecalhoComColuna, linha);
+
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("nenhuma linha foi importada")
+				.hasMessageContaining("Paciente sem CPF precisa do CNS com 15 dígitos e dígito verificador válido (CNS com 5 dígitos: 12345)");
+	}
+
+	@Test
 	void importarComCpfPreenchidoEPacienteSemCpfSimRejeitaALinha() throws IOException {
 
 		String[] cabecalhoComColuna = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);

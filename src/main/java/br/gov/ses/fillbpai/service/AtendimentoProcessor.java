@@ -544,6 +544,15 @@ public class AtendimentoProcessor {
 					"CPF do paciente não informado — para paciente sem CPF, marque a coluna \"Paciente sem CPF\" = Sim.");
 		}
 
+		// Paciente sem CPF: o CNS é o documento do paciente no BPA-I (seq 10) —
+		// obrigatório com 15 dígitos (decisão de 09/10/2026, CNS_OBRIGATORIO_SEM_CPF)
+		if (isNullOrEmpty(dto.getCpfPaciente()) && !CnsUtils.isCnsSemCpfValido(dto.getCnsPaciente())) {
+			throw new IllegalArgumentException(
+					"Paciente sem CPF precisa do CNS com 15 dígitos e dígito verificador válido ("
+							+ CnsUtils.motivoCnsSemCpfInvalido(dto.getCnsPaciente())
+							+ (isNullOrEmpty(dto.getCnsPaciente()) ? "" : ": " + dto.getCnsPaciente().trim()) + ").");
+		}
+
 		if (isNullOrEmpty(dto.getDataAgendamentoString())) {
 			throw new IllegalArgumentException("Data de agendamento não informada.");
 		}

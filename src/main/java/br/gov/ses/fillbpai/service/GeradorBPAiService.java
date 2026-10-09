@@ -4,6 +4,7 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
 import br.gov.ses.fillbpai.util.CboUtils;
+import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
@@ -637,9 +638,15 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 10 - prd-cnspac
-		 * 15 espaços brancos — CNS não utilizado
+		 * O paciente é identificado por um documento só: CPF (seq 38) ou CNS
+		 * (layout 2026, observação 2; BPA 04.06/04.07 critica os dois juntos).
+		 * Com CPF → 15 brancos. Sem CPF ("Paciente sem CPF" = Sim) → o CNS,
+		 * obrigatório com 15 dígitos desde a importação (decisão de 09/10/2026).
 		 */
-		sb.append(padRightSpaces("", 15));
+		boolean semCpfNoCadastro = paciente == null || paciente.getCpf() == null
+				|| paciente.getCpf().isBlank() || CpfUtils.isChaveSemCpf(paciente.getCpf());
+		String cnsPaciente = semCpfNoCadastro && paciente != null ? CnsUtils.normalizar(paciente.getCns()) : null;
+		sb.append(cnsPaciente != null && cnsPaciente.length() == 15 ? cnsPaciente : padRightSpaces("", 15));
 
 		/**
 		 * seq 11 - prd-sexo
@@ -815,7 +822,9 @@ public class GeradorBPAiService {
 		// não é CPF: sai como CPF vazio (e deriva prd_sem_cpf = S)
 		String cpfPacienteNum = paciente != null && !CpfUtils.isChaveSemCpf(paciente.getCpf())
 				? somenteNumeros(paciente.getCpf()) : "";
-		sb.append(padLeftZeros(cpfPacienteNum, 11));
+		// Sem CPF: brancos (default do layout). Antes saía "00000000000",
+		// CPF que o programa BPA critica (versão 04.03) e descarta o registro.
+		sb.append(padNumOpcional(cpfPacienteNum, 11));
 
 		/**
 		 * seq "38" duplicado no PDF oficial - prd_situacao_rua

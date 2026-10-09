@@ -60,6 +60,11 @@ public final class AgrupamentoValidacao {
 					"Mesmo paciente, médico, data, procedimento e horário de outra linha: as duas virariam"
 							+ " um único atendimento e uma linha seria perdida. Remova a repetição ou corrija o"
 							+ " horário.", 1)),
+			Map.entry(ErroValidacao.CNS_OBRIGATORIO_SEM_CPF, new InfoTipo(
+					"Paciente sem CPF sem CNS válido",
+					"Com \"Paciente sem CPF\" = Sim, o CNS é o documento que identifica o paciente no BPA-I e"
+							+ " precisa ter 15 dígitos com dígito verificador válido. Preencha ou confira o CNS do"
+							+ " paciente.", 6)),
 			Map.entry(ErroValidacao.PACIENTE_AUSENTE, new InfoTipo(
 					"Nome do paciente não informado",
 					"Campo obrigatório no BPA-I. Preencha o nome do paciente.", 5)),
@@ -190,6 +195,11 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.CNS_INVALIDO, new InfoTipo(
 					"CNS do paciente ausente ou incompleto",
 					"Menos de 15 dígitos ou não informado. Não impede a importação.", 30)),
+			Map.entry(ErroValidacao.CNS_DV_INVALIDO, new InfoTipo(
+					"CNS do paciente com dígito verificador inválido",
+					"O CNS tem 15 dígitos, mas o dígito verificador não confere — provavelmente um dígito foi"
+							+ " digitado errado. Com CPF preenchido, o CNS não vai para o BPA-I; não impede a"
+							+ " importação.", 30)),
 			Map.entry(ErroValidacao.CNS_INCOMUM, new InfoTipo(
 					"CNS do paciente com formato incomum",
 					"Mais de 15 dígitos. Não impede a importação.", 31)),

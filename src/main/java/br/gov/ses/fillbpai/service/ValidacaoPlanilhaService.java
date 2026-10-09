@@ -345,7 +345,14 @@ public class ValidacaoPlanilhaService {
 		// -------------------------------------------------------
 		String cnsNormalizado = CnsUtils.normalizar(dto.getCnsPaciente());
 
-		if (cnsNormalizado == null || cnsNormalizado.isEmpty()) {
+		// Paciente sem CPF: o CNS é conferido como ERRO na Regra 3
+		// (CNS_OBRIGATORIO_SEM_CPF) — sem aviso repetido aqui
+		boolean semCpf = (dto.getCpfPaciente() == null || dto.getCpfPaciente().isBlank())
+				&& "S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()));
+
+		if (semCpf) {
+			// conferido na Regra 3
+		} else if (cnsNormalizado == null || cnsNormalizado.isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_INVALIDO, "CNS do paciente não informado — registrado com aviso (CNS_INVALIDO)",
 					paciente + " — não informado"));
@@ -354,6 +361,14 @@ public class ValidacaoPlanilhaService {
 					ErroValidacao.CNS_INVALIDO,
 					"CNS inválido (apenas " + cnsNormalizado.length()
 							+ " dígitos, mínimo 15) — registrado com aviso (CNS_INVALIDO)",
+					paciente + " — " + cnsNormalizado));
+		} else if (cnsNormalizado.length() == 15 && !CnsUtils.isDvValido(cnsNormalizado)) {
+			// Dígito verificador errado (recomendação 25): AVISO — com CPF o CNS
+			// não vai para o BPA-I; paciente sem CPF é ERRO na Regra 3
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.CNS_DV_INVALIDO,
+					"CNS do paciente com digito verificador invalido: " + cnsNormalizado
+							+ " - confira se algum digito foi digitado errado",
 					paciente + " — " + cnsNormalizado));
 		} else if (cnsNormalizado.length() > 15) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
@@ -435,6 +450,18 @@ public class ValidacaoPlanilhaService {
 						"CPF do paciente não informado - para paciente sem CPF, marque a coluna"
 								+ " \"Paciente sem CPF\" = Sim",
 						paciente));
+			} else if (!CnsUtils.isCnsSemCpfValido(dto.getCnsPaciente())) {
+				// Paciente sem CPF: o CNS é o documento que vai no BPA-I (seq 10),
+				// obrigatório com 15 dígitos (decisão de 09/10/2026)
+				String cns = CnsUtils.normalizar(dto.getCnsPaciente());
+				boolean vazio = cns == null || cns.isEmpty();
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+						ErroValidacao.CNS_OBRIGATORIO_SEM_CPF,
+						"Paciente sem CPF precisa do CNS com 15 digitos e digito verificador valido - "
+								+ CnsUtils.motivoCnsSemCpfInvalido(dto.getCnsPaciente())
+								+ (vazio ? "" : ": " + dto.getCnsPaciente().trim()),
+						paciente + " — " + (vazio ? "CNS não informado"
+								: "CNS \"" + dto.getCnsPaciente().trim() + "\"")));
 			}
 		} else if ("S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()))) {
 			// CPF preenchido com "Paciente sem CPF" = Sim: contradição (decisão de 08/10/2026)

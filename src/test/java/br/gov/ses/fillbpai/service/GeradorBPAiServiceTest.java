@@ -305,6 +305,32 @@ class GeradorBPAiServiceTest {
 	}
 
 	@Test
+	void pacienteSemCpfEnviaOCnsNoSeq10ECpfEmBranco() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setCpf(
+				br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpf("MARIA", LocalDate.of(1990, 1, 1)));
+		atendimento.getPaciente().setCns("700207960618529");
+		atendimento.setPacienteSemCpf("S");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+		assertThat(linha).hasSize(351);
+		assertThat(linha.substring(59, 74)).isEqualTo("700207960618529"); // seq 10 prd-cnspac
+		assertThat(linha.substring(338, 349)).isEqualTo(" ".repeat(11));  // seq 38: brancos, nunca 00000000000
+	}
+
+	@Test
+	void pacienteComCpfNuncaEnviaOCnsJunto() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setCns("700207960618529");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+		assertThat(linha.substring(59, 74)).isEqualTo(" ".repeat(15));
+		assertThat(linha.substring(338, 349)).isEqualTo("12345678909");
+	}
+
+	@Test
 	void seq39PrdSemCpfComValorInformadoNaPlanilhaPrevaleceSobreADerivacao() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		// paciente TEM CPF preenchido, mas a planilha trouxe explicitamente "S"

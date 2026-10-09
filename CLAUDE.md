@@ -41,7 +41,8 @@ Tipos de ERRO (bloqueantes):
 - **MUNICIPIO_AUSENTE** — célula do município vazia (valor "Paciente: X — município ausente"); sem o nome não há a primeira busca do IBGE. Também rejeitado pelo `AtendimentoProcessor`
 - **MUNICIPIO_PELO_CEP** (AVISO) — município fora da tabela de MS, mas IBGE encontrado pelo CEP: mostra o município que o CEP indica ("\"Douradoz\" — CEP 78020000 → Cuiabá/MT"), para o usuário conferir. Nome oficial/UF pelo código IBGE via `IbgeUtils.nomeMunicipio` (tabela `dados/municipios_brasil.csv`, 5.571 municípios do IBGE). O mesmo aviso vai para o log de importação
 - **MUNICIPIO_NAO_ENCONTRADO** — município fora da tabela de MS (`dados/municipios_ibge.csv`) **e** código IBGE não encontrado pelo CEP (CEPs do banco + APIs de CEP) — mensagem pede para conferir a grafia do município e o CEP. A análise faz a busca completa (usa a internet só para CEP novo; `MainController` pré-carrega os CEPs do banco via `AtendimentoImportacaoService.preCarregarCacheIbge`); a importação confere o IBGE de **todas** as linhas antes de abrir a transação (`AtendimentoImportacaoService.verificarIbgeDeTodasAsLinhas`) e, se alguma linha estiver sem município ou sem IBGE, **bloqueia a planilha inteira** sem gravar nada ("Importação bloqueada … nenhuma linha foi importada", com a lista de linhas) — linhas não são rejeitadas uma a uma. `IbgeUtils.buscarPorNome` tolera sigla da UF ("- MS", "/MS", "(MS)") e espaços repetidos
-- **CPF_AUSENTE** — CPF do paciente não informado; não é erro só quando a coluna "Paciente sem CPF" existe e vale Sim
+- **CPF_AUSENTE** — CPF do paciente não informado sem a coluna "Paciente sem CPF", ou com ela marcada Não (ou vazia/não reconhecida); não é erro só quando a coluna existe e vale Sim
+- **CNS_OBRIGATORIO_SEM_CPF** — CPF vazio com "Paciente sem CPF" = Sim exige o CNS do paciente com exatamente 15 dígitos e dígito verificador válido (`CnsUtils.isCnsSemCpfValido`; motivo na mensagem via `motivoCnsSemCpfInvalido`) — o CNS é o documento do paciente no BPA-I nesse caso. Também rejeitado pelo `AtendimentoProcessor`; nesse caso o aviso `CNS_INVALIDO` não é repetido (decisão de 09/10/2026)
 - **CPF_INVALIDO** — CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização). Não se completam zeros à esquerda (não dá para garantir que o dígito que falta é um zero perdido pelo Excel); a mensagem orienta formatar a coluna como texto
 - **CPF_FALSO** — CPF do paciente com os 11 dígitos iguais (00000000000, 11111111111...) — juntaria pacientes diferentes num só (o CPF é a chave do paciente)
 - **CPF_CONFLITO_SEM_CPF** — CPF do paciente preenchido com a coluna "Paciente sem CPF" = Sim (informações contraditórias)
@@ -58,6 +59,7 @@ Tipos de ERRO (bloqueantes):
 
 Tipos de AVISO (não bloqueantes):
 - **CNS_INVALIDO** — CNS do paciente ausente ou com menos de 15 dígitos após normalização (não bloqueia a importação)
+- **CNS_DV_INVALIDO** — CNS do paciente com 15 dígitos mas dígito verificador errado (`CnsUtils.isDvValido`: primeiro dígito 1, 2, 7, 8 ou 9 e soma ponderada pelos pesos 15 a 1 divisível por 11 — algoritmo do Ministério da Saúde, sem consulta externa). AVISO quando há CPF (o CNS não vai para o BPA-I); para paciente sem CPF é o ERRO `CNS_OBRIGATORIO_SEM_CPF`. Também registrado no log de importação
 - **CNS_INCOMUM** — CNS do paciente com mais de 15 dígitos (formato incomum)
 - **RACA_INDIGENA** — raça do paciente informada como Indígena — exige preenchimento da etnia
 - **ETNIA_NAO_ENCONTRADA** — etnia preenchida mas não encontrada na tabela oficial (`EtniaUtils`); só é considerada quando a raça é Indígena, ignorada para as demais raças mesmo se preenchida
@@ -107,9 +109,9 @@ Importação grava linha a linha (`flush` por linha). Erro do banco numa linha m
 - Geração completa (atendimentos do mês de competência selecionado, folha auto-atribuída: especialidades em ordem alfabética → médicos em ordem alfabética → folha sequencial)
 - Competência para geração: selecionada clicando no badge `📅 Competência: MM/YYYY` da barra fixa inferior; auto-detectada da primeira carga de dados se não definida manualmente
 - `GeradorBPAiService.gerarArquivoCompletoComFileChooser(window, competenciaAtendimento)` recebe competência no formato `YYYYMM` do mês de atendimento e filtra por `YEAR/MONTH(dataAgendamento)`
-- Seq 10 (prd-cnspac): sempre 15 espaços em branco — CNS do paciente não é utilizado neste campo
+- Seq 10 (prd-cnspac): o paciente é identificado por um documento só — CPF (seq 38) ou CNS (layout 2026, observação 2; o programa BPA critica os dois juntos, versões 04.06/04.07). Com CPF → 15 brancos; sem CPF ("Paciente sem CPF" = Sim) → CNS do paciente (15 dígitos, obrigatório desde a importação)
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
-- Seq 38 (prd-cpf-pcnte): CPF do paciente, 11 dígitos zero-padded — é aqui, não na seq 10, que o CPF do paciente entra no registro
+- Seq 38 (prd-cpf-pcnte): CPF do paciente, 11 dígitos — é aqui, não na seq 10, que o CPF entra no registro. Sem CPF → 11 brancos (antes saía `00000000000`, CPF que o programa BPA critica e descarta — versão 04.03)
 - Seq "38" duplicado no layout oficial (prd_situacao_rua): usa `paciente.situacaoRua` quando a planilha trouxe a coluna "Situação de Rua"; sem essa informação, mantém o padrão "N" (comportamento anterior à existência da coluna)
 - Seq 39 (prd_sem_cpf, novo no layout 2026): usa `atendimento.pacienteSemCpf` quando a planilha trouxe a coluna "Paciente sem CPF"; sem essa informação, deriva automaticamente da presença do CPF do paciente (CPF preenchido → "N", CPF vazio ou chave interna de paciente sem CPF → "S")
 - **Pré-validação obrigatória**: `GeradorBPAiService.validarCnsProfissional()` e `validarIbge()` bloqueiam a geração se qualquer atendimento estiver sem CNS do profissional ou sem código IBGE do município do paciente, exibindo relatório com médico/paciente/data de cada ocorrência
