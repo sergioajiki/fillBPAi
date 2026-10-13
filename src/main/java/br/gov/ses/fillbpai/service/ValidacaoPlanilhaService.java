@@ -586,26 +586,27 @@ public class ValidacaoPlanilhaService {
 		} else if (RacaUtils.resolverCodigo(raca) == null) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.RACA_INVALIDA,
-					"Raca do paciente \"" + raca.trim() + "\" nao reconhecida - verifique a grafia "
-							+ "na planilha (aceito: Branca, Preta, Parda, Amarela, Indigena)",
+					RacaUtils.mensagemNaoReconhecida(raca),
 					"\"" + raca.trim() + "\""));
 		}
 
 		// -------------------------------------------------------
-		// Regra 5: Etnia do paciente — só é considerada quando a raça é
-		// Indígena (código 5 do BPA-I); para as demais raças o conteúdo da
-		// coluna Etnia é ignorado, mesmo que preenchido. AVISO, não bloqueia.
+		// Regra 5: Etnia do paciente — o BPA-I só leva a etnia para raça
+		// Indígena (05). Decisão de 13/10/2026:
+		// - Indígena com etnia vazia ou fora da tabela → ERRO (o BPA exige)
+		// - outra raça: a coluna não é olhada (a etnia vai em branco no BPA-I),
+		//   sem aviso — a etnia só é relevante para raça Indígena
 		// -------------------------------------------------------
 		if (RacaUtils.isIndigena(raca)) {
 			if (etnia == null || etnia.trim().isEmpty()) {
-				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 						ErroValidacao.RACA_INDIGENA,
-						"Raca informada como Indigena - e necessario preencher a etnia do paciente",
+						"Raca informada como Indigena - e obrigatorio preencher a etnia do paciente",
 						paciente));
 			} else if (EtniaUtils.resolver(etnia) == null) {
-				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 						ErroValidacao.ETNIA_NAO_ENCONTRADA,
-						"Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado",
+						"Grafia da etnia \"" + etnia.trim() + "\" nao reconhecida",
 						"\"" + etnia.trim() + "\""));
 			}
 		}

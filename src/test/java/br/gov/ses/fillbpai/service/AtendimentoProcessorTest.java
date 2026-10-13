@@ -555,16 +555,16 @@ class AtendimentoProcessorTest {
 		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("formato incomum"));
 	}
 
-	// ===== RAÇA INDÍGENA (aviso, não bloqueia) =====
+	// ===== RAÇA INDÍGENA: etnia obrigatória (erro, decisão de 13/10/2026) =====
 
 	@Test
-	void processarComRacaIndigenaGeraAviso() {
+	void processarComRacaIndigenaSemEtniaRejeitaALinha() {
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setRacaPaciente("Indígena");
 
-		List<String> avisos = processor.processar(dto);
-
-		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("Indigena"));
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Raça Indígena exige a etnia");
 	}
 
 	@Test
@@ -588,18 +588,27 @@ class AtendimentoProcessorTest {
 		assertThat(avisos).noneSatisfy(a -> assertThat(a).contains("necessario preencher"));
 	}
 
-	// ===== ETNIA NÃO ENCONTRADA (aviso, não bloqueia, só considerada com raça Indígena) =====
+	// ===== ETNIA NÃO ENCONTRADA (erro com raça Indígena; ignorada com aviso nas demais) =====
 
 	@Test
-	void processarComEtniaPreenchidaNaoReconhecidaERacaIndigenaGeraAviso() {
+	void processarComEtniaPreenchidaNaoReconhecidaERacaIndigenaRejeitaALinha() {
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setRacaPaciente("INDIGENA");
 		dto.setEtniaPaciente("ETNIA QUE NAO EXISTE XYZ");
 
-		List<String> avisos = processor.processar(dto);
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("ETNIA QUE NAO EXISTE XYZ")
+				.hasMessageContaining("não reconhecida");
+	}
 
-		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("ETNIA QUE NAO EXISTE XYZ")
-				.contains("nao encontrada"));
+	@Test
+	void processarComEtniaPreenchidaERacaNaoIndigenaNaoGeraAvisoDeEtnia() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setRacaPaciente("PARDA");
+		dto.setEtniaPaciente("TERENA");
+
+		assertThat(processor.processar(dto)).noneSatisfy(a -> assertThat(a).containsIgnoringCase("etnia"));
 	}
 
 	@Test

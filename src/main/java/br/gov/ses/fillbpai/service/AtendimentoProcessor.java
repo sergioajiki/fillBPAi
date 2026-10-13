@@ -430,39 +430,40 @@ public class AtendimentoProcessor {
 		}
 
 		if (RacaUtils.resolverCodigo(raca) == null) {
-			throw new IllegalArgumentException(
-					"Raça do paciente \"" + raca.trim() + "\" não reconhecida - verifique a grafia "
-							+ "na planilha (aceito: Branca, Preta, Parda, Amarela, Indígena).");
+			throw new IllegalArgumentException(RacaUtils.mensagemNaoReconhecida(raca));
 		}
 	}
 
 	/**
-	 * Verifica a etnia do paciente — regra de negócio só considera a coluna
-	 * Etnia quando a raça é Indígena (código 5 do BPA-I); para as demais
-	 * raças o conteúdo da coluna é ignorado, mesmo que preenchido com algo
-	 * que não bata com a tabela oficial (a coluna normalmente nem se aplica
-	 * fora desse caso).
+	 * Verifica a etnia do paciente — o BPA-I só leva a etnia quando a raça é
+	 * Indígena (código 05 — layout 2026, seq 22).
 	 * <p>
-	 * Com raça Indígena: etnia em branco → aviso pedindo pra preencher;
-	 * etnia preenchida mas não reconhecida por {@link EtniaUtils#resolver}
-	 * → aviso de etnia não encontrada; etnia reconhecida → sem aviso.
+	 * Com raça Indígena a etnia é obrigatória (decisão de 13/10/2026 — o BPA
+	 * exige a etnia para raça 05 e descartaria o registro): vazia ou fora da
+	 * tabela oficial ({@link EtniaUtils#resolver}) é erro bloqueante da linha.
+	 * Com outra raça a coluna não é olhada, sem aviso: a etnia só é relevante
+	 * para raça Indígena (o gerador a envia em branco nos demais casos).
 	 *
-	 * @return lista com o aviso aplicável, ou lista vazia
+	 * @return lista vazia (mantida pela assinatura dos demais verificadores)
+	 * @throws IllegalArgumentException se a raça é Indígena e a etnia está vazia ou não foi encontrada
 	 */
 	private List<String> verificarEtniaDoIndigena(LinhaImportacaoDTO dto) {
 
 		List<String> avisos = new ArrayList<>();
+		String etnia = dto.getEtniaPaciente();
 
 		if (!RacaUtils.isIndigena(dto.getRacaPaciente())) {
 			return avisos;
 		}
 
-		String etnia = dto.getEtniaPaciente();
-
 		if (isNullOrEmpty(etnia)) {
-			avisos.add("Raca informada como Indigena - e necessario preencher a etnia do paciente");
-		} else if (EtniaUtils.resolver(etnia) == null) {
-			avisos.add("Etnia \"" + etnia.trim() + "\" nao encontrada na tabela oficial - verifique o texto informado");
+			throw new IllegalArgumentException(
+					"Raça Indígena exige a etnia do paciente — preencha a coluna de etnia.");
+		}
+
+		if (EtniaUtils.resolver(etnia) == null) {
+			throw new IllegalArgumentException(
+					"Grafia da etnia \"" + etnia.trim() + "\" não reconhecida.");
 		}
 
 		return avisos;

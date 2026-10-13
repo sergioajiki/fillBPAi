@@ -54,6 +54,42 @@ class RacaUtilsTest {
 	}
 
 	@Test
+	void resolverCodigoReconhecePorPalavraInteiraENaoPorTrecho() {
+		// Antes "IND" casava com qualquer palavra e estes viravam Indígena (05)
+		assertThat(RacaUtils.resolverCodigo("Indeterminado")).isNull();
+		assertThat(RacaUtils.resolverCodigo("Indefinida")).isNull();
+		assertThat(RacaUtils.resolverCodigo("Indisponível")).isNull();
+		assertThat(RacaUtils.resolverCodigo("Índio")).isEqualTo("05");
+		assertThat(RacaUtils.resolverCodigo("Índia")).isEqualTo("05");
+		assertThat(RacaUtils.resolverCodigo("Cor: Parda")).isEqualTo("03");
+	}
+
+	@Test
+	void resolverCodigoRecusaTextoAmbiguoOuComNegacao() {
+		assertThat(RacaUtils.resolverCodigo("Preta/Parda")).isNull();
+		assertThat(RacaUtils.resolverCodigo("Não Branca")).isNull();
+		assertThat(RacaUtils.resolverCodigo("Sem raça")).isNull();
+	}
+
+	@Test
+	void resolverCodigoAceitaOCodigoDoBpa() {
+		assertThat(RacaUtils.resolverCodigo("01")).isEqualTo("01");
+		assertThat(RacaUtils.resolverCodigo("3")).isEqualTo("03");
+		assertThat(RacaUtils.resolverCodigo("05")).isEqualTo("05");
+		assertThat(RacaUtils.resolverCodigo("06")).isNull();
+		assertThat(RacaUtils.resolverCodigo("0")).isNull();
+	}
+
+	@Test
+	void mensagemNaoReconhecidaExplicaNegraEPedeGrafiaNosDemais() {
+		assertThat(RacaUtils.mensagemNaoReconhecida("Negra"))
+				.contains("o IBGE não usa \"Negra\"").contains("Preta ou Parda");
+		assertThat(RacaUtils.mensagemNaoReconhecida("negro")).contains("Preta ou Parda");
+		assertThat(RacaUtils.mensagemNaoReconhecida("Morena"))
+				.contains("verifique a grafia").contains("código 01 a 05");
+	}
+
+	@Test
 	void isIndigenaTrueSoParaRacaIndigena() {
 		assertThat(RacaUtils.isIndigena("Indígena")).isTrue();
 		assertThat(RacaUtils.isIndigena("INDIGENA")).isTrue();

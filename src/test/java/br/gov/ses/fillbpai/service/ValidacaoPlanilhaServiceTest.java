@@ -482,7 +482,7 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
-	void validarComRacaIndigenaGeraAvisoRacaIndigena() throws IOException {
+	void validarComRacaIndigenaSemEtniaGeraErroRacaIndigena() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_RACA_PACIENTE] = "Indígena";
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
@@ -490,9 +490,53 @@ class ValidacaoPlanilhaServiceTest {
 		List<ErroValidacao> erros = service.validar(caminho);
 
 		assertThat(erros).singleElement().satisfies(erro -> {
-			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
 			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.RACA_INDIGENA);
 		});
+	}
+
+	@Test
+	void validarComRacaNaoIndigenaNaoOlhaAEtnia() throws IOException {
+		// A etnia só é relevante para raça Indígena: preenchida, vazia ou com
+		// texto qualquer, nenhuma mensagem para as demais raças
+		String[] comEtnia = linhaValida();
+		comEtnia[COL_RACA_PACIENTE] = "Parda";
+		comEtnia[COL_ETNIA_PACIENTE] = "Terena";
+		String[] semEtnia = linhaValida();
+		semEtnia[COL_RACA_PACIENTE] = "Parda";
+		semEtnia[COL_DATA_AGENDAMENTO] = "26/12/2024";
+		String[] textoQualquer = linhaValida();
+		textoQualquer[COL_ETNIA_PACIENTE] = "NAO SE APLICA";
+		textoQualquer[COL_DATA_AGENDAMENTO] = "27/12/2024";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, comEtnia, semEtnia, textoQualquer)))
+				.isEmpty();
+	}
+
+	@Test
+	void validarComRacaIndeterminadaOuNegraGeraErroComMensagemPropria() throws IOException {
+		String[] indeterminado = linhaValida();
+		indeterminado[COL_RACA_PACIENTE] = "Indeterminado"; // antes virava Indígena
+		String[] negra = linhaValida();
+		negra[COL_RACA_PACIENTE] = "Negra";
+		negra[COL_DATA_AGENDAMENTO] = "26/12/2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, indeterminado, negra));
+
+		assertThat(erros).hasSize(2).allSatisfy(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.RACA_INVALIDA);
+		});
+		assertThat(erros.get(1).detalhe()).contains("Preta ou Parda");
+	}
+
+	@Test
+	void validarComRacaIndigenaEEtniaPeloCodigoNaoGeraErro() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_RACA_PACIENTE] = "05";
+		linha[COL_ETNIA_PACIENTE] = "0207";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).isEmpty();
 	}
 
 	@Test
@@ -508,7 +552,7 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
-	void validarComEtniaPreenchidaNaoReconhecidaERacaIndigenaGeraAvisoEtniaNaoEncontrada() throws IOException {
+	void validarComEtniaPreenchidaNaoReconhecidaERacaIndigenaGeraErroEtniaNaoEncontrada() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_RACA_PACIENTE] = "Indígena";
 		linha[COL_ETNIA_PACIENTE] = "ETNIA QUE NAO EXISTE XYZ";
@@ -517,7 +561,7 @@ class ValidacaoPlanilhaServiceTest {
 		List<ErroValidacao> erros = service.validar(caminho);
 
 		assertThat(erros).singleElement().satisfies(erro -> {
-			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
 			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.ETNIA_NAO_ENCONTRADA);
 			assertThat(erro.detalhe()).contains("ETNIA QUE NAO EXISTE XYZ");
 		});

@@ -199,10 +199,11 @@ public final class AgrupamentoValidacao {
 					"Use Sim/Não ou S/N. O valor será derivado do CPF do paciente.", 23)),
 			Map.entry(ErroValidacao.RACA_INDIGENA, new InfoTipo(
 					"Raça indígena sem etnia",
-					"Para raça Indígena, preencha a etnia do paciente.", 24)),
+					"Para raça Indígena a etnia é obrigatória no BPA-I — sem ela o registro seria descartado."
+							+ " Preencha a etnia do paciente.", 12)),
 			Map.entry(ErroValidacao.ETNIA_NAO_ENCONTRADA, new InfoTipo(
-					"Etnia não encontrada",
-					"Etnia não encontrada na tabela oficial. Verifique o texto informado.", 25)),
+					"Grafia da etnia não reconhecida",
+					"A grafia da etnia não foi reconhecida.", 12)),
 			Map.entry(ErroValidacao.CNS_INVALIDO, new InfoTipo(
 					"CNS do paciente ausente ou incompleto",
 					"Menos de 15 dígitos ou não informado. Não impede a importação.", 30)),

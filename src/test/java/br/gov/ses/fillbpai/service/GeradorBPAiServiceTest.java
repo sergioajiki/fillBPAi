@@ -416,6 +416,19 @@ class GeradorBPAiServiceTest {
 	}
 
 	@Test
+	void seq22PrdEtniaEmBrancoQuandoARacaNaoEIndigenaMesmoComEtniaPreenchida() {
+		// Layout 2026: "preencher com brancos caso a raça/cor for diferente de 05"
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setRaca("BRANCA");
+		atendimento.getPaciente().setEtnia("TERENA");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+		assertThat(linha.substring(150, 152)).isEqualTo("01");
+		assertThat(linha.substring(152, 156)).isEqualTo(" ".repeat(4));
+	}
+
+	@Test
 	void seq22PrdEtniaComEtniaNaoReconhecidaGeraQuatroEspacos() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setRaca("INDIGENA");

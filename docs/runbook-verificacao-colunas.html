@@ -136,6 +136,8 @@
       <a href="#cpf-paciente">CPF do paciente</a>
       <a href="#nome-paciente">Nome do paciente</a>
       <a href="#cns-paciente">CNS do paciente</a>
+      <a href="#raca">Raça/cor</a>
+      <a href="#etnia">Etnia</a>
       <a href="#criticas-bpa">Críticas do programa BPA</a>
       <a href="#padrao">Padrão encontrado</a>
       <a href="#implementado">O que mudou</a>
@@ -163,8 +165,8 @@
       <span class="feito">CPF_PACIENTE ✓</span>
       <span>PACIENTE</span>
       <span>CNS_PACIENTE</span>
-      <span>RACA_PACIENTE</span>
-      <span>ETNIA_PACIENTE</span>
+      <span class="feito">RACA_PACIENTE ✓</span>
+      <span class="feito">ETNIA_PACIENTE ✓</span>
       <span>DATA_NASCIMENTO</span>
       <span>CID_CONSULTA</span>
       <span>TELEFONE</span>
@@ -1146,6 +1148,144 @@
 
   <!-- ======================================================= -->
 
+  <section id="raca">
+    <h2>Raça/cor do paciente (<code>RACA_PACIENTE</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Verificação</h4>
+        <p>
+          Vazia → <code>RACA_AUSENTE</code>; não reconhecida → <code>RACA_INVALIDA</code>. Os dois são
+          <code>ERRO</code>, na análise e na importação. O reconhecimento (<code>RacaUtils.resolverCodigo</code>) é por
+          <strong>trecho do texto</strong>, sem acento e caixa, testado nesta ordem: <code>BRANC</code> → 01,
+          <code>PRET</code> → 02, <code>PARD</code> → 03, <code>AMAREL</code> → 04, <code>IND</code> → 05.
+        </p>
+      </li>
+      <li>
+        <h4>Gravação e BPA-I</h4>
+        <p>
+          Gravada como veio (texto, até 50 caracteres); o código é calculado de novo na geração
+          (<code>prd-raca</code>, seq 21, obrigatório). O código 99 ("Sem informação") está riscado no layout 2026 e
+          não é aceito.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor (teste de sondagem)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Código</th><th>Situação</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>Branca</code>, <code>branco</code>, <code>PRETA</code>, <code>Pardo</code>, <code>Amarela</code>, <code>Indígena</code>, <code>INDIO</code></td><td class="ok">01 a 05</td><td>certo</td></tr>
+          <tr><td class="caso"><code>Indeterminado</code>, <code>Indefinida</code>, <code>Indisponível</code></td><td class="falha">05 (Indígena)</td><td>errado — "IND" casa com qualquer palavra que começa assim</td></tr>
+          <tr><td class="caso"><code>Não Branca</code></td><td class="falha">01 (Branca)</td><td>errado — o contrário do que diz</td></tr>
+          <tr><td class="caso"><code>Preta/Parda</code></td><td class="falha">02 (Preta)</td><td>ambíguo — vale o primeiro trecho encontrado</td></tr>
+          <tr><td class="caso"><code>Negra</code>, <code>Negro</code></td><td>—</td><td><code>RACA_INVALIDA</code> (termo comum, mas não é categoria do IBGE)</td></tr>
+          <tr><td class="caso"><code>1</code>, <code>01</code>, <code>3</code></td><td>—</td><td><code>RACA_INVALIDA</code> (o código do próprio BPA não é aceito)</td></tr>
+          <tr><td class="caso"><code>99</code>, <code>Sem informação</code>, <code>Não declarado</code>, <code>Morena</code></td><td>—</td><td class="ok"><code>RACA_INVALIDA</code> — correto</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">"Indeterminado" vira Indígena <span class="pill risco">Grave</span></p>
+      <p>
+        O trecho <code>IND</code> pega também <em>Indeterminado</em>, <em>Indefinida</em>, <em>Indisponível</em> — valores
+        usados justamente quando a raça <strong>não</strong> é conhecida. O paciente vai para o BPA-I como indígena
+        (código 05) e ainda passa a exigir etnia. Dado errado, sem nenhum aviso.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Texto ambíguo ou negativo é aceito</p>
+      <p>
+        <code>Não Branca</code> vira Branca; <code>Preta/Parda</code> vira Preta. Qualquer texto que tenha mais de uma
+        raça (ou uma negação) deveria ser recusado em vez de escolher a primeira.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">O código do BPA não é aceito</p>
+      <p>
+        Planilhas exportadas de outros sistemas trazem <code>01</code>…<code>05</code>. Hoje viram
+        <code>RACA_INVALIDA</code>, embora sejam exatamente o valor que vai para o arquivo.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="etnia">
+    <h2>Etnia do paciente (<code>ETNIA_PACIENTE</code>)</h2>
+    <p>
+      Implementação original em <code>docs/runbook-etnia-paciente.html</code>. Tabela oficial
+      <code>dados/etnias_indigenas.csv</code> (473 etnias, código de 4 caracteres, alguns com prefixo X).
+    </p>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Verificação</h4>
+        <p>
+          Só quando a raça é Indígena: etnia vazia → <code>RACA_INDIGENA</code>; etnia fora da tabela →
+          <code>ETNIA_NAO_ENCONTRADA</code>. Os dois são <code>AVISO</code> — não bloqueiam. Para as outras raças a
+          coluna é ignorada na análise.
+        </p>
+      </li>
+      <li>
+        <h4>Gravação e BPA-I</h4>
+        <p>
+          Gravada como veio, em texto. Na geração, <code>prd-etnia</code> (seq 22) recebe o código da tabela, ou
+          brancos se vazia/não encontrada. O layout 2026 diz: <em>"Preencher somente se o campo raça/cor for 05 –
+          Indígena … preencher com brancos caso a raça/cor for diferente de 05"</em>.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor (teste de sondagem)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Resultado</th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>Terena</code>, <code>Terêna</code>, <code>Kadiwéu</code>, <code>Guató</code>, <code>Ofaié</code>, <code>Atikum</code>, <code>GUARANI KAIOWA</code>, <code>Guarani Ñandeva</code></td><td class="ok">código encontrado</td></tr>
+          <tr><td class="caso"><code>Kinikinau</code></td><td class="falha">não encontrada — a tabela grafa <code>KINIKINAWA</code> (0119); etnia de MS</td></tr>
+          <tr><td class="caso"><code>Guarani Nhandeva</code></td><td class="falha">não encontrada — a tabela grafa <code>GUARANI NANDEVA</code> (0060)</td></tr>
+          <tr><td class="caso"><code>Terena (Tereno)</code></td><td class="falha">não encontrada (o parêntese só é tratado na tabela, não na planilha)</td></tr>
+          <tr><td class="caso"><code>0207</code>, <code>X290</code> (o próprio código)</td><td class="falha">não encontrada</td></tr>
+          <tr><td class="caso"><code>Kaiowá</code> × <code>Guarani Kaiowá</code></td><td>X306 × 0058 — dois códigos na tabela oficial para o mesmo povo</td></tr>
+          <tr><td class="caso">Raça <strong>Branca</strong> com etnia <code>Terena</code></td><td class="falha">BPA-I sai com raça 01 <strong>e</strong> etnia 0207</td></tr>
+          <tr><td class="caso">Raça <strong>Indígena</strong> sem etnia</td><td class="falha">só aviso; BPA-I sai com raça 05 e etnia em branco</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Etnia vai para o BPA-I mesmo quando a raça não é Indígena <span class="pill risco">Grave</span></p>
+      <p>
+        A análise ignora a etnia de quem não é indígena, mas o gerador (<code>formatarEtnia</code>) não olha a raça:
+        se a coluna estiver preenchida, o código vai para o seq 22. O layout manda brancos nesse caso — registro
+        sujeito a crítica e descarte pelo BPA (ver <a href="#criticas-bpa">Críticas do programa BPA</a>).
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">Indígena sem etnia válida é só aviso <span class="pill risco">Grave</span></p>
+      <p>
+        Raça 05 com etnia vazia ou fora da tabela gera o BPA-I com etnia em branco. O próprio histórico do BPA (versão
+        04.01) mostra que o programa exige a etnia quando a raça é 05 — o registro tende a ser criticado e descartado.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Grafias usuais de MS não batem com a tabela</p>
+      <p>
+        <code>Kinikinau</code> e <code>Nhandeva</code> são as grafias mais comuns em MS, mas a tabela oficial usa
+        <code>KINIKINAWA</code> e <code>NANDEVA</code>. O código da etnia digitado direto também não é aceito.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
   <section id="criticas-bpa">
     <h2>Críticas do programa BPA (DATASUS)</h2>
     <p>
@@ -1721,6 +1861,59 @@
           quando o conteúdo confirma. 441 testes.
         </p>
       </li>
+      <li>
+        <h4>Raça: "IND" só para Indígena/Índio <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Reconhecer Indígena só por palavra inteira (<code>INDIGENA</code>, <code>INDIO</code>, <code>INDIA</code>), não por
+          trecho. <code>Indeterminado</code>, <code>Indefinida</code>, <code>Indisponível</code> passam a ser
+          <code>RACA_INVALIDA</code> — a raça é obrigatória e não há código para "sem informação".
+        </p>
+      </li>
+      <li>
+        <h4>Raça: recusar texto ambíguo ou negativo <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Texto com mais de uma raça (<code>Preta/Parda</code>) ou com negação (<code>Não Branca</code>) →
+          <code>RACA_INVALIDA</code>, em vez de ficar com a primeira encontrada.
+        </p>
+      </li>
+      <li>
+        <h4>Raça: aceitar o código do BPA <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>01</code> a <code>05</code> (e <code>1</code> a <code>5</code>) aceitos como o próprio código. <code>99</code>
+          continua recusado (descontinuado no layout). Para <code>Negra</code>/<code>Negro</code>, a mensagem de erro
+          explica que o IBGE separa Preta e Parda — ver <a href="#abertas">Decisão 15</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Etnia só no BPA-I quando a raça é Indígena <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          No gerador, <code>prd-etnia</code> em brancos sempre que a raça não for 05, mesmo com a coluna preenchida
+          (regra do layout). Vale também para os dados já gravados. Com raça diferente de Indígena a coluna de etnia
+          não é olhada na análise nem na importação, sem aviso — a etnia só é relevante para raça Indígena (o aviso
+          "etnia ignorada" chegou a ser criado e foi retirado em 13/10/2026).
+        </p>
+      </li>
+      <li>
+        <h4>Indígena sem etnia válida: erro <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>RACA_INDIGENA</code> (etnia vazia) e <code>ETNIA_NAO_ENCONTRADA</code> passam de <code>AVISO</code> a
+          <code>ERRO</code> quando a raça é Indígena, na análise e na importação — o BPA exige a etnia para raça 05 e
+          descartaria o registro. Ver <a href="#abertas">Decisão 16</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Etnia: o próprio código e parênteses na célula <span class="pill ok">✓ Implementado (parcial)</span></h4>
+        <p>
+          Implementado: o código digitado direto (<code>0207</code>, <code>207</code> → 0207, <code>X290</code>),
+          conferido contra a tabela, e parênteses na célula (<code>Terena (Tereno)</code> → TERENA).
+        </p>
+        <p>
+          <strong>Não implementado, por decisão (13/10/2026):</strong> aceitar grafias que a tabela não tem
+          (<code>Kinikinau</code> → KINIKINAWA, <code>Nhandeva</code> → NANDEVA). A tabela de etnias não é
+          alterada — essas grafias continuam como <code>ETNIA_NAO_ENCONTRADA</code> ("Grafia da etnia não
+          reconhecida"), e a planilha precisa usar a grafia da tabela ou o código.
+        </p>
+      </li>
     </ol>
   </section>
 
@@ -1855,6 +2048,20 @@
         Hoje vão com acento (o arquivo é ISO-8859-1, que tem os acentos). O layout só diz "caracteres
         alfanuméricos". Se o SIA já recusou ou trocou acentos em alguma remessa, remover na geração; se não,
         manter.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 15 · "Negra/Negro" na raça: erro</span>
+      <p>
+        Decidido (13/10/2026): continua <code>RACA_INVALIDA</code>, com mensagem própria — "o IBGE não usa 'Negra':
+        informe Preta ou Parda (a população negra é a soma das duas)". Sem conversão automática.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 16 · Indígena sem etnia: erro</span>
+      <p>
+        Decidido (13/10/2026): <code>RACA_INDIGENA</code> (etnia vazia) e <code>ETNIA_NAO_ENCONTRADA</code> são
+        <code>ERRO</code> quando a raça é Indígena, na análise e na importação.
       </p>
     </div>
   </section>

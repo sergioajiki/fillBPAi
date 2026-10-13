@@ -724,7 +724,11 @@ public class GeradorBPAiService {
 		/**
 		 * seq 22 - prd-etnia
 		 */
-		sb.append(formatarEtnia(paciente != null ? paciente.getEtnia() : null));
+		// Só para raça Indígena (05): o layout manda brancos nas demais raças,
+		// mesmo com a etnia preenchida (vale também para dados já gravados)
+		sb.append(RacaUtils.isIndigena(raca)
+				? formatarEtnia(paciente != null ? paciente.getEtnia() : null)
+				: padRightSpaces("", 4));
 
 		/**
 		 * seq 23 - prd-nac

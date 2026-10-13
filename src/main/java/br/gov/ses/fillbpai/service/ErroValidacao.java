@@ -93,7 +93,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CNS do paciente com mais de 15 dígitos (formato incomum) — AVISO, não bloqueia */
 	public static final String CNS_INCOMUM = "CNS_INCOMUM";
 
-	/** Raça do paciente informada como Indígena — verificação de etnia necessária — AVISO, não bloqueia */
+	/** Raça Indígena sem etnia — o BPA-I exige a etnia para raça 05 (decisão de 13/10/2026) — ERRO bloqueante */
 	public static final String RACA_INDIGENA = "RACA_INDIGENA";
 
 	/** Raça do paciente ausente ou vazia — campo obrigatório no layout do BPA-I (seq 21) — ERRO bloqueante */
@@ -108,7 +108,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Coluna "Especialidade/Médico" combinada — formato legado, separado automaticamente na importação. AVISO, não bloqueia. */
 	public static final String FORMATO_LEGADO_ESPECIALIDADE_MEDICO = "FORMATO_LEGADO_ESPECIALIDADE_MEDICO";
 
-	/** Etnia do paciente preenchida mas não encontrada na tabela oficial — AVISO, não bloqueia. */
+	/** Raça Indígena com etnia fora da tabela oficial (nome ou código) — ERRO bloqueante (decisão de 13/10/2026). */
 	public static final String ETNIA_NAO_ENCONTRADA = "ETNIA_NAO_ENCONTRADA";
 
 	/** Coluna opcional (ex.: COD_LOGRADOURO) não encontrada no cabeçalho — AVISO, não bloqueia. */

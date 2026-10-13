@@ -22,6 +22,28 @@ class EtniaUtilsTest {
 	}
 
 	@Test
+	void resolverAceitaOCodigoDigitadoConferidoContraATabela() {
+		assertThat(EtniaUtils.resolver("0207")).isEqualTo("0207");   // TERENA
+		assertThat(EtniaUtils.resolver("207")).isEqualTo("0207");    // célula numérica sem o zero
+		assertThat(EtniaUtils.resolver("x290")).isEqualTo("X290");   // GUARANI
+		assertThat(EtniaUtils.resolver("9999")).isNull();            // código que não existe na tabela
+		assertThat(EtniaUtils.resolver("X999")).isNull();
+	}
+
+	@Test
+	void resolverToleraParentesesNaCelula() {
+		assertThat(EtniaUtils.resolver("Terena (Tereno)")).isEqualTo("0207");
+		assertThat(EtniaUtils.resolver("Povo (Terena)")).isEqualTo("0207");
+	}
+
+	@Test
+	void resolverNaoInventaGrafiaForaDaTabela() {
+		// A tabela não é alterada: grafias que ela não tem continuam não reconhecidas
+		assertThat(EtniaUtils.resolver("Kinikinau")).isNull();
+		assertThat(EtniaUtils.resolver("KINIKINAWA")).isEqualTo("0119");
+	}
+
+	@Test
 	void resolverComNomeDesconhecidoDevolveNull() {
 		assertThat(EtniaUtils.resolver("ETNIA QUE NAO EXISTE XYZ")).isNull();
 	}

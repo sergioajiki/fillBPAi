@@ -42,6 +42,9 @@ public class EtniaUtils {
 	/** Mapa: nome normalizado → código (4 caracteres). Lazy loading. */
 	private static Map<String, String> mapaEtnias = null;
 
+	/** Códigos da tabela (4 caracteres) — para aceitar o código digitado direto na planilha. */
+	private static java.util.Set<String> codigosEtnias = new java.util.HashSet<>();
+
 	/**
 	 * Resolve o código da etnia pelo nome.
 	 *
@@ -56,7 +59,25 @@ public class EtniaUtils {
 
 		carregarCsvSeNecessario();
 
-		return mapaEtnias.get(normalizar(nomeEtnia));
+		// Nome como veio, ou — se a célula tiver parênteses, ex.: "Terena
+		// (Tereno)" — o nome antes deles e cada nome entre eles. A tabela não
+		// é alterada: só a leitura da célula é tolerante.
+		for (String variante : variantesDoNome(nomeEtnia.trim())) {
+			String codigo = mapaEtnias.get(normalizar(variante));
+			if (codigo != null) {
+				return codigo;
+			}
+		}
+
+		// O próprio código digitado (ex.: "0207", "X290"), conferido contra a
+		// tabela. Numérico com menos de 4 dígitos ("207", célula numérica do
+		// Excel sem o zero à esquerda) é completado com zeros.
+		String codigoDigitado = normalizar(nomeEtnia);
+		if (codigoDigitado.matches("\\d{1,4}")) {
+			codigoDigitado = "0".repeat(4 - codigoDigitado.length()) + codigoDigitado;
+		}
+
+		return codigosEtnias.contains(codigoDigitado) ? codigoDigitado : null;
 	}
 
 	/**
@@ -65,6 +86,7 @@ public class EtniaUtils {
 	 */
 	public static synchronized void limparCache() {
 		mapaEtnias = null;
+		codigosEtnias = new java.util.HashSet<>();
 	}
 
 	// ======================================================
@@ -78,6 +100,7 @@ public class EtniaUtils {
 		}
 
 		mapaEtnias = new HashMap<>();
+		codigosEtnias = new java.util.HashSet<>();
 
 		try (InputStream is = EtniaUtils.class.getResourceAsStream("/dados/etnias_indigenas.csv")) {
 
@@ -105,6 +128,7 @@ public class EtniaUtils {
 					String nome = partes[1].trim();
 
 					if (!codigo.isEmpty() && !nome.isEmpty()) {
+						codigosEtnias.add(codigo.toUpperCase());
 						// putIfAbsent: primeira ocorrência no arquivo vence (ver javadoc da classe)
 						for (String variante : variantesDoNome(nome)) {
 							mapaEtnias.putIfAbsent(normalizar(variante), codigo);
