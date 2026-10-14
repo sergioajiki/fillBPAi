@@ -1296,6 +1296,83 @@ class ValidacaoPlanilhaServiceTest {
 		});
 	}
 
+	// ===== Data de nascimento e CID (14/10/2026) =====
+
+	private static final int COL_NASCIMENTO = 14;
+	private static final int COL_CID = 15;
+
+	@Test
+	void validarSemDataDeNascimentoGeraErro() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_NASCIMENTO] = null;
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.DATA_NASCIMENTO_AUSENTE);
+		});
+	}
+
+	@Test
+	void validarComNascimentoDepoisDoAtendimentoOuMaisDe130AnosGeraErro() throws IOException {
+		String[] depois = linhaValida();
+		depois[COL_NASCIMENTO] = "26/12/2024"; // atendimento 25/12/2024
+		String[] antigo = linhaValida();
+		antigo[COL_NASCIMENTO] = "01/01/1850";
+		antigo[COL_DATA_AGENDAMENTO] = "26/12/2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, depois, antigo));
+
+		assertThat(erros).hasSize(2).allSatisfy(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.DATA_NASCIMENTO_INCOERENTE);
+		});
+		assertThat(erros.get(0).detalhe()).contains("depois da data do atendimento");
+		assertThat(erros.get(1).detalhe()).contains("máximo 130");
+	}
+
+	@Test
+	void validarComDataInexistenteGeraErroNoNascimentoENoAtendimento() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_NASCIMENTO] = "31/02/1990";
+		linha[COL_DATA_AGENDAMENTO] = "31/04/2024";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha)))
+				.extracting(ErroValidacao::tipoErro)
+				.contains(ErroValidacao.DATA_NASCIMENTO_INVALIDA, ErroValidacao.DATA_INVALIDA);
+	}
+
+	@Test
+	void validarSemCidGeraSoAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_CID] = null;
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.CID_AUSENTE);
+		});
+	}
+
+	@Test
+	void validarComCidSemCodigoOuComDoisGeraErroEComDescricaoAceita() throws IOException {
+		String[] semCodigo = linhaValida();
+		semCodigo[COL_CID] = "Hipertensão";
+		String[] dois = linhaValida();
+		dois[COL_CID] = "I10, E11";
+		dois[COL_DATA_AGENDAMENTO] = "26/12/2024";
+		String[] comDescricao = linhaValida();
+		comDescricao[COL_CID] = "I10 - Hipertensão essencial (primária)";
+		comDescricao[COL_DATA_AGENDAMENTO] = "27/12/2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, semCodigo, dois, comDescricao));
+
+		assertThat(erros).hasSize(2).allSatisfy(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.CID_INVALIDO);
+		});
+		assertThat(erros.get(0).detalhe()).contains("nenhum código CID-10");
+		assertThat(erros.get(1).detalhe()).contains("mais de um CID");
+	}
+
 	@Test
 	void validarComLinhaRepetidaNoMesmoHorarioGeraErro() throws IOException {
 		List<ErroValidacao> erros = service.validar(

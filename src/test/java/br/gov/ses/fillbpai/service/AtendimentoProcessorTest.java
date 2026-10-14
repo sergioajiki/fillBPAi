@@ -37,6 +37,8 @@ class AtendimentoProcessorTest {
 		dto.setCep("79003020");
 		dto.setCnsPaciente("700207960618529");
 		dto.setRacaPaciente("BRANCA");
+		dto.setDataNascimentoString("01/01/1990");
+		dto.setCidConsulta("I10");
 		return dto;
 	}
 

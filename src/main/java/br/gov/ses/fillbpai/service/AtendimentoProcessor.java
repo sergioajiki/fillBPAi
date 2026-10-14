@@ -5,6 +5,7 @@ import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.CboUtils;
+import br.gov.ses.fillbpai.util.CidUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
@@ -103,6 +104,7 @@ public class AtendimentoProcessor {
 		avisos.addAll(verificarEtniaDoIndigena(dto));
 		avisos.addAll(normalizarSituacaoRua(dto));
 		avisos.addAll(normalizarPacienteSemCpf(dto));
+		avisos.addAll(normalizarCid(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -566,6 +568,11 @@ public class AtendimentoProcessor {
 		if (isNullOrEmpty(dto.getDataAgendamentoString())) {
 			throw new IllegalArgumentException("Data de agendamento não informada.");
 		}
+
+		// Sem nascimento a idade sairia 000 no BPA-I (decisão de 14/10/2026)
+		if (isNullOrEmpty(dto.getDataNascimentoString())) {
+			throw new IllegalArgumentException("Data de nascimento do paciente não informada.");
+		}
 	}
 
 	// ===============================
@@ -598,7 +605,22 @@ public class AtendimentoProcessor {
 			}
 		}
 
+		// Célula que mostra só dia e mês: o Excel completou o ano (14/10/2026).
+		// Atendimento: aviso (a coluna pode estar só formatada sem o ano)
+		if (dto.isDataAgendamentoSemAno() && dto.getDataAgendamento() != null) {
+			avisos.add("Data do atendimento (" + DateUtils.formatar(dto.getDataAgendamento()).substring(0, 5)
+					+ ") nao esta no formato correto (dd/MM/aaaa) (DATA_ATENDIMENTO_SEM_ANO)");
+		}
+
 		avisos.addAll(converterHora(dto));
+
+		// Nascimento: erro — o paciente ficaria com idade de meses
+		if (dto.isDataNascimentoSemAno()) {
+			LocalDate completada = DateUtils.parse(dto.getDataNascimentoString());
+			throw new IllegalArgumentException(
+					"Data de nascimento (" + DateUtils.formatar(completada).substring(0, 5)
+							+ ") não está no formato correto (dd/MM/aaaa).");
+		}
 
 		if (!isNullOrEmpty(dto.getDataNascimentoString())) {
 			try {
@@ -612,6 +634,45 @@ public class AtendimentoProcessor {
 				);
 			}
 		}
+
+		// Nascimento depois do atendimento ou idade acima de 130 anos (limite
+		// do layout): a idade no BPA-I sairia errada
+		String incoerencia = DateUtils.incoerenciaNascimento(dto.getDataNascimento(), dto.getDataAgendamento());
+		if (incoerencia != null) {
+			throw new IllegalArgumentException(
+					"Data de nascimento " + DateUtils.formatar(dto.getDataNascimento()) + " não confere: " + incoerencia + ".");
+		}
+	}
+
+	/**
+	 * CID da consulta (BPA-I seq 13): grava só o código CID-10 encontrado na
+	 * célula ({@code "CID I10"}, {@code "I10 - Hipertensão"} → {@code I10};
+	 * {@code "I10.9"} → {@code I109}). Célula sem código ou com mais de um é
+	 * erro da linha; vazia é aceita com aviso (decisão de 14/10/2026).
+	 *
+	 * @return lista com o aviso de CID vazio, ou lista vazia
+	 * @throws IllegalArgumentException se a célula não tiver exatamente um código CID-10
+	 */
+	private List<String> normalizarCid(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+		String cid = dto.getCidConsulta();
+
+		if (isNullOrEmpty(cid)) {
+			dto.setCidConsulta(null);
+			avisos.add("CID da consulta nao informado (CID_AUSENTE) - o BPA-I sera gerado com o CID em branco");
+			return avisos;
+		}
+
+		String codigo = CidUtils.extrair(cid);
+
+		if (codigo == null) {
+			throw new IllegalArgumentException(
+					"CID da consulta \"" + cid.trim() + "\" inválido — " + CidUtils.motivoInvalido(cid) + ".");
+		}
+
+		dto.setCidConsulta(codigo);
+		return avisos;
 	}
 
 	/**

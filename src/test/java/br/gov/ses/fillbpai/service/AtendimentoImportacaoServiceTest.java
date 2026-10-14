@@ -723,6 +723,34 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarCidComDescricaoLongaGravaSoOCodigo() throws IOException {
+		// Antes: passava de 20 caracteres e o erro de banco cancelava a importação inteira
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[15] = "I10 - Hipertensão essencial (primária)";
+
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).singleElement()
+				.satisfies(a -> assertThat(a.getCidConsulta()).isEqualTo("I10"));
+	}
+
+	@Test
+	void importarSemNascimentoOuComCidInvalidoBloqueia() throws IOException {
+		String[] semNascimento = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		semNascimento[14] = null;
+		String[] cidInvalido = linhaValida("22233344405", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		cidInvalido[15] = "I10, E11";
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, semNascimento, cidInvalido);
+
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("2 linha(s) com erro")
+				.hasMessageContaining("Data de nascimento do paciente não informada")
+				.hasMessageContaining("mais de um CID");
+	}
+
+	@Test
 	void importarPlanilhaLegadoComCelulaSemSeparadorBloqueia() throws IOException {
 		String caminho = salvarPlanilha(CABECALHO_LEGADO,
 				linhaLegado("12345678909", "MARIA SILVA", "98765432100", "CARDIOLOGIA - JOAO DA SILVA"),

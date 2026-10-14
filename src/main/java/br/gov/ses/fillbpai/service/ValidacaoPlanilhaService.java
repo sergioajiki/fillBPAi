@@ -2,6 +2,7 @@ package br.gov.ses.fillbpai.service;
 
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.util.CboUtils;
+import br.gov.ses.fillbpai.util.CidUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
@@ -268,11 +269,20 @@ public class ValidacaoPlanilhaService {
 					paciente));
 		} else {
 			try {
-				DateUtils.parse(data);
+				java.time.LocalDate dataLida = DateUtils.parse(data);
+				// Célula que mostra só dia e mês: o Excel completou o ano. AVISO
+				// (decisão de 14/10/2026) — a coluna pode estar só formatada sem o ano
+				if (dto.isDataAgendamentoSemAno()) {
+					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+							ErroValidacao.DATA_ATENDIMENTO_SEM_ANO,
+							"Data do atendimento (" + DateUtils.formatar(dataLida).substring(0, 5)
+									+ ") nao esta no formato correto (dd/MM/aaaa)",
+							paciente + " — " + DateUtils.formatar(dataLida).substring(0, 5)));
+				}
 			} catch (IllegalArgumentException e) {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 						ErroValidacao.DATA_INVALIDA,
-						"Data de agendamento \"" + data.trim() + "\" em formato nao reconhecido"
+						"Data de agendamento \"" + data.trim() + "\" em formato nao reconhecido ou data inexistente"
 								+ " (use dd/MM/aaaa, ex.: 25/12/2024)",
 						"\"" + data.trim() + "\""));
 			}
@@ -282,7 +292,9 @@ public class ValidacaoPlanilhaService {
 		// Regra 0c: Nome do paciente e data de nascimento — a importação
 		// rejeitaria a linha (AtendimentoProcessor); antes a análise não
 		// olhava esses campos e a linha sumia na importação. ERRO bloqueante.
-		// Nascimento vazio continua aceito (só o formato é conferido).
+		// Nascimento (decisão de 14/10/2026): vazio é ERRO (a idade sairia
+		// 000 no BPA-I); depois do atendimento ou idade acima de 130 anos
+		// (limite do layout) também.
 		// -------------------------------------------------------
 		if (dto.getPaciente() == null || dto.getPaciente().isBlank()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
@@ -293,16 +305,55 @@ public class ValidacaoPlanilhaService {
 
 		String nascimento = dto.getDataNascimentoString();
 
-		if (nascimento != null && !nascimento.isBlank()) {
+		if (nascimento == null || nascimento.isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.DATA_NASCIMENTO_AUSENTE, "Data de nascimento do paciente nao informada",
+					paciente));
+		} else if (dto.isDataNascimentoSemAno()) {
+			// Só dia e mês na célula: o Excel completou com o ano corrente e o
+			// paciente viraria um bebê de meses. ERRO (decisão de 14/10/2026)
+			java.time.LocalDate completada = DateUtils.parse(nascimento);
+			String diaMes = DateUtils.formatar(completada).substring(0, 5);
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.DATA_NASCIMENTO_SEM_ANO,
+					"Data de nascimento (" + diaMes + ") nao esta no formato correto (dd/MM/aaaa)",
+					paciente + " — " + diaMes));
+		} else {
 			try {
-				DateUtils.parse(nascimento);
+				java.time.LocalDate dataNascimento = DateUtils.parse(nascimento);
+				String incoerencia = dataAtendimento(dto) == null ? null
+						: DateUtils.incoerenciaNascimento(dataNascimento, dataAtendimento(dto));
+				if (incoerencia != null) {
+					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+							ErroValidacao.DATA_NASCIMENTO_INCOERENTE,
+							"Data de nascimento " + DateUtils.formatar(dataNascimento) + " nao confere: " + incoerencia,
+							paciente + " — nascimento " + DateUtils.formatar(dataNascimento) + ", atendimento "
+									+ DateUtils.formatarParaMensagem(dto.getDataAgendamentoString())));
+				}
 			} catch (IllegalArgumentException e) {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 						ErroValidacao.DATA_NASCIMENTO_INVALIDA,
-						"Data de nascimento \"" + nascimento.trim() + "\" em formato nao reconhecido"
-								+ " (use dd/MM/aaaa, ex.: 25/12/1980)",
+						"Data de nascimento \"" + nascimento.trim() + "\" em formato nao reconhecido ou data"
+								+ " inexistente (use dd/MM/aaaa, ex.: 25/12/1980)",
 						paciente + " — \"" + nascimento.trim() + "\""));
 			}
+		}
+
+		// -------------------------------------------------------
+		// Regra 0d: CID da consulta (BPA-I seq 13) — mesma regra de
+		// AtendimentoProcessor.normalizarCid (decisão de 14/10/2026):
+		// vazio → AVISO; sem código CID-10 ou com mais de um → ERRO.
+		// -------------------------------------------------------
+		String cid = dto.getCidConsulta();
+
+		if (cid == null || cid.isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.CID_AUSENTE, "CID da consulta nao informado", paciente));
+		} else if (CidUtils.extrair(cid) == null) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CID_INVALIDO,
+					"CID da consulta \"" + cid.trim() + "\" invalido - " + CidUtils.motivoInvalido(cid),
+					"\"" + cid.trim() + "\""));
 		}
 
 		// -------------------------------------------------------
@@ -743,6 +794,15 @@ public class ValidacaoPlanilhaService {
 					DetectorDuplicidade.mensagemSuspeita(ocorrencia, dto.getHoraAtendimento()),
 					valor + " — " + DetectorDuplicidade.descreverHora(ocorrencia.horaAnterior()) + " × "
 							+ DetectorDuplicidade.descreverHora(dto.getHoraAtendimento())));
+		}
+	}
+
+	/** Data do atendimento da linha, ou {@code null} se vazia/inválida (já apontada pela Regra 0a). */
+	private static java.time.LocalDate dataAtendimento(LinhaImportacaoDTO dto) {
+		try {
+			return DateUtils.parse(dto.getDataAgendamentoString());
+		} catch (IllegalArgumentException e) {
+			return null;
 		}
 	}
 

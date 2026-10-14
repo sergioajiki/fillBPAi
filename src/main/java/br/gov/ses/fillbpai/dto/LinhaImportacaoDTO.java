@@ -343,4 +343,30 @@ public class LinhaImportacaoDTO {
 	public void setDataNascimentoString(String dataNascimentoString) {
 		this.dataNascimentoString = dataNascimentoString;
 	}
+
+	/**
+	 * Célula de data cujo formato de exibição não mostra o ano (ex.: "dd/mm",
+	 * "d-mmm") — típico de quem digitou só dia e mês: o Excel completa com o
+	 * ano corrente em silêncio (ver {@code ExcelImportService.isDataSemAno}).
+	 */
+	private boolean dataNascimentoSemAno;
+
+	/** Mesma situação de {@link #dataNascimentoSemAno}, na data do atendimento. */
+	private boolean dataAgendamentoSemAno;
+
+	public boolean isDataNascimentoSemAno() {
+		return dataNascimentoSemAno;
+	}
+
+	public void setDataNascimentoSemAno(boolean dataNascimentoSemAno) {
+		this.dataNascimentoSemAno = dataNascimentoSemAno;
+	}
+
+	public boolean isDataAgendamentoSemAno() {
+		return dataAgendamentoSemAno;
+	}
+
+	public void setDataAgendamentoSemAno(boolean dataAgendamentoSemAno) {
+		this.dataAgendamentoSemAno = dataAgendamentoSemAno;
+	}
 }

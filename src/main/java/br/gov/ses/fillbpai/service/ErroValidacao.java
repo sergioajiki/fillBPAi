@@ -165,6 +165,24 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Coluna com dados mas com o cabeçalho vazio — não é lida. AVISO, não bloqueia (a falta de campo obrigatório já é ERRO de estrutura). */
 	public static final String COLUNA_SEM_CABECALHO = "COLUNA_SEM_CABECALHO";
 
+	/** Data de nascimento não informada — a idade sairia 000 no BPA-I (decisão de 14/10/2026). ERRO bloqueante. */
+	public static final String DATA_NASCIMENTO_AUSENTE = "DATA_NASCIMENTO_AUSENTE";
+
+	/** Nascimento depois da data do atendimento, ou idade acima de 130 anos (limite do layout). ERRO bloqueante. */
+	public static final String DATA_NASCIMENTO_INCOERENTE = "DATA_NASCIMENTO_INCOERENTE";
+
+	/** CID da consulta sem código CID-10 reconhecível ou com mais de um código na célula. ERRO bloqueante. */
+	public static final String CID_INVALIDO = "CID_INVALIDO";
+
+	/** CID da consulta não informado — o BPA-I sai com o CID em branco (decisão de 14/10/2026). AVISO, não bloqueia. */
+	public static final String CID_AUSENTE = "CID_AUSENTE";
+
+	/** Data de nascimento em célula que mostra só dia e mês — o Excel completou com o ano corrente. ERRO bloqueante (14/10/2026). */
+	public static final String DATA_NASCIMENTO_SEM_ANO = "DATA_NASCIMENTO_SEM_ANO";
+
+	/** Data do atendimento em célula que mostra só dia e mês — o ano pode ter sido completado pelo Excel. AVISO, não bloqueia (14/10/2026). */
+	public static final String DATA_ATENDIMENTO_SEM_ANO = "DATA_ATENDIMENTO_SEM_ANO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

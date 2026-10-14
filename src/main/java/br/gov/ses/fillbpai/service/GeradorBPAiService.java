@@ -4,6 +4,8 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
 import br.gov.ses.fillbpai.util.CboUtils;
+import br.gov.ses.fillbpai.util.CidUtils;
+import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
@@ -16,7 +18,6 @@ import javafx.stage.Window;
 import java.io.File;
 import java.nio.file.Files;
 import java.time.LocalDate;
-import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -573,7 +574,9 @@ public class GeradorBPAiService {
 						dataNascimento.format(FORMATO_DATA) :
 						"";
 
-		int idade = calcularIdade(dataNascimento);
+		// Idade na data do atendimento — antes era na data de hoje, e a remessa
+		// gerada meses depois saía com um ano a mais para quem fez aniversário
+		int idade = DateUtils.idadeNaData(dataNascimento, a.getDataAgendamento());
 
 		/**
 		 * seq 1 - prd-ident
@@ -868,14 +871,6 @@ public class GeradorBPAiService {
 	/**
 	 * cálculo idade
 	 */
-	private int calcularIdade(LocalDate nascimento) {
-
-		if (nascimento == null)
-			return 0;
-
-		return Period.between(nascimento, LocalDate.now()).getYears();
-	}
-
 	/**
 	 * cálculo campo controle header
 	 */
@@ -960,17 +955,18 @@ public class GeradorBPAiService {
 		return valor.replaceAll("[^0-9]", "");
 	}
 
+	/**
+	 * CID-10 do atendimento, sem ponto ({@code I10}, {@code I109}). A
+	 * importação já grava só o código; para dados antigos (célula gravada como
+	 * veio, ex.: "I10 - Hipertensão") extrai o código — antes cortava o texto
+	 * em 4 caracteres e gerava CIDs inexistentes ("I10H"). Sem exatamente um
+	 * código: brancos.
+	 */
 	private String formatarCid(String cid) {
 
-		if (cid == null || cid.isBlank())
-			return "";
+		String codigo = CidUtils.extrair(cid);
 
-		cid = cid.trim().toUpperCase();
-
-		// remove caracteres inválidos
-		cid = cid.replaceAll("[^A-Z0-9]", "");
-
-		return cid.length() > 4 ? cid.substring(0, 4) : cid;
+		return codigo != null ? codigo : "";
 	}
 
 	private String formatarAlfa(String valor, int tamanho) {

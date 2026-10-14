@@ -81,7 +81,23 @@ public final class AgrupamentoValidacao {
 					"Campo obrigatório no BPA-I. Preencha o nome do paciente.", 5)),
 			Map.entry(ErroValidacao.DATA_NASCIMENTO_INVALIDA, new InfoTipo(
 					"Data de nascimento em formato não reconhecido",
-					"Use dd/MM/aaaa (ex.: 25/12/1980), ou formate a coluna como data no Excel.", 5)),
+					"Use dd/MM/aaaa (ex.: 25/12/1980), ou formate a coluna como data no Excel. Data inexistente"
+							+ " (ex.: 31/02) também é recusada.", 5)),
+			Map.entry(ErroValidacao.DATA_NASCIMENTO_SEM_ANO, new InfoTipo(
+					"Data de nascimento fora do formato correto",
+					"A data não está no formato correto (dd/MM/aaaa).", 5)),
+			Map.entry(ErroValidacao.DATA_NASCIMENTO_AUSENTE, new InfoTipo(
+					"Data de nascimento não informada",
+					"Sem a data de nascimento, a idade sairia 000 no BPA-I. Preencha a data de nascimento.", 5)),
+			Map.entry(ErroValidacao.DATA_NASCIMENTO_INCOERENTE, new InfoTipo(
+					"Data de nascimento não confere com o atendimento",
+					"Nascimento depois da data do atendimento, ou idade acima de 130 anos (limite do BPA-I)."
+							+ " Confira a data de nascimento e a do atendimento.", 5)),
+			Map.entry(ErroValidacao.CID_INVALIDO, new InfoTipo(
+					"CID da consulta inválido",
+					"A célula precisa ter um código CID-10 — letra + 2 dígitos, com subcategoria opcional"
+							+ " (ex.: I10, I10.9). Pode vir com a descrição (\"I10 - Hipertensão\"), mas só um CID"
+							+ " por célula.", 8)),
 			Map.entry(ErroValidacao.DATA_INVALIDA, new InfoTipo(
 					"Data de agendamento em formato não reconhecido",
 					"Use dd/MM/aaaa (ex.: 25/12/2024), ou formate a coluna como data no Excel.", 2)),
@@ -204,6 +220,12 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.ETNIA_NAO_ENCONTRADA, new InfoTipo(
 					"Grafia da etnia não reconhecida",
 					"A grafia da etnia não foi reconhecida.", 12)),
+			Map.entry(ErroValidacao.DATA_ATENDIMENTO_SEM_ANO, new InfoTipo(
+					"Data do atendimento fora do formato correto",
+					"A data não está no formato correto (dd/MM/aaaa).", 19)),
+			Map.entry(ErroValidacao.CID_AUSENTE, new InfoTipo(
+					"CID da consulta não informado",
+					"O BPA-I será gerado com o CID em branco. Preencha o CID se o procedimento exigir.", 26)),
 			Map.entry(ErroValidacao.CNS_INVALIDO, new InfoTipo(
 					"CNS do paciente ausente ou incompleto",
 					"Menos de 15 dígitos ou não informado. Não impede a importação.", 30)),

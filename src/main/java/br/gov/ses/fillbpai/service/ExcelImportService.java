@@ -82,6 +82,10 @@ public class ExcelImportService {
 		// Data de nascimento armazenada como String (conversão posterior)
 		dto.setDataNascimentoString(getString(row, colunas, "DATA_NASCIMENTO"));
 
+		// Data digitada só com dia e mês: o Excel completa com o ano corrente
+		dto.setDataNascimentoSemAno(isDataSemAno(celula(row, colunas, "DATA_NASCIMENTO")));
+		dto.setDataAgendamentoSemAno(isDataSemAno(celula(row, colunas, "DATA_AGENDAMENTO")));
+
 		dto.setCidConsulta(getString(row, colunas, "CID_CONSULTA"));
 		dto.setTelefone(getString(row, colunas, "TELEFONE"));
 
@@ -97,6 +101,47 @@ public class ExcelImportService {
 		dto.setPacienteSemCpf(getString(row, colunas, "PACIENTE_SEM_CPF"));
 
 		return dto;
+	}
+
+	/** Célula do campo canônico na linha, ou {@code null} se o campo não está no cabeçalho. */
+	private Cell celula(Row row, Map<String, Integer> colunas, String campo) {
+		Integer indice = colunas.get(campo);
+		return indice == null ? null : row.getCell(indice);
+	}
+
+	/**
+	 * Célula de data cujo formato de exibição não tem o ano — ex.: {@code dd/mm},
+	 * {@code d-mmm}. É o que o Excel faz quando se digita só dia e mês
+	 * ("15/03"): grava a data com o <b>ano corrente</b> e passa a mostrar só
+	 * dia/mês. O arquivo chega com uma data válida (15/03/2026) e, sem esta
+	 * conferência, o paciente virava um bebê de meses (verificado em 14/10/2026).
+	 * <p>
+	 * O formato é conferido sem o que está entre colchetes (cor, localidade) e
+	 * entre aspas (texto literal); ano é {@code y} ou {@code e} (ano no padrão
+	 * de algumas localidades). Hora pura (ano 1899) não conta.
+	 */
+	public boolean isDataSemAno(Cell cell) {
+
+		if (cell == null) {
+			return false;
+		}
+
+		CellType tipo = cell.getCellType() == CellType.FORMULA ? cell.getCachedFormulaResultType() : cell.getCellType();
+
+		if (tipo != CellType.NUMERIC || !DateUtil.isCellDateFormatted(cell)
+				|| cell.getLocalDateTimeCellValue().getYear() == 1899) {
+			return false;
+		}
+
+		String formato = cell.getCellStyle().getDataFormatString();
+
+		if (formato == null) {
+			return false;
+		}
+
+		String semLiterais = formato.replaceAll("\\[[^\\]]*\\]", "").replaceAll("\"[^\"]*\"", "").toLowerCase();
+
+		return semLiterais.contains("d") && !semLiterais.contains("y") && !semLiterais.contains("e");
 	}
 
 	/** Valor de uma célula com as mesmas regras da leitura das linhas (fórmula pelo resultado, U+00A0). */

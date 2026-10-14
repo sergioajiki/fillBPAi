@@ -204,8 +204,8 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(74, 75)).isEqualTo("F");            // seq 11 prd-sexo
 		assertThat(linha.substring(75, 81)).isEqualTo("500270");       // seq 12 prd-ibge (7 dígitos truncado p/ 6)
 		assertThat(linha.substring(81, 85)).isEqualTo("I10 ");         // seq 13 prd-cid
-		int idadeEsperada = Period.between(LocalDate.of(1990, 1, 1), LocalDate.now()).getYears();
-		assertThat(linha.substring(85, 88)).isEqualTo(String.format("%03d", idadeEsperada)); // seq 14 prd-idade
+		// seq 14 prd-idade: idade na data do atendimento (25/12/2024), não na data de hoje
+		assertThat(linha.substring(85, 88)).isEqualTo("034");
 		assertThat(linha.substring(88, 94)).isEqualTo("000001");       // seq 15 prd-qt
 		assertThat(linha.substring(94, 96)).isEqualTo("01");           // seq 16 prd-caten
 		assertThat(linha.substring(96, 109)).isEqualTo(" ".repeat(13)); // seq 17 prd-naut
