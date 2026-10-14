@@ -223,6 +223,14 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.DATA_ATENDIMENTO_SEM_ANO, new InfoTipo(
 					"Data do atendimento fora do formato correto",
 					"A data não está no formato correto (dd/MM/aaaa).", 19)),
+			Map.entry(ErroValidacao.TELEFONE_SEM_DDD, new InfoTipo(
+					"Telefone fora do padrão",
+					"O telefone deve ter DDD + número (ex.: 67 99999-9999 ou 67 3333-3333). Se não for corrigido,"
+							+ " o telefone será gerado em branco no BPA-I.", 27)),
+			Map.entry(ErroValidacao.TELEFONE_INVALIDO, new InfoTipo(
+					"Telefone não reconhecido",
+					"Esperado DDD + número (10 ou 11 dígitos). O BPA-I será gerado com o telefone em branco."
+							+ " Com mais de um telefone na célula, vale o primeiro.", 27)),
 			Map.entry(ErroValidacao.CID_AUSENTE, new InfoTipo(
 					"CID da consulta não informado",
 					"O BPA-I será gerado com o CID em branco. Preencha o CID se o procedimento exigir.", 26)),

@@ -158,9 +158,22 @@ class PlanilhaColumnMapperTest {
 
 		assertThat(resultado.estruturaValida()).isFalse();
 		assertThat(resultado.indices()).isEmpty();
-		assertThat(resultado.camposFaltando()).hasSize(24);
+		assertThat(resultado.camposFaltando()).hasSize(23);
 		assertThat(resultado.camposOpcionaisFaltando())
-				.containsExactly("COD_LOGRADOURO", "SITUACAO_RUA", "PACIENTE_SEM_CPF");
+				.containsExactlyInAnyOrder("TIPO_ZONA", "COD_LOGRADOURO", "SITUACAO_RUA", "PACIENTE_SEM_CPF");
+	}
+
+	@Test
+	void mapearSemColunaTipoZonaNaoBloqueiaEstruturaMasReportaOpcionalFaltando() {
+		// Tipo de zona não vai para o BPA-I: a coluna é opcional desde 14/10/2026
+		List<String> semZona = new ArrayList<>(Arrays.asList(CABECALHO_COMPLETO));
+		semZona.remove("TIPO_ZONA");
+
+		PlanilhaColumnMapper.ResultadoMapeamento resultado =
+				mapper.mapear(criarLinhaCabecalho(semZona.toArray(new String[0])));
+
+		assertThat(resultado.estruturaValida()).isTrue();
+		assertThat(resultado.camposOpcionaisFaltando()).containsExactly("TIPO_ZONA");
 	}
 
 	// ===== Mapeamento pela planilha (cabeçalho + dados) =====

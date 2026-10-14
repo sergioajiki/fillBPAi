@@ -12,6 +12,7 @@ import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
+import br.gov.ses.fillbpai.util.TelefoneUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
@@ -337,6 +338,27 @@ public class ValidacaoPlanilhaService {
 								+ " inexistente (use dd/MM/aaaa, ex.: 25/12/1980)",
 						paciente + " — \"" + nascimento.trim() + "\""));
 			}
+		}
+
+		// -------------------------------------------------------
+		// Regra 0e: Telefone (BPA-I seq 35, opcional) — mesma regra de
+		// AtendimentoProcessor.normalizarTelefone (decisão de 14/10/2026):
+		// sem DDD ou não reconhecido → AVISO, o campo vai em branco.
+		// -------------------------------------------------------
+		String telefone = dto.getTelefone();
+
+		switch (TelefoneUtils.normalizar(telefone).situacao()) {
+			case SEM_DDD -> erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.TELEFONE_SEM_DDD,
+					"Telefone \"" + telefone.trim() + "\" fora do padrao - informe DDD + numero (ex.: 67 99999-9999);"
+							+ " se nao for corrigido, o telefone sera gerado em branco",
+					paciente + " — \"" + telefone.trim() + "\""));
+			case INVALIDO -> erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.TELEFONE_INVALIDO,
+					"Telefone \"" + telefone.trim() + "\" nao reconhecido - o BPA-I sera gerado com o telefone em"
+							+ " branco",
+					paciente + " — \"" + telefone.trim() + "\""));
+			default -> { }
 		}
 
 		// -------------------------------------------------------
@@ -1018,6 +1040,9 @@ public class ValidacaoPlanilhaService {
 					+ "considerada vazia. O sistema segue a importação normalmente e a remessa BPA-I "
 					+ "derivará o valor automaticamente a partir do CPF do paciente: 'N' quando o CPF "
 					+ "estiver preenchido, 'S' quando estiver vazio.";
+
+			case "TIPO_ZONA" -> "Coluna \"Tipo de zona\" não encontrada no cabeçalho — será considerada vazia. "
+					+ "O sistema segue a importação normalmente: o tipo de zona não vai para a remessa BPA-I.";
 
 			default -> "Coluna \"" + campo + "\" não encontrada no cabeçalho — será considerada vazia. "
 					+ "O sistema segue a importação normalmente.";

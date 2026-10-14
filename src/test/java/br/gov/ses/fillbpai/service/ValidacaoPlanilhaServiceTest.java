@@ -1342,6 +1342,24 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarTelefoneSemDddOuInvalidoGeraSoAviso() throws IOException {
+		String[] semDdd = linhaValida();
+		semDdd[16] = "99999-9999";
+		String[] invalido = linhaValida();
+		invalido[16] = "NÃO TEM";
+		invalido[COL_DATA_AGENDAMENTO] = "26/12/2024";
+		String[] varios = linhaValida();
+		varios[16] = "67 3333-3333 / 67 99999-9999";
+		varios[COL_DATA_AGENDAMENTO] = "27/12/2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, semDdd, invalido, varios));
+
+		assertThat(erros).extracting(ErroValidacao::tipoErro)
+				.containsExactly(ErroValidacao.TELEFONE_SEM_DDD, ErroValidacao.TELEFONE_INVALIDO);
+		assertThat(erros).allSatisfy(e -> assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO));
+	}
+
+	@Test
 	void validarSemCidGeraSoAviso() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_CID] = null;

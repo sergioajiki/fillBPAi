@@ -34,8 +34,10 @@ public class PlanilhaColumnMapper {
 	 * default válido ("081" — Rua) quando nenhum código é resolvido, então a
 	 * ausência desta coluna nunca produz um registro inválido.
 	 */
+	// TIPO_ZONA (14/10/2026): não vai para o BPA-I (o layout 2026 não tem campo
+	// de zona) — antes a planilha sem a coluna era bloqueada por estrutura.
 	private static final Set<String> CAMPOS_OPCIONAIS =
-			Set.of("COD_LOGRADOURO", "SITUACAO_RUA", "PACIENTE_SEM_CPF");
+			Set.of("COD_LOGRADOURO", "SITUACAO_RUA", "PACIENTE_SEM_CPF", "TIPO_ZONA");
 
 	/**
 	 * Resultado do mapeamento de um cabeçalho.

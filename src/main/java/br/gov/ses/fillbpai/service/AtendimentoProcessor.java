@@ -13,6 +13,7 @@ import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
+import br.gov.ses.fillbpai.util.TelefoneUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -105,6 +106,7 @@ public class AtendimentoProcessor {
 		avisos.addAll(normalizarSituacaoRua(dto));
 		avisos.addAll(normalizarPacienteSemCpf(dto));
 		avisos.addAll(normalizarCid(dto));
+		avisos.addAll(normalizarTelefone(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -788,6 +790,36 @@ public class AtendimentoProcessor {
 
 		dto.setNumero(
 				StringUtils.limitarTamanho(dto.getNumero(), 5));
+
+		// Tipo de zona não vai para o BPA-I: só é cortado no tamanho da coluna
+		// (50), para nunca derrubar a importação
+		dto.setTipoZona(
+				StringUtils.limitarTamanho(dto.getTipoZona(), 50));
+	}
+
+	/**
+	 * Telefone do paciente (BPA-I seq 35, opcional): grava só DDD + número
+	 * ({@link TelefoneUtils#normalizar}). Sem DDD ou inválido: aviso e campo
+	 * vazio (decisão de 14/10/2026) — nunca bloqueia a linha.
+	 *
+	 * @return lista com o aviso aplicável, ou lista vazia
+	 */
+	private List<String> normalizarTelefone(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+		String bruto = dto.getTelefone();
+		TelefoneUtils.Resultado telefone = TelefoneUtils.normalizar(bruto);
+
+		switch (telefone.situacao()) {
+			case SEM_DDD -> avisos.add("Telefone \"" + bruto.trim() + "\" fora do padrao (TELEFONE_SEM_DDD) - informe"
+					+ " DDD + numero (ex.: 67 99999-9999); se nao for corrigido, o telefone sera gerado em branco");
+			case INVALIDO -> avisos.add("Telefone \"" + bruto.trim() + "\" nao reconhecido (TELEFONE_INVALIDO) - o"
+					+ " BPA-I sera gerado com o telefone em branco");
+			default -> { }
+		}
+
+		dto.setTelefone(telefone.numero());
+		return avisos;
 	}
 
 	// ===============================

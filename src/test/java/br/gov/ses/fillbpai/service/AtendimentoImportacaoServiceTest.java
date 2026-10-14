@@ -736,6 +736,35 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarTelefoneComVariosNumerosGravaSoOPrimeiroEAvisaSemDdd() throws IOException {
+		// Antes: 44 caracteres estouravam a coluna e cancelavam a importação inteira
+		String[] varios = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		varios[16] = "67 3333-3333 / 67 99999-9999 / 67 98888-7777";
+		String[] semDdd = linhaValida("22233344405", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		semDdd[16] = "99999-9999";
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, varios, semDdd));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(2);
+		assertThat(resultado.getAvisos()).anySatisfy(a -> assertThat(a).startsWith("Linha 3").contains("TELEFONE_SEM_DDD"));
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos())
+				.extracting(a -> a.getPaciente().getTelefone())
+				.containsExactlyInAnyOrder("6733333333", null);
+	}
+
+	@Test
+	void importarSemColunaTipoZonaNaoBloqueia() throws IOException {
+		String[] cabecalho = java.util.Arrays.stream(CABECALHO_COMPLETO)
+				.map(c -> c.equals("TIPO_ZONA") ? "OUTRA COLUNA" : c).toArray(String[]::new);
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(cabecalho,
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA")));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(1);
+	}
+
+	@Test
 	void importarSemNascimentoOuComCidInvalidoBloqueia() throws IOException {
 		String[] semNascimento = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
 		semNascimento[14] = null;

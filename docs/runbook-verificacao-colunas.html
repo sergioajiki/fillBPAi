@@ -140,6 +140,8 @@
       <a href="#etnia">Etnia</a>
       <a href="#nascimento">Data de nascimento</a>
       <a href="#cid">CID</a>
+      <a href="#telefone">Telefone</a>
+      <a href="#zona">Tipo de zona</a>
       <a href="#criticas-bpa">Críticas do programa BPA</a>
       <a href="#padrao">Padrão encontrado</a>
       <a href="#implementado">O que mudou</a>
@@ -171,8 +173,8 @@
       <span class="feito">ETNIA_PACIENTE ✓</span>
       <span class="feito">DATA_NASCIMENTO ✓</span>
       <span class="feito">CID_CONSULTA ✓</span>
-      <span>TELEFONE</span>
-      <span>TIPO_ZONA</span>
+      <span class="feito">TELEFONE ✓</span>
+      <span class="feito">TIPO_ZONA ✓</span>
       <span>COD_LOGRADOURO</span>
       <span>ENDERECO</span>
       <span>CEP</span>
@@ -1437,6 +1439,79 @@
 
   <!-- ======================================================= -->
 
+  <section id="telefone">
+    <h2>Telefone (<code>TELEFONE</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Verificação</h4>
+        <p><strong>Nenhuma</strong>, na análise e na importação. Vazio é aceito.</p>
+      </li>
+      <li>
+        <h4>Gravação e BPA-I</h4>
+        <p>
+          Gravado como veio no paciente (coluna de 20 caracteres). Na geração (<code>formatarTelefone</code>, seq 35,
+          <code>prd_ddtel_pcnte</code>, 11 posições NUM, opcional): tira o que não é dígito e fica com os
+          <strong>11 primeiros</strong>; menos de 11, completa com brancos à direita.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor (teste de sondagem)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>BPA-I</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>(67) 99999-9999</code>, <code>67999999999</code></td><td class="ok"><code>67999999999</code></td><td>certo</td></tr>
+          <tr><td class="caso"><code>(67) 3333-3333</code> (fixo)</td><td><code>6733333333␣</code></td><td>10 dígitos + branco (o layout manda brancos à direita)</td></tr>
+          <tr><td class="caso"><code>+55 67 99999-9999</code></td><td class="falha"><code>55679999999</code></td><td>número errado — o DDI entra e o final some</td></tr>
+          <tr><td class="caso"><code>0 67 99999-9999</code>, <code>067 3333-3333</code></td><td class="falha"><code>06799999999</code>, <code>06733333333</code></td><td>o 0 de longa distância entra no número</td></tr>
+          <tr><td class="caso"><code>67 3333-3333 / 67 99999-9999</code></td><td class="falha"><code>67333333336</code></td><td>dois telefones viram um número inexistente</td></tr>
+          <tr><td class="caso"><code>99999-9999</code> (sem DDD)</td><td><code>999999999␣␣</code></td><td>sem DDD</td></tr>
+          <tr><td class="caso">Três telefones (44 caracteres)</td><td class="falha">—</td><td><strong>importação cancelada</strong> com erro de banco ("Value too long for column TELEFONE"); a análise não avisa</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Mais de um telefone na célula derruba a importação inteira <span class="pill risco">Grave</span></p>
+      <p>
+        A célula passa de 20 caracteres, a gravação falha e — com o "tudo ou nada" — nenhuma linha é importada, com
+        mensagem técnica de banco. Com dois telefones curtos, a importação passa, mas o BPA-I sai com um número que mistura
+        os dois.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">DDI e zero de longa distância trocam o número</p>
+      <p>
+        <code>+55</code> e o <code>0</code> antes do DDD ficam no começo e o corte em 11 dígitos tira o final do número.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="zona">
+    <h2>Tipo de zona (<code>TIPO_ZONA</code>)</h2>
+    <p>
+      Gravado como veio no endereço do paciente (coluna de 50 caracteres) e mostrado na tabela da tela. <strong>Não vai
+      para o BPA-I</strong> — o layout 2026 não tem campo de zona — e nenhum valor é conferido (<code>XYZ</code> é
+      aceito).
+    </p>
+    <div class="callout risco">
+      <p class="kicker">Coluna obrigatória para um dado que não é usado</p>
+      <p>
+        <code>TIPO_ZONA</code> não está entre as colunas opcionais do <code>PlanilhaColumnMapper</code>: planilha sem essa
+        coluna é <strong>bloqueada</strong> com erro de estrutura ("Coluna obrigatória não encontrada: TIPO_ZONA"),
+        embora o dado não vá para a remessa. Confirmado no teste de sondagem.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
   <section id="criticas-bpa">
     <h2>Críticas do programa BPA (DATASUS)</h2>
     <p>
@@ -2112,6 +2187,31 @@
           o formato (recomendação acima) já evita a maioria das críticas. Não implementada em 14/10/2026.
         </p>
       </li>
+      <li>
+        <h4>Telefone: normalizar e nunca derrubar a importação <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Ficar com o <strong>primeiro</strong> telefone da célula (separadores <code>/</code>, <code>;</code>,
+          <code>,</code>, " e ", " ou "), tirar o <code>+55</code>/<code>55</code> e o <code>0</code> de longa distância, e
+          gravar só os dígitos. Aceitar 10 (fixo) ou 11 (celular) dígitos com DDD. Outro tamanho, ou texto sem número
+          (<code>NÃO TEM</code>) → <code>AVISO</code> <code>TELEFONE_INVALIDO</code> e o campo vai em branco no BPA-I (é
+          opcional no layout). Célula longa deixa de cancelar a importação.
+        </p>
+      </li>
+      <li>
+        <h4>Telefone sem DDD <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          8 ou 9 dígitos: o DDD não pode ser adivinhado (o paciente pode ser de outro estado). Ver
+          <a href="#abertas">Decisão 19</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Tipo de zona: coluna opcional <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Incluir <code>TIPO_ZONA</code> nas colunas opcionais do <code>PlanilhaColumnMapper</code>: planilha sem a coluna
+          deixa de ser bloqueada (aviso de coluna opcional ausente, como Situação de Rua). Sem conferir valores, porque o
+          dado não vai para o BPA-I; cortar em 50 caracteres para nunca derrubar a importação.
+        </p>
+      </li>
     </ol>
   </section>
 
@@ -2274,6 +2374,13 @@
       <p>
         Decidido (14/10/2026): <code>CID_AUSENTE</code> é <code>AVISO</code> — o BPA-I sai com o CID em branco. Se o
         SIGTAP mostrar que o procedimento exige CID, passa a <code>ERRO</code>.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 19 · Telefone sem DDD: aviso</span>
+      <p>
+        Decidido (14/10/2026): <code>TELEFONE_SEM_DDD</code> é <code>AVISO</code> e o telefone vai em branco no BPA-I — o DDD
+        não é adivinhado.
       </p>
     </div>
   </section>

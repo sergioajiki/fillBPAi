@@ -11,6 +11,7 @@ import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
+import br.gov.ses.fillbpai.util.TelefoneUtils;
 import jakarta.persistence.EntityManager;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -1062,19 +1063,13 @@ public class GeradorBPAiService {
 	 */
 	private String formatarTelefone(String telefone) {
 
-		if (telefone == null || telefone.isBlank()) {
-			return padRightSpaces("", 11);
-		}
+		// A importação já grava só DDD + número; para dados antigos (célula
+		// gravada como veio) aplica a mesma normalização — antes ficava com os
+		// 11 primeiros dígitos ("+55 67 ..." → "5567..."). Sem DDD ou inválido:
+		// brancos (campo opcional)
+		String numero = TelefoneUtils.normalizar(telefone).numero();
 
-		// remove tudo que não for número
-		telefone = telefone.replaceAll("[^0-9]", "");
-
-		// limita a 11 dígitos
-		if (telefone.length() > 11) {
-			telefone = telefone.substring(0, 11);
-		}
-
-		return padRightSpaces(telefone, 11);
+		return padRightSpaces(numero != null ? numero : "", 11);
 	}
 
 	/**

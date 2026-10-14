@@ -183,6 +183,12 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Data do atendimento em célula que mostra só dia e mês — o ano pode ter sido completado pelo Excel. AVISO, não bloqueia (14/10/2026). */
 	public static final String DATA_ATENDIMENTO_SEM_ANO = "DATA_ATENDIMENTO_SEM_ANO";
 
+	/** Telefone com 8 ou 9 dígitos (sem DDD) — vai em branco no BPA-I. AVISO, não bloqueia (14/10/2026). */
+	public static final String TELEFONE_SEM_DDD = "TELEFONE_SEM_DDD";
+
+	/** Telefone não reconhecido (tamanho fora de 10/11 dígitos com DDD, ou sem número) — vai em branco no BPA-I. AVISO, não bloqueia. */
+	public static final String TELEFONE_INVALIDO = "TELEFONE_INVALIDO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;
