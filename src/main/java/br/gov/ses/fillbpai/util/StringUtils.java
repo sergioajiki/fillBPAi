@@ -35,6 +35,28 @@ public class StringUtils {
     }
 
     /**
+     * Corta no tamanho máximo sem partir palavra: fica com as palavras inteiras
+     * que cabem ("Professor Doutor Fulano de Tal" em 20 → "Professor Doutor").
+     * Uma única palavra maior que o limite é cortada no limite.
+     */
+    public static String limitarNaPalavra(String valor, int tamanhoMaximo) {
+
+        if (valor == null) {
+            return null;
+        }
+
+        valor = valor.trim().replaceAll("\\s+", " ");
+
+        if (valor.length() <= tamanhoMaximo) {
+            return valor;
+        }
+
+        int corte = valor.lastIndexOf(' ', tamanhoMaximo);
+
+        return (corte > 0 ? valor.substring(0, corte) : valor.substring(0, tamanhoMaximo)).trim();
+    }
+
+    /**
      * ============================================================
      * LIMITAR TAMANHO + DEFAULT VAZIO
      * ============================================================

@@ -754,6 +754,38 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarLogradouroPelaTabelaDneEEnderecoCortadoNaPalavra() throws IOException {
+		// Coluna "Log" com o nome do tipo: antes "Avenida" cancelava a importação (coluna de 3 caracteres)
+		String[] colunaTexto = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		colunaTexto[18] = "Avenida";
+		colunaTexto[19] = "Afonso Pena";
+		// Prefixo no endereço + endereço longo: corte em 30 depois de tirar o tipo, na palavra
+		String[] longo = linhaValida("22233344405", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		longo[18] = null;
+		longo[19] = "Rodovia Professor Doutor Fulano de Tal da Silva Sauro";
+		// Coluna com código fora da tabela: aviso, e o gerador usa 081
+		String[] invalido = linhaValida("11144477735", "ANA LIMA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		invalido[18] = "999";
+		invalido[19] = "Dom Aquino";
+
+		ImportacaoResultado resultado = service.importar(
+				salvarPlanilha(CABECALHO_COMPLETO, colunaTexto, longo, invalido));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(3);
+		assertThat(resultado.getAvisos()).anySatisfy(a -> assertThat(a)
+				.startsWith("Linha 4").contains("LOGRADOURO_NAO_RECONHECIDO").contains("\"999\""));
+
+		entityManager.clear();
+		java.util.Map<String, br.gov.ses.fillbpai.model.Endereco> porPaciente = new java.util.HashMap<>();
+		atendimentoRepository.buscarTodos().forEach(a -> porPaciente.put(a.getPaciente().getNome(), a.getPaciente().getEndereco()));
+
+		assertThat(porPaciente.get("MARIA SILVA").getCodLogradouro()).isEqualTo("008");
+		assertThat(porPaciente.get("JOSE SOUZA").getCodLogradouro()).isEqualTo("090");
+		assertThat(porPaciente.get("JOSE SOUZA").getEndereco()).isEqualTo("Professor Doutor Fulano de Tal");
+		assertThat(porPaciente.get("ANA LIMA").getCodLogradouro()).isNull();
+	}
+
+	@Test
 	void importarSemColunaTipoZonaNaoBloqueia() throws IOException {
 		String[] cabecalho = java.util.Arrays.stream(CABECALHO_COMPLETO)
 				.map(c -> c.equals("TIPO_ZONA") ? "OUTRA COLUNA" : c).toArray(String[]::new);

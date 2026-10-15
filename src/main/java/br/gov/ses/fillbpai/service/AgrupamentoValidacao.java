@@ -223,6 +223,10 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.DATA_ATENDIMENTO_SEM_ANO, new InfoTipo(
 					"Data do atendimento fora do formato correto",
 					"A data não está no formato correto (dd/MM/aaaa).", 19)),
+			Map.entry(ErroValidacao.LOGRADOURO_NAO_RECONHECIDO, new InfoTipo(
+					"Tipo de logradouro não reconhecido",
+					"A coluna do tipo de logradouro deve ter o código ou o nome do tipo (ex.: 081 ou Rua, 008 ou"
+							+ " Avenida). Se não for corrigido, será usado 081 (Rua).", 27)),
 			Map.entry(ErroValidacao.TELEFONE_SEM_DDD, new InfoTipo(
 					"Telefone fora do padrão",
 					"O telefone deve ter DDD + número (ex.: 67 99999-9999 ou 67 3333-3333). Se não for corrigido,"

@@ -11,6 +11,7 @@ import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
@@ -107,6 +108,7 @@ public class AtendimentoProcessor {
 		avisos.addAll(normalizarPacienteSemCpf(dto));
 		avisos.addAll(normalizarCid(dto));
 		avisos.addAll(normalizarTelefone(dto));
+		avisos.addAll(normalizarLogradouro(dto));
 
 		// ===============================
 		// 5. Conversões
@@ -779,9 +781,9 @@ public class AtendimentoProcessor {
 	 */
 	private void limitarCamposBanco(LinhaImportacaoDTO dto) {
 
-		dto.setEndereco(
-				StringUtils.limitarTamanho(dto.getEndereco(), 30));
-
+		// Endereço: o tipo de logradouro sai do começo ANTES do corte em 30
+		// (antes o corte vinha primeiro e o "Rua " ocupava 4 posições), e o corte
+		// é na última palavra inteira — ver normalizarLogradouro
 		dto.setBairro(
 				StringUtils.limitarTamanho(dto.getBairro(), 30));
 
@@ -795,6 +797,40 @@ public class AtendimentoProcessor {
 		// (50), para nunca derrubar a importação
 		dto.setTipoZona(
 				StringUtils.limitarTamanho(dto.getTipoZona(), 50));
+	}
+
+	/**
+	 * Tipo de logradouro (BPA-I seq 30) e endereço (seq 31), pela tabela DNE
+	 * ({@link LogradouroUtils}, 15/10/2026):
+	 * <ul>
+	 *   <li>tipo no começo do endereço → código, e o prefixo sai do endereço;</li>
+	 *   <li>senão, a coluna "Cód. Logradouro" (código ou nome do tipo); preenchida
+	 *       mas não reconhecida → aviso, e o gerador usa o padrão 081 (Rua);</li>
+	 *   <li>endereço cortado em 30 na última palavra inteira.</li>
+	 * </ul>
+	 * Nunca bloqueia a linha, e o valor gravado sempre cabe nas colunas.
+	 *
+	 * @return lista com o aviso de logradouro não reconhecido, ou lista vazia
+	 */
+	private List<String> normalizarLogradouro(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+		LogradouroUtils.LogradouroResultado prefixo = LogradouroUtils.resolver(dto.getEndereco());
+		String coluna = dto.getCodLogradouro();
+
+		if (prefixo.getCodLogradouro() != null) {
+			dto.setCodLogradouro(prefixo.getCodLogradouro());
+		} else {
+			if (LogradouroUtils.isColunaNaoReconhecida(coluna)) {
+				avisos.add("Tipo de logradouro \"" + coluna.trim() + "\" nao reconhecido (LOGRADOURO_NAO_RECONHECIDO)"
+						+ " - informe o codigo ou o nome do tipo (ex.: 081 ou Rua); se nao for corrigido, sera"
+						+ " usado 081 (Rua)");
+			}
+			dto.setCodLogradouro(LogradouroUtils.codigoDaColuna(coluna));
+		}
+
+		dto.setEndereco(StringUtils.limitarNaPalavra(prefixo.getEndereco(), 30));
+		return avisos;
 	}
 
 	/**

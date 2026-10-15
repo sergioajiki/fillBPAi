@@ -11,6 +11,7 @@ import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
+import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
@@ -359,6 +360,23 @@ public class ValidacaoPlanilhaService {
 							+ " branco",
 					paciente + " — \"" + telefone.trim() + "\""));
 			default -> { }
+		}
+
+		// -------------------------------------------------------
+		// Regra 0f: Tipo de logradouro (BPA-I seq 30) — mesma regra de
+		// AtendimentoProcessor.normalizarLogradouro (tabela DNE, 15/10/2026):
+		// o tipo no começo do endereço vale; senão a coluna "Cód. Logradouro"
+		// preenchida mas não reconhecida → AVISO (o gerador usa 081, Rua).
+		// -------------------------------------------------------
+		String colunaLogradouro = dto.getCodLogradouro();
+
+		if (LogradouroUtils.resolver(dto.getEndereco()).getCodLogradouro() == null
+				&& LogradouroUtils.isColunaNaoReconhecida(colunaLogradouro)) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.LOGRADOURO_NAO_RECONHECIDO,
+					"Tipo de logradouro \"" + colunaLogradouro.trim() + "\" nao reconhecido - informe o codigo ou o"
+							+ " nome do tipo (ex.: 081 ou Rua); se nao for corrigido, sera usado 081 (Rua)",
+					"\"" + colunaLogradouro.trim() + "\""));
 		}
 
 		// -------------------------------------------------------

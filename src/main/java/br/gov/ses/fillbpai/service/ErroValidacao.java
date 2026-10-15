@@ -189,6 +189,9 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Telefone não reconhecido (tamanho fora de 10/11 dígitos com DDD, ou sem número) — vai em branco no BPA-I. AVISO, não bloqueia. */
 	public static final String TELEFONE_INVALIDO = "TELEFONE_INVALIDO";
 
+	/** Coluna "Cód. Logradouro" preenchida com código/nome fora da tabela DNE (e endereço sem tipo reconhecido) — o gerador usa 081 (Rua). AVISO, não bloqueia (15/10/2026). */
+	public static final String LOGRADOURO_NAO_RECONHECIDO = "LOGRADOURO_NAO_RECONHECIDO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

@@ -5,7 +5,6 @@ import br.gov.ses.fillbpai.model.*;
 import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
-import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
@@ -493,11 +492,11 @@ public class AtendimentoImportacaoService {
 		endereco.setTipoZona(dto.getTipoZona());
 		endereco.setCep(dto.getCep());
 
-		// Deriva tipo de logradouro a partir do prefixo do endereço
-		LogradouroUtils.LogradouroResultado logr = LogradouroUtils.resolver(dto.getEndereco());
-		endereco.setCodLogradouro(
-				logr.getCodLogradouro() != null ? logr.getCodLogradouro() : dto.getCodLogradouro());
-		endereco.setEndereco(logr.getEndereco());
+		// Tipo de logradouro e endereço já resolvidos pela tabela DNE no
+		// AtendimentoProcessor.normalizarLogradouro (código de 3 dígitos ou nulo;
+		// endereço sem o prefixo e com no máximo 30 caracteres)
+		endereco.setCodLogradouro(dto.getCodLogradouro());
+		endereco.setEndereco(dto.getEndereco());
 		endereco.setComplemento(dto.getComplemento());
 		endereco.setNumero(dto.getNumero());
 		endereco.setBairro(dto.getBairro());

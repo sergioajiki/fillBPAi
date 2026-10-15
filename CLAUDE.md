@@ -11,6 +11,10 @@ O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de a
 - Apache POI para leitura de `.xlsx`
 - Maven para build
 
+## Continuidade (ler ao retomar o trabalho)
+- A revisão coluna por coluna da planilha está em andamento. Ponto de retomada: **`docs/runbook-verificacao-colunas.html`, seção "Continuidade — ler primeiro"** — método de trabalho, princípios decididos, o que já foi feito, colunas que faltam, recomendações e decisões pendentes.
+- Ao concluir uma etapa, atualizar essa seção do runbook (e marcar ✓ nas recomendações/decisões e na lista "Andamento").
+
 ## Build & Run
 - Usar o wrapper do projeto: `mvnw.cmd compile` (na raiz do projeto)
 - `mvn test` roda automaticamente via PostToolUse hook (Edit/Write) — NÃO rodar manualmente em agents/subagents
@@ -69,6 +73,7 @@ Tipos de AVISO (não bloqueantes):
 - **ETNIA_NAO_ENCONTRADA** (ERRO desde 13/10/2026) — raça Indígena com etnia fora da tabela oficial (mensagem: "Grafia da etnia \"X\" não reconhecida") (`EtniaUtils`, por nome ou código). Também rejeitado pelo `AtendimentoProcessor`
 - **FORMATO_LEGADO_ESPECIALIDADE_MEDICO** — planilha antiga com coluna "Especialidade/Médico" combinada numa única célula; separado automaticamente na importação
 - **COLUNA_SEM_CABECALHO** — coluna com dados mas com o cabeçalho vazio (valor "coluna E (ex.: \"CARDIOLOGIA\")"); não é lida na importação. A correção é sempre na planilha (escrever o nome no cabeçalho) — não há nome para cadastrar como alias em Configurações; a tela de estrutura destaca isso num quadro vermelho
+- **LOGRADOURO_NAO_RECONHECIDO** — coluna "Cód. Logradouro" com código fora da tabela DNE ou texto que não é tipo de logradouro, quando o endereço também não começa com um tipo; o gerador usa 081 (Rua). Também no log de importação
 - **TELEFONE_SEM_DDD** / **TELEFONE_INVALIDO** — telefone com 8–9 dígitos (sem DDD — decisão de 14/10/2026: aviso, sem adivinhar o DDD; título "Telefone fora do padrão", mensagem pede DDD + número e avisa que, sem correção, vai em branco) ou não reconhecido (`TelefoneUtils`); o BPA-I sai com o telefone em branco (campo opcional). Também no log de importação
 - **COLUNA_OPCIONAL_AUSENTE** — coluna opcional (`COD_LOGRADOURO`, `SITUACAO_RUA`, `PACIENTE_SEM_CPF` ou `TIPO_ZONA` — esta desde 14/10/2026, porque o tipo de zona não vai para o BPA-I e a planilha sem ela era bloqueada) não encontrada no cabeçalho; mensagem específica por campo (`ValidacaoPlanilhaService.mensagemColunaOpcionalAusente`) explica o fallback usado
 - **SITUACAO_RUA_INVALIDA** — coluna "Situação de Rua" presente mas valor da célula não reconhecido (aceita S/N, Sim/Não, 1/0 via `SimNaoUtils`) — será enviado "N" na remessa
@@ -107,6 +112,7 @@ Importação grava linha a linha (`flush` por linha). Erro do banco numa linha m
 - `CnsUtils` — processa/valida CNS de pacientes (aceita CNS incomum >15 dígitos com aviso `CNS_INCOMUM`)
 - `CepUtils` — normalização de CEP
 - `DateUtils` — conversão de datas em modo estrito (ver `DATA_INVALIDA`), `idadeNaData(nascimento, dataAtendimento)` (idade do BPA-I na data do **atendimento**, não na de hoje) e `incoerenciaNascimento`
+- `LogradouroUtils` — tipo de logradouro pela **tabela DNE** `dados/tipos_logradouro.csv` (393 tipos, código de 3 dígitos — fornecida pelo usuário em 15/10/2026). `resolver(endereco)`: tipo no começo do endereço (sem acento/caixa; vale o tipo mais longo que casar, desde que sobre um nome — "Avenida Central" → 008 + "Central"; abreviações R, AV, TV/TRAV/TRV, AL, PC/PCA, EST/ESTR, ROD, seguidas de espaço ou pontuação) → código, e o prefixo sai do endereço. `codigoDaColuna(celula)`: código da tabela (1–3 dígitos, completado com zeros) ou nome/abreviação do tipo. Aplicado no `AtendimentoProcessor.normalizarLogradouro`: prefixo do endereço vence a coluna; endereço cortado em 30 **depois** de tirar o prefixo e na última palavra inteira (`StringUtils.limitarNaPalavra`). Antes só Rua/Avenida/Travessa eram reconhecidas, texto na coluna virava `000` ou cancelava a importação, e o corte vinha antes do prefixo
 - `TelefoneUtils` — normaliza o telefone: fica com o **primeiro** número da célula (separadores `/`, `;`, `,`, `|`, " e ", " ou "), tira o DDI `+55`/`55` e o `0` de longa distância; 10 ou 11 dígitos = válido (gravado só DDD + número), 8–9 = sem DDD, resto = inválido (gravado vazio). Antes o gerador ficava com os 11 primeiros dígitos ("+55 67 …" → "5567…") e uma célula com vários telefones passava dos 20 caracteres da coluna e cancelava a importação
 - `CidUtils` — extrai o código CID-10 da célula (letra + 2 dígitos + subcategoria opcional, com ou sem ponto): "CID I10" e "I10 - Hipertensão" → `I10`, "I10.9" → `I109`; nenhum código ou mais de um → `null`. A importação grava só o código (antes uma célula com descrição passava dos 20 caracteres da coluna e cancelava a importação); o gerador usa o mesmo extrator para dados antigos
 - `EtniaUtils` — resolve código oficial de etnia indígena (4 caracteres, numérico ou alfanumérico com prefixo "X") via `dados/etnias_indigenas.csv` (classpath, somente leitura — **a tabela não deve ser alterada**). Aceita o nome (sem acento/caixa; nomes alternativos entre parênteses da tabela), o nome com parênteses na célula ("Terena (Tereno)") e o próprio código digitado ("0207", "207" → 0207, "X290"), conferido contra a tabela. Grafias que a tabela não tem (ex.: "Kinikinau" — a tabela usa KINIKINAWA) continuam não encontradas
@@ -121,6 +127,7 @@ Importação grava linha a linha (`flush` por linha). Erro do banco numa linha m
 - Seq 10 (prd-cnspac): o paciente é identificado por um documento só — CPF (seq 38) ou CNS (layout 2026, observação 2; o programa BPA critica os dois juntos, versões 04.06/04.07). Com CPF → 15 brancos; sem CPF ("Paciente sem CPF" = Sim) → CNS do paciente (15 dígitos, obrigatório desde a importação)
 - Seq 12 (prd-ibge): código IBGE real do endereço, truncado para 6 dígitos
 - Seq 13 (prd-cid): código CID-10 sem ponto (`CidUtils.extrair`), brancos se vazio — antes o texto era cortado em 4 caracteres ("I10 - Hipertensão" → "I10H")
+- Seq 30 (prd_lograd_pcnte): código DNE do tipo de logradouro (`LogradouroUtils`); não reconhecido → 081 (Rua), decisão de negócio de 11/09/2026. Seq 31 (prd_end_pcnte): endereço sem o tipo, até 30 caracteres
 - Seq 35 (prd_ddtel_pcnte): DDD + número normalizado por `TelefoneUtils` (dados antigos também), brancos à direita; sem DDD ou inválido → 11 brancos
 - Tipo de zona: não existe no layout 2026 — só gravado (cortado em 50 caracteres) e mostrado na tabela
 - Seq 14 (prd-idade): idade na data do atendimento (`DateUtils.idadeNaData`) — antes era calculada na data de hoje e a remessa gerada depois de um aniversário saía com um ano a mais

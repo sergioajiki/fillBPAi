@@ -1360,6 +1360,31 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarColunaDeLogradouroNaoReconhecidaGeraSoAviso() throws IOException {
+		String[] invalido = linhaValida();
+		invalido[18] = "999";
+		invalido[19] = "Dom Aquino";
+		String[] nomeDoTipo = linhaValida();
+		nomeDoTipo[18] = "Avenida";
+		nomeDoTipo[19] = "Afonso Pena";
+		nomeDoTipo[COL_DATA_AGENDAMENTO] = "26/12/2024";
+		String[] prefixoVence = linhaValida();
+		prefixoVence[18] = "XYZ"; // ignorada: o endereço já diz o tipo
+		prefixoVence[19] = "Rua das Flores";
+		prefixoVence[COL_DATA_AGENDAMENTO] = "27/12/2024";
+
+		List<ErroValidacao> erros = service.validar(
+				salvarPlanilha(CABECALHO_COMPLETO, invalido, nomeDoTipo, prefixoVence));
+
+		assertThat(erros).singleElement().satisfies(e -> {
+			assertThat(e.linha()).isEqualTo(2);
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.LOGRADOURO_NAO_RECONHECIDO);
+			assertThat(e.detalhe()).contains("sera usado 081 (Rua)");
+		});
+	}
+
+	@Test
 	void validarSemCidGeraSoAviso() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_CID] = null;
