@@ -104,9 +104,9 @@ public class CnsUtils {
 
 		String cnsLimpo = normalizar(cns);
 
-		// CNS ausente — registrado com aviso (não bloqueia importação)
+		// CNS ausente — sem aviso (Decisão 13, 16/10/2026): com CPF o CNS não vai
+		// para o BPA-I; paciente sem CPF já é barrado antes (CNS_OBRIGATORIO_SEM_CPF)
 		if (cnsLimpo == null || cnsLimpo.trim().isEmpty()) {
-			avisos.add("CNS do paciente não informado — registrado com aviso (CNS_INVALIDO)");
 			return new CnsResultado("", avisos);
 		}
 

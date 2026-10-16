@@ -121,9 +121,13 @@ public class AtendimentoBPAiDTO {
 				entity.getPaciente().getTelefone() : "";
 	}
 
+	/** Situação de rua do atendimento (16/10/2026); atendimentos antigos mostram o valor legado do paciente. */
 	public String getSituacaoRuaPaciente() {
-		return entity.getPaciente() != null ?
-				entity.getPaciente().getSituacaoRua() : "";
+		if (entity.getSituacaoRua() != null) {
+			return entity.getSituacaoRua();
+		}
+		return entity.getPaciente() != null && entity.getPaciente().getSituacaoRua() != null
+				? entity.getPaciente().getSituacaoRua() : "";
 	}
 
 	public String getMunicipio() {

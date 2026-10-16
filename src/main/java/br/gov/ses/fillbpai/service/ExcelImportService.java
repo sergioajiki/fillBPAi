@@ -97,10 +97,28 @@ public class ExcelImportService {
 		dto.setBairro(getString(row, colunas, "BAIRRO"));
 		dto.setComplemento(getString(row, colunas, "COMPLEMENTO"));
 		dto.setSexoPaciente(getString(row, colunas, "SEXO_PACIENTE"));
-		dto.setSituacaoRua(getString(row, colunas, "SITUACAO_RUA"));
-		dto.setPacienteSemCpf(getString(row, colunas, "PACIENTE_SEM_CPF"));
+		// Colunas opcionais S/N: null = coluna ausente da planilha; "" = coluna
+		// presente com a célula vazia (vai em branco no BPA-I, com aviso — 16/10/2026)
+		dto.setSituacaoRua(getOpcional(row, colunas, "SITUACAO_RUA"));
+		dto.setPacienteSemCpf(getOpcional(row, colunas, "PACIENTE_SEM_CPF"));
 
 		return dto;
+	}
+
+	/**
+	 * Valor de uma coluna opcional: {@code null} quando a coluna não está no
+	 * cabeçalho, {@code ""} quando está mas a célula é vazia — para separar
+	 * "a planilha não tem essa informação" de "a célula ficou em branco".
+	 */
+	private String getOpcional(Row row, Map<String, Integer> colunas, String campo) {
+
+		if (!colunas.containsKey(campo)) {
+			return null;
+		}
+
+		String valor = getString(row, colunas, campo);
+
+		return valor == null || valor.isBlank() ? "" : valor;
 	}
 
 	/** Célula do campo canônico na linha, ou {@code null} se o campo não está no cabeçalho. */

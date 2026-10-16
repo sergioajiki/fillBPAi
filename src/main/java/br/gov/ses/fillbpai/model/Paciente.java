@@ -41,7 +41,12 @@ public class Paciente {
 	@Column(name = "telefone", length = 20)
 	private String telefone;
 
-	/** "S"/"N"/nulo — situação de rua (prd_situacao_rua do BPA-I). Nulo = não informado na planilha. */
+	/**
+	 * Legado: situação de rua guardada no paciente até 16/10/2026. Desde então
+	 * a informação é do atendimento ({@code AtendimentoBPAi.situacaoRua}) e este
+	 * campo não é mais atualizado — só serve de reserva para atendimentos
+	 * gravados antes da mudança.
+	 */
 	@Column(name = "situacao_rua", length = 1)
 	private String situacaoRua;
 

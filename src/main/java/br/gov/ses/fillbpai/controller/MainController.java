@@ -1,7 +1,9 @@
 package br.gov.ses.fillbpai.controller;
 
 import br.gov.ses.fillbpai.model.Medico;
+import br.gov.ses.fillbpai.model.Paciente;
 import br.gov.ses.fillbpai.repository.MedicoRepository;
+import br.gov.ses.fillbpai.repository.PacienteRepository;
 import br.gov.ses.fillbpai.service.AgrupamentoValidacao;
 import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
 import br.gov.ses.fillbpai.service.ErroValidacao;
@@ -273,13 +275,16 @@ public class MainController {
 		// CNS já conhecido por CPF de médico no banco local — permite à análise
 		// dizer quando uma grafia não cadastrada vai herdar o CNS do mesmo CPF.
 		MedicoRepository medicoRepository = new MedicoRepository(entityManager);
+		// Nome já cadastrado por CPF de paciente — aviso de mesmo CPF com outro nome
+		PacienteRepository pacienteRepository = new PacienteRepository(entityManager);
 
 		// CEPs já resolvidos no banco: a análise busca o IBGE pelo CEP quando o
 		// município não está na tabela de MS, e não deve ir à internet para eles
 		new AtendimentoImportacaoService(entityManager).preCarregarCacheIbge();
 
 		ValidacaoPlanilhaService validacaoService = new ValidacaoPlanilhaService(
-				cpf -> medicoRepository.buscarPorCpf(cpf).map(Medico::getCns).orElse(null));
+				cpf -> medicoRepository.buscarPorCpf(cpf).map(Medico::getCns).orElse(null))
+				.comNomePacientePorCpf(cpf -> pacienteRepository.buscarPorCpf(cpf).map(Paciente::getNome).orElse(null));
 		List<ErroValidacao> errosValidacao = validacaoService.validar(caminho);
 
 		// Os avisos de formato legado e de coluna opcional ausente são tratados

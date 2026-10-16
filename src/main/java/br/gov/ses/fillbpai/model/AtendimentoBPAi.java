@@ -87,6 +87,17 @@ public class AtendimentoBPAi {
 	@Column(name = "paciente_sem_cpf", length = 1)
 	private String pacienteSemCpf;
 
+	/**
+	 * Situação de rua no momento <b>deste atendimento</b> (prd_situacao_rua do
+	 * BPA-I — a informação do BPA é a do momento do atendimento; 16/10/2026).
+	 * "S"/"N" informados (ou "N" quando a planilha não tem a coluna); "" =
+	 * coluna presente com a célula vazia (vai em branco). Nulo só em
+	 * atendimentos gravados antes desta mudança — o gerador usa então o valor
+	 * que estava no paciente.
+	 */
+	@Column(name = "situacao_rua", length = 1)
+	private String situacaoRua;
+
 	// ======================
 	// Getters e Setters
 	// ======================
@@ -217,5 +228,13 @@ public class AtendimentoBPAi {
 
 	public void setPacienteSemCpf(String pacienteSemCpf) {
 		this.pacienteSemCpf = pacienteSemCpf;
+	}
+
+	public String getSituacaoRua() {
+		return situacaoRua;
+	}
+
+	public void setSituacaoRua(String situacaoRua) {
+		this.situacaoRua = situacaoRua;
 	}
 }

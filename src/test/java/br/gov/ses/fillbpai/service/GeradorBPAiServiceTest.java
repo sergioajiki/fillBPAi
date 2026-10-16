@@ -231,7 +231,7 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(328, 338)).isEqualTo(" ".repeat(10)); // seq 37 prd-ine
 		assertThat(linha.substring(338, 349)).isEqualTo("12345678909");  // seq 38 prd-cpf_pcnte
 		assertThat(linha.substring(349, 350)).isEqualTo("N");            // seq "38" dup. prd-situacao_rua
-		assertThat(linha.substring(350, 351)).isEqualTo("N");            // seq 39 prd-sem_cpf (CPF preenchido)
+		assertThat(linha.substring(350, 351)).isEqualTo(" ");            // seq 39 prd-sem_cpf: branco antes da competência 07/2026
 	}
 
 	// ===== SITUAÇÃO DE RUA (seq "38" duplicado) =====
@@ -263,6 +263,7 @@ class GeradorBPAiServiceTest {
 	@Test
 	void seq39PrdSemCpfSemInformacaoNaPlanilhaDerivaNQuandoCpfPreenchido() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setDataAgendamento(LocalDate.of(2026, 7, 15)); // prd_sem_cpf vigente desde 07/2026
 		// atendimento.pacienteSemCpf não definido (planilha sem a coluna) — paciente tem CPF preenchido
 
 		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
@@ -274,6 +275,7 @@ class GeradorBPAiServiceTest {
 	@Test
 	void seq39PrdSemCpfSemInformacaoNaPlanilhaDerivaSQuandoCpfVazio() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setDataAgendamento(LocalDate.of(2026, 7, 15)); // prd_sem_cpf vigente desde 07/2026
 		atendimento.getPaciente().setCpf(null);
 
 		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
@@ -285,6 +287,7 @@ class GeradorBPAiServiceTest {
 	@Test
 	void pacienteSemCpfComChaveInternaNaoEnviaAChaveNoCampoDeCpf() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setDataAgendamento(LocalDate.of(2026, 7, 15)); // prd_sem_cpf vigente desde 07/2026
 		atendimento.getPaciente().setCpf(
 				br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpf("MARIA", LocalDate.of(1990, 1, 1)));
 		atendimento.setPacienteSemCpf("S");
@@ -295,6 +298,7 @@ class GeradorBPAiServiceTest {
 			AtendimentoBPAi semCpf = criarAtendimentoCompleto();
 			semCpf.getPaciente().setCpf(null);
 			semCpf.setPacienteSemCpf("S");
+			semCpf.setDataAgendamento(LocalDate.of(2026, 7, 15));
 			linhaCpfVazio = registro(service.gerarConteudoParcial(List.of(semCpf), "202412"), 0);
 		}
 
@@ -317,6 +321,57 @@ class GeradorBPAiServiceTest {
 		assertThat(linha).hasSize(351);
 		assertThat(linha.substring(59, 74)).isEqualTo("700207960618529"); // seq 10 prd-cnspac
 		assertThat(linha.substring(338, 349)).isEqualTo(" ".repeat(11));  // seq 38: brancos, nunca 00000000000
+	}
+
+	@Test
+	void situacaoDeRuaVemDoAtendimentoEOPacienteSoParaDadosAntigos() {
+		AtendimentoBPAi doAtendimento = criarAtendimentoCompleto();
+		doAtendimento.setSituacaoRua("S");
+		doAtendimento.getPaciente().setSituacaoRua("N"); // valor legado do paciente é ignorado
+
+		AtendimentoBPAi antigo = criarAtendimentoCompleto(); // gravado antes da mudança: sem valor no atendimento
+		antigo.getPaciente().setSituacaoRua("S");
+
+		assertThat(registro(service.gerarConteudoParcial(List.of(doAtendimento), "202412"), 0).substring(349, 350))
+				.isEqualTo("S");
+		assertThat(registro(service.gerarConteudoParcial(List.of(antigo), "202412"), 0).substring(349, 350))
+				.isEqualTo("S");
+	}
+
+	@Test
+	void sexoInvalidoGravadoAntesNuncaVaiParaOBpa() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.getPaciente().setSexo("H");
+
+		assertThat(registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0).substring(74, 75))
+				.isEqualTo("F");
+	}
+
+	@Test
+	void situacaoDeRuaEPacienteSemCpfComCelulaVaziaSaemEmBranco() {
+		// "" = coluna presente com a célula vazia (16/10/2026); null = coluna ausente
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setSituacaoRua("");
+		atendimento.setPacienteSemCpf("");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+		assertThat(linha).hasSize(351);
+		assertThat(linha.substring(349, 350)).isEqualTo(" ");
+		assertThat(linha.substring(350, 351)).isEqualTo(" ");
+	}
+
+	@Test
+	void situacaoDeRuaEPacienteSemCpfSemAColunaMantemOPadrao() {
+		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setDataAgendamento(LocalDate.of(2026, 7, 15)); // prd_sem_cpf vigente desde 07/2026
+		atendimento.getPaciente().setSituacaoRua(null);
+		atendimento.setPacienteSemCpf(null);
+
+		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+		assertThat(linha.substring(349, 350)).isEqualTo("N");
+		assertThat(linha.substring(350, 351)).isEqualTo("N"); // CPF preenchido → N
 	}
 
 	@Test
@@ -346,6 +401,7 @@ class GeradorBPAiServiceTest {
 	@Test
 	void seq39PrdSemCpfComValorInformadoNaPlanilhaPrevaleceSobreADerivacao() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+		atendimento.setDataAgendamento(LocalDate.of(2026, 7, 15)); // prd_sem_cpf vigente desde 07/2026
 		// paciente TEM CPF preenchido, mas a planilha trouxe explicitamente "S"
 		atendimento.setPacienteSemCpf("S");
 
@@ -353,6 +409,39 @@ class GeradorBPAiServiceTest {
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(350, 351)).isEqualTo("S");
+	}
+
+	@Test
+	void camposNovosDoLayoutSaemEmBrancoAntesDaVigencia() {
+		// Decisão 26 (16/10/2026): prd_situacao_rua vale desde 12/2024 e prd_sem_cpf desde 07/2026
+		AtendimentoBPAi antes = criarAtendimentoCompleto();
+		antes.setDataAgendamento(LocalDate.of(2024, 11, 30));
+		antes.setSituacaoRua("S");
+		antes.setPacienteSemCpf("N");
+
+		String linha = registro(service.gerarConteudoParcial(List.of(antes), "202411"), 0);
+
+		assertThat(linha).hasSize(351);
+		assertThat(linha.substring(349, 350)).isEqualTo(" ");
+		assertThat(linha.substring(350, 351)).isEqualTo(" ");
+	}
+
+	@Test
+	void camposNovosDoLayoutSaoEnviadosAPartirDaVigencia() {
+		AtendimentoBPAi ruaVigente = criarAtendimentoCompleto();
+		ruaVigente.setDataAgendamento(LocalDate.of(2024, 12, 1));
+		ruaVigente.setSituacaoRua("S");
+		ruaVigente.setPacienteSemCpf("N");
+		String linha = registro(service.gerarConteudoParcial(List.of(ruaVigente), "202412"), 0);
+		assertThat(linha.substring(349, 350)).isEqualTo("S");
+		assertThat(linha.substring(350, 351)).isEqualTo(" "); // sem_cpf ainda não vigente
+
+		AtendimentoBPAi ambos = criarAtendimentoCompleto();
+		ambos.setDataAgendamento(LocalDate.of(2026, 7, 1));
+		ambos.setSituacaoRua("S");
+		ambos.setPacienteSemCpf("N");
+		linha = registro(service.gerarConteudoParcial(List.of(ambos), "202607"), 0);
+		assertThat(linha.substring(349, 351)).isEqualTo("SN");
 	}
 
 	@Test

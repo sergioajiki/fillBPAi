@@ -83,6 +83,12 @@ public final class AgrupamentoValidacao {
 					"Data de nascimento em formato não reconhecido",
 					"Use dd/MM/aaaa (ex.: 25/12/1980), ou formate a coluna como data no Excel. Data inexistente"
 							+ " (ex.: 31/02) também é recusada.", 5)),
+			Map.entry(ErroValidacao.SEXO_AUSENTE, new InfoTipo(
+					"Sexo do paciente não informado",
+					"Campo obrigatório no BPA-I. Use F (Feminino), M (Masculino) ou I (Indeterminado).", 11)),
+			Map.entry(ErroValidacao.SEXO_INVALIDO, new InfoTipo(
+					"Sexo do paciente não reconhecido",
+					"Aceitos: F, M, I, Feminino, Masculino, Indeterminado, Fem, Masc, Mulher, Homem.", 11)),
 			Map.entry(ErroValidacao.DATA_NASCIMENTO_SEM_ANO, new InfoTipo(
 					"Data de nascimento fora do formato correto",
 					"A data não está no formato correto (dd/MM/aaaa).", 5)),
@@ -232,6 +238,37 @@ public final class AgrupamentoValidacao {
 					"O número deve ser o número do imóvel (ex.: 100 ou 12A, até 5 caracteres) ou uma forma de \"sem"
 							+ " número\" (S/N, SN, SEM NUMERO, 0). Outros valores vão como estão; com mais de 5"
 							+ " caracteres vai o número do começo (ex.: \"100 apto 201\" → 100) ou SN.", 27)),
+			Map.entry(ErroValidacao.CEP_AUSENTE_SITUACAO_RUA, new InfoTipo(
+					"Paciente em situação de rua sem CEP",
+					"O paciente está marcado em situação de rua e não tem CEP: o CEP será registrado em branco. O"
+							+ " município continua obrigatório (é dele que vem o código IBGE).", 22)),
+			Map.entry(ErroValidacao.CPF_COM_NOMES_DIFERENTES, new InfoTipo(
+					"Mesmo CPF com nomes diferentes",
+					"O CPF identifica o paciente: linhas com o mesmo CPF e nomes diferentes viram um só cadastro,"
+							+ " com o nome da última linha importada. Confira na planilha se o CPF ou o nome foi"
+							+ " digitado errado. Diferenças só de acento, maiúsculas ou espaços não contam.", 12)),
+			Map.entry(ErroValidacao.CAMPO_ANTES_DA_VIGENCIA, new InfoTipo(
+					"Campo ainda não existia na competência",
+					"O layout do BPA-I só tem o campo \"Situação de Rua\" a partir da competência 12/2024 e o"
+							+ " campo \"Paciente sem CPF\" a partir de 07/2026. Em atendimentos de competência"
+							+ " anterior o \"Sim\" da planilha é guardado, mas o campo vai em branco no arquivo.", 29)),
+			Map.entry(ErroValidacao.SITUACAO_RUA_VAZIA, new InfoTipo(
+					"Situação de rua vazia",
+					"A coluna \"Situação de Rua\" existe, mas a célula está vazia. Será importada em branco (sem"
+							+ " informação). Preencha com Sim ou Não se souber.", 23)),
+			Map.entry(ErroValidacao.PACIENTE_SEM_CPF_VAZIO, new InfoTipo(
+					"\"Paciente sem CPF\" vazio",
+					"A coluna \"Paciente sem CPF\" existe, mas a célula está vazia. Será importada em branco (sem"
+							+ " informação). Preencha com Não quando o paciente tem CPF.", 23)),
+			Map.entry(ErroValidacao.COMPLEMENTO_CORTADO, new InfoTipo(
+					"Complemento maior que 10 caracteres",
+					"O BPA-I aceita até 10 caracteres no complemento. As palavras comuns são abreviadas (Apartamento"
+							+ " → AP, Bloco → BL, Casa → CS, Quadra → QD, Lote → LT) e o resto é cortado na última"
+							+ " palavra inteira. Se perder algo importante, abrevie na planilha.", 28)),
+			Map.entry(ErroValidacao.BAIRRO_IGUAL_MUNICIPIO, new InfoTipo(
+					"Bairro igual ao município",
+					"O bairro tem o mesmo nome do município do paciente — provavelmente a cidade foi digitada na"
+							+ " coluna do bairro. Confira a planilha.", 28)),
 			Map.entry(ErroValidacao.CEP_FORA_DE_MS, new InfoTipo(
 					"CEP não confere com o município",
 					"O município é de Mato Grosso do Sul, mas o CEP não é (os CEPs de MS começam com 79). Confira"

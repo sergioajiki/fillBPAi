@@ -8,11 +8,14 @@ import br.gov.ses.fillbpai.util.CidUtils;
 import br.gov.ses.fillbpai.util.DateUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.EnderecoUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.NumeroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
+import br.gov.ses.fillbpai.util.SexoUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
+import br.gov.ses.fillbpai.util.VigenciaLayoutUtils;
 import jakarta.persistence.EntityManager;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -657,7 +660,9 @@ public class GeradorBPAiService {
 		 * seq 11 - prd-sexo
 		 * ALFA — F (feminino), M (masculino) ou I (indeterminado)
 		 */
-		String sexo = paciente != null ? paciente.getSexo() : null;
+		// A importação só grava F/M/I (16/10/2026). O "F" fica só como reserva para
+		// dados antigos sem sexo ou com valor inválido — nunca vai outro caractere
+		String sexo = SexoUtils.normalizar(paciente != null ? paciente.getSexo() : null);
 		sb.append(sexo != null ? sexo : "F");
 
 		/**
@@ -791,7 +796,9 @@ public class GeradorBPAiService {
 		/**
 		 * seq 32 - prd-compl_pcnte
 		 */
-		String complemento = endereco != null ? endereco.getComplemento() : "";
+		// Mesma normalização da importação (preenchimento → vazio, abreviações),
+		// para dados já gravados (16/10/2026)
+		String complemento = EnderecoUtils.complemento(endereco != null ? endereco.getComplemento() : null).valor();
 		sb.append(padRightSpaces(formatarAlfa(complemento, 10), 10));
 
 		/**
@@ -805,7 +812,7 @@ public class GeradorBPAiService {
 		/**
 		 * seq 34 - prd-bairro_pcnte
 		 */
-		String bairro = endereco != null ? endereco.getBairro() : "";
+		String bairro = EnderecoUtils.bairro(endereco != null ? endereco.getBairro() : null);
 		sb.append(padRightSpaces(formatarAlfa(bairro, 30), 30));
 
 		/**
@@ -845,8 +852,17 @@ public class GeradorBPAiService {
 		 * disponível; sem essa informação, mantém o padrão "N" — mesmo
 		 * comportamento de antes de a planilha trazer esta coluna.
 		 */
-		String situacaoRua = paciente != null ? paciente.getSituacaoRua() : null;
-		sb.append(situacaoRua != null ? situacaoRua : "N");
+		// Situação de rua do próprio atendimento (16/10/2026); nulo só em
+		// atendimentos gravados antes da mudança → valor legado do paciente.
+		// null → "N" (coluna ausente); "" → branco (célula vazia)
+		String situacaoRua = a.getSituacaoRua() != null ? a.getSituacaoRua()
+				: paciente != null ? paciente.getSituacaoRua() : null;
+		// Antes da competência 12/2024 o campo não existe → branco (decisão 26)
+		if (VigenciaLayoutUtils.isAntesDaSituacaoRua(a.getDataAgendamento())) {
+			sb.append(" ");
+		} else {
+			sb.append(situacaoRua == null ? "N" : situacaoRua.isBlank() ? " " : situacaoRua);
+		}
 
 		/**
 		 * seq 39 - prd_sem_cpf (novo no layout 2026 — ver
@@ -858,9 +874,17 @@ public class GeradorBPAiService {
 		 * "S". Hoje sempre resulta em "N" na prática, já que CPF vazio já
 		 * bloqueia a importação (CPF_AUSENTE) antes de chegar aqui.
 		 */
+		// null = planilha sem a coluna → deriva do CPF (regra de coluna opcional
+		// ausente); "" = coluna presente com a célula vazia → branco (16/10/2026)
 		String pacienteSemCpf = a.getPacienteSemCpf();
 		if (pacienteSemCpf == null) {
 			pacienteSemCpf = cpfPacienteNum.isEmpty() ? "S" : "N";
+		} else if (pacienteSemCpf.isBlank()) {
+			pacienteSemCpf = " ";
+		}
+		// Antes da competência 07/2026 o campo não existe → branco (decisão 26)
+		if (VigenciaLayoutUtils.isAntesDoSemCpf(a.getDataAgendamento())) {
+			pacienteSemCpf = " ";
 		}
 		sb.append(pacienteSemCpf);
 

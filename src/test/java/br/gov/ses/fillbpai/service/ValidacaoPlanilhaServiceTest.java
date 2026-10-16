@@ -121,17 +121,13 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
-	void validarComCnsAusenteGeraAvisoCnsInvalido() throws IOException {
+	void validarComCnsAusenteECpfPreenchidoNaoGeraAviso() throws IOException {
+		// Decisão 13 (16/10/2026): com CPF o CNS não vai para o BPA-I
 		String[] linha = linhaValida();
 		linha[COL_CNS_PACIENTE] = null;
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
 
-		List<ErroValidacao> erros = service.validar(caminho);
-
-		assertThat(erros).singleElement().satisfies(erro -> {
-			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
-			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_INVALIDO);
-		});
+		assertThat(service.validar(caminho)).isEmpty();
 	}
 
 	@Test
@@ -194,6 +190,7 @@ class ValidacaoPlanilhaServiceTest {
 	void validarComCpfPreenchidoEPacienteSemCpfSimGeraErroDeConflito() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_PACIENTE_SEM_CPF] = "Sim";
+		linha[COL_DATA_AGENDAMENTO] = "25/07/2026"; // prd_sem_cpf vigente desde 07/2026
 
 		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement()
 				.satisfies(erro -> {
@@ -285,6 +282,7 @@ class ValidacaoPlanilhaServiceTest {
 		String[] linha = linhaValida();
 		linha[COL_CPF_PACIENTE] = null;
 		linha[COL_PACIENTE_SEM_CPF] = "Sim";
+		linha[COL_DATA_AGENDAMENTO] = "25/07/2026"; // prd_sem_cpf vigente desde 07/2026
 
 		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).isEmpty();
 	}
@@ -294,6 +292,7 @@ class ValidacaoPlanilhaServiceTest {
 		String[] linha = linhaValida();
 		linha[COL_CPF_PACIENTE] = null;
 		linha[COL_PACIENTE_SEM_CPF] = "Sim";
+		linha[COL_DATA_AGENDAMENTO] = "25/07/2026"; // prd_sem_cpf vigente desde 07/2026
 		linha[COL_CNS_PACIENTE] = null;
 
 		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement()
@@ -309,10 +308,11 @@ class ValidacaoPlanilhaServiceTest {
 		String[] curto = linhaValida();
 		curto[COL_CPF_PACIENTE] = null;
 		curto[COL_PACIENTE_SEM_CPF] = "Sim";
+		curto[COL_DATA_AGENDAMENTO] = "25/07/2026"; // prd_sem_cpf vigente desde 07/2026
 		curto[COL_CNS_PACIENTE] = "70020796061852"; // 14
 		String[] longo = curto.clone();
 		longo[COL_CNS_PACIENTE] = "7002079606185290"; // 16
-		longo[COL_DATA_AGENDAMENTO] = "26/12/2024"; // linhas distintas
+		longo[COL_DATA_AGENDAMENTO] = "26/07/2026"; // linhas distintas
 
 		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, curto, longo));
 
@@ -328,6 +328,7 @@ class ValidacaoPlanilhaServiceTest {
 		String[] linha = linhaValida();
 		linha[COL_CPF_PACIENTE] = null;
 		linha[COL_PACIENTE_SEM_CPF] = "Sim";
+		linha[COL_DATA_AGENDAMENTO] = "25/07/2026"; // prd_sem_cpf vigente desde 07/2026
 		linha[COL_CNS_PACIENTE] = "700207960618528"; // último dígito trocado
 
 		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement()
@@ -1378,6 +1379,148 @@ class ValidacaoPlanilhaServiceTest {
 		assertThat(erros.get(0).severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
 		assertThat(erros.get(1).severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
 		assertThat(erros.get(1).valor()).isEqualTo("\"100 apto 201\" → \"100\"");
+	}
+
+	@Test
+	void validarComplementoCortadoEBairroIgualMunicipioGeramAvisoMasBairroLongoNao() throws IOException {
+		String[] complementoLongo = linhaValida();
+		complementoLongo[23] = "Apartamento 201 Bloco B";
+		String[] bairroCidade = linhaValida();
+		bairroCidade[22] = "Campo Grande"; // município da linha: CAMPO GRANDE
+		bairroCidade[COL_DATA_AGENDAMENTO] = "26/12/2024";
+		String[] bairroLongo = linhaValida(); // Decisão 23: bairro cortado não gera aviso
+		bairroLongo[22] = "Conjunto Habitacional Professor Fulano de Tal";
+		bairroLongo[COL_DATA_AGENDAMENTO] = "27/12/2024";
+
+		List<ErroValidacao> erros = service.validar(
+				salvarPlanilha(CABECALHO_COMPLETO, complementoLongo, bairroCidade, bairroLongo));
+
+		assertThat(erros).extracting(ErroValidacao::tipoErro)
+				.containsExactly(ErroValidacao.COMPLEMENTO_CORTADO, ErroValidacao.BAIRRO_IGUAL_MUNICIPIO);
+		assertThat(erros).allSatisfy(e -> assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO));
+		assertThat(erros.get(0).valor()).isEqualTo("\"Apartamento 201 Bloco B\" → \"AP 201 BL\"");
+	}
+
+	@Test
+	void validarSexoVazioOuNaoReconhecidoGeraErroEFormasUsuaisPassam() throws IOException {
+		String[] vazio = linhaValida();
+		vazio[24] = null; // SEXO
+		String[] invalido = linhaValida();
+		invalido[24] = "H";
+		invalido[COL_DATA_AGENDAMENTO] = "26/12/2024";
+		String[] mulher = linhaValida();
+		mulher[24] = "Mulher";
+		mulher[COL_DATA_AGENDAMENTO] = "27/12/2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, vazio, invalido, mulher));
+
+		assertThat(erros).extracting(ErroValidacao::tipoErro)
+				.containsExactly(ErroValidacao.SEXO_AUSENTE, ErroValidacao.SEXO_INVALIDO);
+		assertThat(erros).allSatisfy(e -> assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.ERRO));
+	}
+
+	@Test
+	void validarPacienteEmSituacaoDeRuaSemCepGeraSoAviso() throws IOException {
+		// Decisão 25 (16/10/2026): com "Situação de Rua" = Sim, CEP vazio vira aviso
+		String[] ruaSemCep = linhaValida();
+		ruaSemCep[COL_SITUACAO_RUA] = "Sim";
+		ruaSemCep[COL_CEP] = null;
+		String[] naoRuaSemCep = linhaValida(); // sem situação de rua continua erro
+		naoRuaSemCep[COL_CEP] = null;
+		naoRuaSemCep[COL_DATA_AGENDAMENTO] = "26/12/2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, ruaSemCep, naoRuaSemCep));
+
+		assertThat(erros).extracting(ErroValidacao::tipoErro, ErroValidacao::severidade).containsExactly(
+				org.assertj.core.groups.Tuple.tuple(ErroValidacao.CEP_AUSENTE_SITUACAO_RUA, ErroValidacao.Severidade.AVISO),
+				org.assertj.core.groups.Tuple.tuple(ErroValidacao.CEP_AUSENTE, ErroValidacao.Severidade.ERRO));
+		assertThat(erros.get(0).detalhe()).contains("o CEP será registrado em branco");
+	}
+
+	@Test
+	void validarSimEmCampoAntesDaVigenciaGeraAvisoAgrupadoPorCompetencia() throws IOException {
+		// Decisão 26 (16/10/2026): situação de rua vale desde 12/2024, sem CPF desde 07/2026
+		String[] ruaAntes = linhaValida();
+		ruaAntes[COL_DATA_AGENDAMENTO] = "30/11/2024";
+		ruaAntes[COL_SITUACAO_RUA] = "Sim";
+		String[] ruaVigente = linhaValida(); // 25/12/2024: situação de rua já vale
+		ruaVigente[COL_SITUACAO_RUA] = "Sim";
+		ruaVigente[COL_HORA_ATENDIMENTO] = "09:30";
+		String[] semCpfAntes = linhaValida();
+		semCpfAntes[COL_DATA_AGENDAMENTO] = "30/06/2026";
+		semCpfAntes[COL_CPF_PACIENTE] = null;
+		semCpfAntes[COL_PACIENTE_SEM_CPF] = "Sim";
+		String[] naoAntes = linhaValida(); // "Não" antes da vigência: sem aviso
+		naoAntes[COL_DATA_AGENDAMENTO] = "01/11/2024";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, ruaAntes, ruaVigente, semCpfAntes, naoAntes))
+				.stream().filter(e -> ErroValidacao.CAMPO_ANTES_DA_VIGENCIA.equals(e.tipoErro())).toList();
+
+		assertThat(erros).extracting(ErroValidacao::linha, ErroValidacao::valor).containsExactly(
+				org.assertj.core.groups.Tuple.tuple(2, "Situação de Rua — competência 11/2024"),
+				org.assertj.core.groups.Tuple.tuple(4, "Paciente sem CPF — competência 06/2026"));
+		assertThat(erros).allMatch(e -> !e.isBloqueante());
+		assertThat(erros.get(0).detalhe()).contains("a partir da competência 12/2024", "em branco");
+	}
+
+	@Test
+	void validarMesmoCpfComNomesDiferentesGeraAvisoEmTodasAsLinhasDoCpf() throws IOException {
+		// Decisão 12 (16/10/2026): AVISO; acento, caixa e espaços não contam
+		String[] maria = linhaValida();
+		String[] mariaGrafia = linhaValida();
+		mariaGrafia[10] = "Maria  Sílva";
+		mariaGrafia[COL_HORA_ATENDIMENTO] = "09:30";
+		String[] jose = linhaValida();
+		jose[10] = "JOSE SOUZA";
+		jose[COL_HORA_ATENDIMENTO] = "10:30";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, maria, mariaGrafia, jose))
+				.stream().filter(e -> ErroValidacao.CPF_COM_NOMES_DIFERENTES.equals(e.tipoErro())).toList();
+
+		assertThat(erros).extracting(ErroValidacao::linha).containsExactly(2, 3, 4);
+		assertThat(erros).allMatch(e -> e.severidade() == ErroValidacao.Severidade.AVISO);
+		assertThat(erros.get(0).valor()).isEqualTo("CPF 12345678909 — \"MARIA SILVA\" (linhas 2, 3) × \"JOSE SOUZA\" (linha 4)");
+
+		// Mesmo nome com grafia diferente: sem aviso
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linhaValida(), mariaGrafia)))
+				.noneMatch(e -> ErroValidacao.CPF_COM_NOMES_DIFERENTES.equals(e.tipoErro()));
+	}
+
+	@Test
+	void validarCpfComNomeDiferenteDoCadastradoNoBancoGeraAviso() throws IOException {
+		ValidacaoPlanilhaService comBanco = new ValidacaoPlanilhaService()
+				.comNomePacientePorCpf(cpf -> "12345678909".equals(cpf) ? "Ana Pereira" : null);
+
+		List<ErroValidacao> erros = comBanco.validar(salvarPlanilha(CABECALHO_COMPLETO, linhaValida()));
+
+		assertThat(erros).filteredOn(e -> ErroValidacao.CPF_COM_NOMES_DIFERENTES.equals(e.tipoErro()))
+				.singleElement().satisfies(e -> assertThat(e.valor())
+						.isEqualTo("CPF 12345678909 — \"MARIA SILVA\" (linha 2) × \"Ana Pereira\" (já cadastrado)"));
+	}
+
+	@Test
+	void validarColunasOpcionaisPresentesComCelulaVaziaGeramAviso() throws IOException {
+		String[] linha = linhaValida();
+		linha[COL_SITUACAO_RUA] = null;
+		linha[COL_PACIENTE_SEM_CPF] = null;
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha));
+
+		assertThat(erros).extracting(ErroValidacao::tipoErro)
+				.containsExactly(ErroValidacao.SITUACAO_RUA_VAZIA, ErroValidacao.PACIENTE_SEM_CPF_VAZIO);
+		assertThat(erros).allSatisfy(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(e.detalhe()).contains("em branco");
+		});
+	}
+
+	@Test
+	void validarColunasOpcionaisAusentesNaoGeramAvisoDeCelulaVazia() throws IOException {
+		String[] cabecalho = java.util.Arrays.copyOf(CABECALHO_COMPLETO, COL_SITUACAO_RUA);
+		String[] linha = java.util.Arrays.copyOf(linhaValida(), COL_SITUACAO_RUA);
+
+		assertThat(service.validar(salvarPlanilha(cabecalho, linha)))
+				.allSatisfy(e -> assertThat(e.tipoErro()).isEqualTo(ErroValidacao.COLUNA_OPCIONAL_AUSENTE));
 	}
 
 	@Test

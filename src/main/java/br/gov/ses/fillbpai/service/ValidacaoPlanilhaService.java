@@ -8,6 +8,7 @@ import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.DateUtils;
+import br.gov.ses.fillbpai.util.EnderecoUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
@@ -15,10 +16,12 @@ import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.util.NumeroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
+import br.gov.ses.fillbpai.util.SexoUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
+import br.gov.ses.fillbpai.util.VigenciaLayoutUtils;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
@@ -119,6 +122,28 @@ public class ValidacaoPlanilhaService {
 		this.ibgePorCep = ibgePorCep;
 	}
 
+	/**
+	 * CPF do paciente (11 dígitos) → nome já gravado no banco, ou {@code null}.
+	 * Padrão: sem banco (só compara os nomes dentro da planilha).
+	 */
+	private Function<String, String> nomePacientePorCpf = cpf -> null;
+
+	/** Liga a consulta do nome do paciente já cadastrado (ex.: via {@code PacienteRepository}). */
+	public ValidacaoPlanilhaService comNomePacientePorCpf(Function<String, String> nomePacientePorCpf) {
+		this.nomePacientePorCpf = nomePacientePorCpf;
+		return this;
+	}
+
+	/** Ocorrências de um nome de paciente para um CPF. */
+	private static final class NomePaciente {
+		final String nome;
+		final List<Integer> linhas = new ArrayList<>();
+
+		NomePaciente(String nome) {
+			this.nome = nome;
+		}
+	}
+
 	/** Busca o IBGE pelo CEP; falha inesperada conta como "não encontrado" (não interrompe a análise). */
 	private String buscarIbgeNoCep(String cep, String municipio) {
 		try {
@@ -192,6 +217,11 @@ public class ValidacaoPlanilhaService {
 			Map<String, GrafiaMedico> grafiasMedico = new LinkedHashMap<>();
 			Map<String, String> cnsPorCpfNaPlanilha = new HashMap<>();
 
+			// CPF do paciente → nomes (sem acento/caixa/espaços extras) → linhas:
+			// o CPF é a chave do paciente, nomes diferentes juntariam pessoas
+			// diferentes num cadastro só (decisão 12, 16/10/2026 — AVISO)
+			Map<String, Map<String, NomePaciente>> nomesPorCpf = new LinkedHashMap<>();
+
 			// Linhas do mesmo atendimento (paciente + médico + data + procedimento)
 			DetectorDuplicidade duplicidade = new DetectorDuplicidade();
 
@@ -217,6 +247,7 @@ public class ValidacaoPlanilhaService {
 					validarLinha(dto, numeroLinha, erros);
 					registrarMedico(dto, numeroLinha, mapeamento.especialidadeMedicoCombinados(),
 							grafiasMedico, cnsPorCpfNaPlanilha);
+					registrarNomePaciente(dto, numeroLinha, nomesPorCpf);
 					verificarDuplicidade(row, colunas, numeroLinha, duplicidade, erros);
 				} catch (Exception e) {
 					// Toda linha com dados precisa ser importada: linha ilegível bloqueia
@@ -228,6 +259,7 @@ public class ValidacaoPlanilhaService {
 			}
 
 			reportarCnsProfissional(grafiasMedico, cnsPorCpfNaPlanilha, erros);
+			reportarCpfComNomesDiferentes(nomesPorCpf, erros);
 
 			if (mapeamento.especialidadeMedicoCombinados()) {
 				erros.add(new ErroValidacao(1, ErroValidacao.Severidade.AVISO,
@@ -396,6 +428,29 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
+		// Regra 0h: Bairro e complemento (BPA-I seq 34 e 32) — mesma regra de
+		// AtendimentoProcessor.normalizarBairroComplemento (16/10/2026):
+		// complemento cortado → AVISO (Decisão 23: bairro cortado sem aviso);
+		// bairro igual ao município → AVISO.
+		// -------------------------------------------------------
+		if (EnderecoUtils.isBairroIgualMunicipio(dto.getBairro(), dto.getMunicipio())) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.BAIRRO_IGUAL_MUNICIPIO,
+					"Bairro \"" + dto.getBairro().trim() + "\" igual ao municipio do paciente - confira se o bairro foi"
+							+ " preenchido na coluna certa",
+					paciente + " — bairro \"" + dto.getBairro().trim() + "\""));
+		}
+
+		EnderecoUtils.Complemento complemento = EnderecoUtils.complemento(dto.getComplemento());
+
+		if (complemento.cortado()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.COMPLEMENTO_CORTADO,
+					EnderecoUtils.mensagemComplementoCortado(dto.getComplemento(), complemento),
+					"\"" + dto.getComplemento().trim() + "\" → \"" + complemento.valor() + "\""));
+		}
+
+		// -------------------------------------------------------
 		// Regra 0d: CID da consulta (BPA-I seq 13) — mesma regra de
 		// AtendimentoProcessor.normalizarCid (decisão de 14/10/2026):
 		// vazio → AVISO; sem código CID-10 ou com mais de um → ERRO.
@@ -447,7 +502,7 @@ public class ValidacaoPlanilhaService {
 
 		// -------------------------------------------------------
 		// Regra 1: CNS do paciente
-		// - Ausente ou < 15 dígitos → AVISO, não bloqueia
+		// - Ausente → sem aviso (Decisão 13); < 15 dígitos → AVISO, não bloqueia
 		// - > 15 dígitos (formato legado) → AVISO, não bloqueia
 		// -------------------------------------------------------
 		String cnsNormalizado = CnsUtils.normalizar(dto.getCnsPaciente());
@@ -460,9 +515,9 @@ public class ValidacaoPlanilhaService {
 		if (semCpf) {
 			// conferido na Regra 3
 		} else if (cnsNormalizado == null || cnsNormalizado.isEmpty()) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-					ErroValidacao.CNS_INVALIDO, "CNS do paciente não informado — registrado com aviso (CNS_INVALIDO)",
-					paciente + " — não informado"));
+			// CNS vazio com CPF: sem aviso (Decisão 13, 16/10/2026) — o CNS só vai
+			// para o BPA-I quando o paciente não tem CPF. CPF vazio sem "Paciente
+			// sem CPF" = Sim já é CPF_AUSENTE.
 		} else if (cnsNormalizado.length() < 15) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_INVALIDO,
@@ -516,10 +571,13 @@ public class ValidacaoPlanilhaService {
 			} else {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 						ErroValidacao.MUNICIPIO_NAO_ENCONTRADO,
-						"Município \"" + municipio.trim() + "\" não encontrado e o CEP "
-								+ (cepNormalizado != null ? cepNormalizado : "(vazio)")
-								+ " também não foi encontrado - verifique se a grafia do município e o CEP"
-								+ " estão corretos",
+						cepNormalizado == null || cepNormalizado.isBlank()
+								// Sem CEP (situação de rua, Decisão 25): só resta o nome do município
+								? "Município \"" + municipio.trim() + "\" não encontrado e o paciente não tem CEP -"
+										+ " verifique a grafia do município"
+								: "Município \"" + municipio.trim() + "\" não encontrado e o CEP " + cepNormalizado
+										+ " também não foi encontrado - verifique se a grafia do município e o CEP"
+										+ " estão corretos",
 						"\"" + municipio.trim() + "\" — CEP " + (cepNormalizado != null ? cepNormalizado : "vazio")));
 			}
 		}
@@ -529,7 +587,13 @@ public class ValidacaoPlanilhaService {
 		// -------------------------------------------------------
 		String cep = dto.getCep();
 
-		if (cep == null || cep.trim().isEmpty()) {
+		if ((cep == null || cep.trim().isEmpty()) && "S".equals(SimNaoUtils.normalizar(dto.getSituacaoRua()))) {
+			// Paciente em situação de rua sem CEP: aceito, o CEP vai em branco
+			// (Decisão 25, 16/10/2026). Com CEP preenchido, segue normal.
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.CEP_AUSENTE_SITUACAO_RUA,
+					"Paciente em situação de rua sem CEP — o CEP será registrado em branco", paciente));
+		} else if (cep == null || cep.trim().isEmpty()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CEP_AUSENTE, "CEP do endereço não informado", paciente));
 		} else if (!CepUtils.isValido(cep)) {
@@ -691,6 +755,24 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
+		// Regra 3e: Sexo do paciente (BPA-I seq 11, F/M/I) — mesma regra de
+		// AtendimentoProcessor.normalizarSexo (16/10/2026): vazio ou não
+		// reconhecido é ERRO. Antes a análise não olhava o sexo.
+		// -------------------------------------------------------
+		String sexo = dto.getSexoPaciente();
+
+		if (sexo == null || sexo.isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.SEXO_AUSENTE, "Sexo do paciente nao informado (use F, M ou I)", paciente));
+		} else if (SexoUtils.normalizar(sexo) == null) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.SEXO_INVALIDO,
+					"Sexo do paciente \"" + sexo.trim() + "\" nao reconhecido (use F, M ou I - Feminino, Masculino"
+							+ " ou Indeterminado)",
+					"\"" + sexo.trim() + "\""));
+		}
+
+		// -------------------------------------------------------
 		// Regra 4: Raça do paciente — campo obrigatório no layout do BPA-I
 		// (seq 21 prd-raca). Ausente ou não reconhecida (grafia incorreta) é
 		// ERRO bloqueante.
@@ -756,6 +838,54 @@ public class ValidacaoPlanilhaService {
 							+ "\" nao reconhecido (use Sim/Nao ou S/N) - o valor sera derivado"
 							+ " automaticamente a partir do CPF informado",
 					"\"" + dto.getPacienteSemCpf().trim() + "\""));
+		}
+
+		// -------------------------------------------------------
+		// Regra 7b: colunas opcionais S/N presentes com a célula vazia
+		// (16/10/2026): AVISO, e o campo vai em branco no BPA-I. Coluna ausente
+		// segue a regra de coluna opcional (aviso único em reportarEstrutura).
+		// Paciente sem CPF vazio com o CPF também vazio já é CPF_AUSENTE.
+		// -------------------------------------------------------
+		if (dto.getSituacaoRua() != null && dto.getSituacaoRua().isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.SITUACAO_RUA_VAZIA,
+					"Situacao de rua com a celula vazia - sera importada em branco", "célula vazia"));
+		}
+
+		if (dto.getPacienteSemCpf() != null && dto.getPacienteSemCpf().isBlank()
+				&& dto.getCpfPaciente() != null && !dto.getCpfPaciente().isBlank()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.PACIENTE_SEM_CPF_VAZIO,
+					"Paciente sem CPF com a celula vazia - sera importado em branco", "célula vazia"));
+		}
+
+		// -------------------------------------------------------
+		// Regra 7c: campos novos do layout preenchidos em atendimento de
+		// competência anterior à vigência (decisão 26, 16/10/2026) — Situação
+		// de Rua desde 12/2024, Paciente sem CPF desde 07/2026. AVISO: o campo
+		// vai em branco no BPA-I. Só com "Sim": "Não" em branco não perde informação
+		// (o campo nem existia), e avisar toda linha de planilha antiga seria ruído.
+		// -------------------------------------------------------
+		java.time.LocalDate dataDoAtendimento = dataAtendimento(dto);
+
+		if (dataDoAtendimento != null) {
+			String competencia = VigenciaLayoutUtils.competencia(dataDoAtendimento);
+
+			if (VigenciaLayoutUtils.isAntesDaSituacaoRua(dataDoAtendimento)
+					&& "S".equals(SimNaoUtils.normalizar(dto.getSituacaoRua()))) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.CAMPO_ANTES_DA_VIGENCIA,
+						VigenciaLayoutUtils.mensagemSituacaoRua(competencia),
+						"Situação de Rua — competência " + competencia));
+			}
+
+			if (VigenciaLayoutUtils.isAntesDoSemCpf(dataDoAtendimento)
+					&& "S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()))) {
+				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+						ErroValidacao.CAMPO_ANTES_DA_VIGENCIA,
+						VigenciaLayoutUtils.mensagemSemCpf(competencia),
+						"Paciente sem CPF — competência " + competencia));
+			}
 		}
 
 		// -------------------------------------------------------
@@ -979,6 +1109,79 @@ public class ValidacaoPlanilhaService {
 				erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 						ErroValidacao.CNS_PROFISSIONAL_NAO_CADASTRADO, detalhe, valor));
 			}
+		}
+	}
+
+	/** Acumula o nome do paciente por CPF (só CPF válido; paciente sem CPF usa chave do próprio nome). */
+	private static void registrarNomePaciente(LinhaImportacaoDTO dto, int linha,
+			Map<String, Map<String, NomePaciente>> nomesPorCpf) {
+
+		String cpf = dto.getCpfPaciente();
+		String nome = dto.getPaciente();
+
+		if (cpf == null || nome == null || nome.isBlank() || !CpfUtils.isValido(cpf)) {
+			return;
+		}
+
+		String nomeFinal = nome.trim().replaceAll("\\s+", " ");
+
+		nomesPorCpf.computeIfAbsent(CpfUtils.normalizar(cpf), k -> new LinkedHashMap<>())
+				.computeIfAbsent(TextoUtils.chaveNome(nomeFinal), k -> new NomePaciente(nomeFinal))
+				.linhas.add(linha);
+	}
+
+	/**
+	 * Regra 11: mesmo CPF de paciente com nomes diferentes — na planilha ou em
+	 * relação ao nome já gravado no banco. AVISO (decisão 12, 16/10/2026): a
+	 * importação grava um só paciente com o nome da última linha.
+	 */
+	private void reportarCpfComNomesDiferentes(Map<String, Map<String, NomePaciente>> nomesPorCpf,
+			List<ErroValidacao> erros) {
+
+		for (Map.Entry<String, Map<String, NomePaciente>> entrada : nomesPorCpf.entrySet()) {
+
+			String cpf = entrada.getKey();
+			Map<String, NomePaciente> nomes = entrada.getValue();
+
+			String nomeNoBanco = buscarNomePacienteNoBanco(cpf);
+			boolean difereDoBanco = nomeNoBanco != null && !nomeNoBanco.isBlank()
+					&& !nomes.containsKey(TextoUtils.chaveNome(nomeNoBanco));
+
+			if (nomes.size() < 2 && !difereDoBanco) {
+				continue;
+			}
+
+			List<String> partes = new ArrayList<>();
+			for (NomePaciente nome : nomes.values()) {
+				partes.add("\"" + nome.nome + "\" (" + (nome.linhas.size() == 1 ? "linha " : "linhas ")
+						+ nome.linhas.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(", "))
+						+ ")");
+			}
+			if (difereDoBanco) {
+				partes.add("\"" + nomeNoBanco.trim() + "\" (já cadastrado)");
+			}
+
+			String valor = "CPF " + cpf + " — " + String.join(" × ", partes);
+			String detalhe = "O mesmo CPF de paciente aparece com nomes diferentes: " + String.join(" × ", partes)
+					+ ". O CPF identifica o paciente: será gravado um só cadastro, com o nome da última linha"
+					+ " importada. Confira na planilha se o CPF ou o nome está digitado errado";
+
+			for (NomePaciente nome : nomes.values()) {
+				for (int linha : nome.linhas) {
+					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+							ErroValidacao.CPF_COM_NOMES_DIFERENTES, detalhe, valor));
+				}
+			}
+		}
+	}
+
+	/** Nome do paciente já gravado no banco para o CPF; falha na consulta não interrompe a análise. */
+	private String buscarNomePacienteNoBanco(String cpf) {
+		try {
+			return nomePacientePorCpf.apply(cpf);
+		} catch (Exception e) {
+			log.warn("Falha ao consultar o nome do paciente pelo CPF: {}", e.getMessage());
+			return null;
 		}
 	}
 

@@ -181,6 +181,25 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(atendimento.getHoraAtendimento()).isNull();
 	}
 
+	@Test
+	void importarMesmoCpfComNomeDiferenteImportaTudoComAvisoEFicaComONomeMaisRecente() throws IOException {
+		// Decisão 12 (16/10/2026): AVISO, não bloqueia; acento/caixa/espaços não contam
+		String[] maria = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] mariaGrafia = linhaValida("12345678909", "Maria  Sílva", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		mariaGrafia[2] = "09:30";
+		String[] jose = linhaValida("12345678909", "JOSE SOUZA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		jose[2] = "10:30";
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(CABECALHO_COMPLETO, maria, mariaGrafia, jose));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(3);
+		assertThat(resultado.getAvisos()).filteredOn(a -> a.contains("CPF_COM_NOMES_DIFERENTES"))
+				.singleElement().satisfies(a -> assertThat(a).startsWith("Linha 4")
+						.contains("Maria  Sílva", "JOSE SOUZA"));
+		assertThat(atendimentoRepository.buscarTodos()).extracting(a -> a.getPaciente().getNome())
+				.containsOnly("JOSE SOUZA");
+	}
+
 	// ===== Estabelecimento: código sempre numérico =====
 
 	private void cadastrarEstabelecimento(String codigo, String nome) {
@@ -595,7 +614,7 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
-	void importarComColunaSituacaoRuaPersisteValorNormalizadoNoPaciente() throws IOException {
+	void importarComColunaSituacaoRuaPersisteValorNormalizadoNoAtendimento() throws IOException {
 
 		String[] cabecalhoComSituacaoRua = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
 		cabecalhoComSituacaoRua[CABECALHO_COMPLETO.length] = "Situação de Rua";
@@ -610,30 +629,40 @@ class AtendimentoImportacaoServiceTest {
 		service.importar(caminho);
 
 		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
-		assertThat(atendimento.getPaciente().getSituacaoRua()).isEqualTo("S");
+		assertThat(atendimento.getSituacaoRua()).isEqualTo("S");
 	}
 
 	@Test
-	void reimportarSemColunaSituacaoRuaPreservaValorJaConhecidoDoPaciente() throws IOException {
+	void situacaoDeRuaFicaNoAtendimentoENaoMudaOsAtendimentosAnteriores() throws IOException {
+		// 16/10/2026: antes a situação era do paciente — a importação de dezembro (N)
+		// mudava o atendimento de outubro (S) para N
+		String[] cabecalho = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalho[CABECALHO_COMPLETO.length] = "Situação de Rua";
 
-		String[] cabecalhoComSituacaoRua = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
-		cabecalhoComSituacaoRua[CABECALHO_COMPLETO.length] = "Situação de Rua";
-
-		String[] linhaComSituacaoRua = java.util.Arrays.copyOf(
+		String[] outubro = java.util.Arrays.copyOf(
 				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
 				CABECALHO_COMPLETO.length + 1);
-		linhaComSituacaoRua[CABECALHO_COMPLETO.length] = "Sim";
+		outubro[1] = "10/10/2024";
+		outubro[CABECALHO_COMPLETO.length] = "Sim";
+		service.importar(salvarPlanilha(cabecalho, outubro));
 
-		service.importar(salvarPlanilha(cabecalhoComSituacaoRua, linhaComSituacaoRua));
+		String[] dezembro = outubro.clone();
+		dezembro[1] = "25/12/2024";
+		dezembro[CABECALHO_COMPLETO.length] = "Não";
+		service.importar(salvarPlanilha(cabecalho, dezembro));
 
-		// Reimporta a mesma pessoa (mesmo CPF) via uma planilha sem a coluna —
-		// não deve apagar a informação já conhecida do paciente.
-		String caminhoSemColuna = salvarPlanilha(CABECALHO_COMPLETO,
-				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"));
-		service.importar(caminhoSemColuna);
+		// Planilha sem a coluna: regra de coluna opcional ausente → "N"
+		String[] janeiro = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		janeiro[1] = "05/01/2025";
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO, janeiro));
 
-		AtendimentoBPAi atendimento = atendimentoRepository.buscarTodos().get(0);
-		assertThat(atendimento.getPaciente().getSituacaoRua()).isEqualTo("S");
+		entityManager.clear();
+		java.util.Map<LocalDate, String> porData = new java.util.HashMap<>();
+		atendimentoRepository.buscarTodos().forEach(a -> porData.put(a.getDataAgendamento(), a.getSituacaoRua()));
+
+		assertThat(porData).containsEntry(LocalDate.of(2024, 10, 10), "S")
+				.containsEntry(LocalDate.of(2024, 12, 25), "N")
+				.containsEntry(LocalDate.of(2025, 1, 5), "N");
 	}
 
 	@Test
@@ -783,6 +812,27 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(porPaciente.get("JOSE SOUZA").getCodLogradouro()).isEqualTo("090");
 		assertThat(porPaciente.get("JOSE SOUZA").getEndereco()).isEqualTo("Professor Doutor Fulano de Tal");
 		assertThat(porPaciente.get("ANA LIMA").getCodLogradouro()).isNull();
+	}
+
+	@Test
+	void importarColunasOpcionaisComCelulaVaziaGravaEmBrancoComAviso() throws IOException {
+		String[] cabecalho = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 2);
+		cabecalho[CABECALHO_COMPLETO.length] = "Situação de Rua";
+		cabecalho[CABECALHO_COMPLETO.length + 1] = "Paciente sem CPF";
+		String[] linha = java.util.Arrays.copyOf(
+				linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 2); // as duas células novas ficam vazias
+
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(cabecalho, linha));
+
+		assertThat(resultado.getAvisos())
+				.anySatisfy(a -> assertThat(a).contains("SITUACAO_RUA_VAZIA"))
+				.anySatisfy(a -> assertThat(a).contains("PACIENTE_SEM_CPF_VAZIO"));
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).singleElement().satisfies(a -> {
+			assertThat(a.getSituacaoRua()).isEmpty();
+			assertThat(a.getPacienteSemCpf()).isEmpty();
+		});
 	}
 
 	@Test

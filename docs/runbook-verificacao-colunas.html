@@ -111,7 +111,7 @@
 
   <header class="doc-head">
     <p class="kicker">Runbook técnico · fillBPAi</p>
-    <h1>Verificação por coluna da planilha <span class="pill aberto">Em andamento</span></h1>
+    <h1>Verificação por coluna da planilha <span class="pill aberto">Colunas revisadas · pendências em aberto</span></h1>
     <p class="lede">
       Revisão, coluna por coluna, de como cada campo da planilha é lido, verificado no "Analisar
       Planilha", tratado na importação e usado na geração do BPA-I. Para cada coluna: o caminho do dado,
@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>21 de 27 colunas revisadas · 578 testes passando (<code>mvnw.cmd test</code>) · próxima etapa: revisar bairro e complemento</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 649 testes passando (<code>mvnw.cmd test</code>) · próxima etapa: decidir a recomendação 68 e as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>16/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -145,6 +145,9 @@
       <a href="#zona">Tipo de zona</a>
       <a href="#logradouro">Logradouro e endereço</a>
       <a href="#cep-numero">CEP e número</a>
+      <a href="#bairro-complemento">Bairro e complemento</a>
+      <a href="#sexo-rua">Sexo e situação de rua</a>
+      <a href="#sem-cpf">Paciente sem CPF</a>
       <a href="#criticas-bpa">Críticas do programa BPA</a>
       <a href="#padrao">Padrão encontrado</a>
       <a href="#implementado">O que mudou</a>
@@ -215,6 +218,9 @@
           <tr><td class="caso">Telefone e tipo de zona</td><td>Primeiro telefone da célula, sem DDI/0; sem DDD ou inválido → aviso e em branco; tipo de zona virou coluna opcional.</td></tr>
           <tr><td class="caso">Logradouro e endereço</td><td>Tabela DNE de tipos de logradouro (<code>dados/tipos_logradouro.csv</code>, 393 tipos): tipo reconhecido no começo do endereço (inclusive abreviações) e na coluna (código ou nome); LOGRADOURO_NAO_RECONHECIDO (aviso, usa 081); endereço cortado em 30 depois do prefixo e na palavra.</td></tr>
           <tr><td class="caso">CEP e número</td><td>CEP vazio é erro também na importação; CEP_FALSO (dígitos iguais, erro); CEP com 7 dígitos orienta formatar como texto; CEP_FORA_DE_MS (município de MS com CEP que não começa com 79, aviso). Número: vazio/"sem número" → SN; mais de 5 caracteres → número do começo ou SN, com aviso NUMERO_FORA_DO_PADRAO.</td></tr>
+          <tr><td class="caso">Bairro e complemento</td><td>Preenchimento (<code>-</code>, <code>N/A</code>, <code>0</code>) vira vazio; bairro sem "Bairro" e cortado na palavra (sem aviso); complemento que não cabe é abreviado (AP, BL, CS, QD, LT…) e cortado na palavra, com aviso COMPLEMENTO_CORTADO; BAIRRO_IGUAL_MUNICIPIO (aviso).</td></tr>
+          <tr><td class="caso">Sexo e situação de rua</td><td>SEXO_AUSENTE/SEXO_INVALIDO (erro; aceita Fem, Masc, Mulher, Homem); gerador nunca manda sexo inválido. Situação de rua gravada por atendimento (antes no paciente, e uma importação nova mudava os atendimentos anteriores). Colunas opcionais S/N presentes com célula vazia → aviso e branco no BPA-I.</td></tr>
+          <tr><td class="caso">Paciente sem CPF e situação de rua sem CEP</td><td>Coluna revisada (regras já existiam); paciente em situação de rua sem CEP → aviso CEP_AUSENTE_SITUACAO_RUA e CEP em branco (Decisão 25); mensagem de município não encontrado sem CEP corrigida.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação).</td></tr>
         </tbody>
       </table>
@@ -223,26 +229,20 @@
     <h3>Próximos passos</h3>
     <ol class="plano">
       <li>
-        <h4>Próximo par de colunas</h4>
+        <h4>Todas as colunas revisadas (16/10/2026)</h4>
         <p>
-          <code>BAIRRO</code> e <code>COMPLEMENTO</code> (endereço do paciente). CEP e número foram concluídos em 16/10/2026
-          (recomendações 53 a 58, Decisões 21 e 22) — ver <a href="#cep-numero">CEP e número</a>.
-        </p>
-      </li>
-      <li>
-        <h4>Colunas que faltam revisar</h4>
-        <p>
-          <code>BAIRRO</code>, <code>COMPLEMENTO</code>, <code>SEXO_PACIENTE</code>
-          (já há a recomendação 32), <code>SITUACAO_RUA</code>, <code>PACIENTE_SEM_CPF</code>. <code>MEDICO</code> e
-          <code>CPF_MEDICO</code> têm runbook próprio (<code>docs/runbook-medico-sem-cns.html</code>).
+          <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
+          junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso).
+          Aguardando decisão: recomendação 68 (chave do paciente sem CPF pelo CNS — <strong>alta</strong>). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
       <li>
         <h4>Recomendações pendentes de colunas já revisadas</h4>
         <p>
-          24 (mesmo CPF com nomes diferentes), 26–30 (CNS e nome do paciente), 31 (aviso de competência com mais de 3
-          meses), 32 (sexo), 3–6 (formatos extras de data, data fora do esperado, grafia do tipo de serviço, atendimentos
-          já gravados sem SIGTAP), 45 (CID × sexo/idade, adiada). Decisões em aberto: 3, 12, 13, 14.
+          68 (chave do paciente sem CPF pelo CNS), 26–30 (CNS e nome do paciente), 31 (aviso de competência com mais de 3 meses), 3–6 (formatos
+          extras de data, data fora do esperado, grafia do tipo de serviço, atendimentos já gravados sem SIGTAP), 45 (CID ×
+          sexo/idade, adiada). Decisões em aberto: 3, 14.
         </p>
       </li>
       <li>
@@ -287,10 +287,10 @@
       <span class="feito">ENDERECO ✓</span>
       <span class="feito">CEP ✓</span>
       <span class="feito">NUMERO ✓</span>
-      <span>BAIRRO</span>
-      <span>COMPLEMENTO</span>
-      <span>SEXO_PACIENTE</span>
-      <span>SITUACAO_RUA</span>
+      <span class="feito">BAIRRO ✓</span>
+      <span class="feito">COMPLEMENTO ✓</span>
+      <span class="feito">SEXO_PACIENTE ✓</span>
+      <span class="feito">SITUACAO_RUA ✓</span>
       <span>PACIENTE_SEM_CPF</span>
     </div>
     <div class="callout aberto">
@@ -1147,7 +1147,7 @@
 
     <h3>Problemas</h3>
     <div class="callout risco">
-      <p class="kicker">Mesmo CPF com nomes diferentes vira um paciente só, sem aviso <span class="pill risco">Grave</span></p>
+      <p class="kicker">Mesmo CPF com nomes diferentes vira um paciente só, sem aviso <span class="pill risco">Grave</span> <span class="pill ok">✓ Aviso desde 16/10/2026</span></p>
       <p>
         Se um CPF for digitado no lugar de outro (cópia de linha, CPF da mãe no atendimento do filho), as duas
         pessoas viram um único paciente e o BPA-I sai com o nome, nascimento e endereço da última linha para
@@ -1749,6 +1749,184 @@
 
   <!-- ======================================================= -->
 
+  <section id="bairro-complemento">
+    <h2>Bairro e complemento (<code>BAIRRO</code>, <code>COMPLEMENTO</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <p>
+      Nenhuma conferência, na análise e na importação; vazio é aceito. O <code>AtendimentoProcessor</code> corta o bairro em
+      <strong>30</strong> e o complemento em <strong>10</strong> caracteres (no meio da palavra). No BPA-I:
+      <code>prd_bairro_pcnte</code> (seq 34, 30 posições ALFA) e <code>prd_compl_pcnte</code> (seq 32, 10 posições ALFA), os
+      dois opcionais (brancos). O gerador troca quebra de linha por espaço e caracteres fora do ISO-8859-1 (ex.: travessão
+      "–" vira "-"); acentos são mantidos.
+    </p>
+
+    <h3>O que acontece com cada valor (teste de sondagem)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Bairro / complemento</th><th>BPA-I</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="caso"><code>CENTRO</code> / <code>APTO 1</code></td><td class="ok"><code>CENTRO</code> / <code>APTO 1</code></td><td>certo</td></tr>
+          <tr><td class="caso">vazio / vazio</td><td>brancos</td><td>aceito (campos opcionais)</td></tr>
+          <tr><td class="caso"><code>Jardim São Bento – II</code></td><td><code>Jardim São Bento - II</code></td><td>travessão trocado por hífen</td></tr>
+          <tr><td class="caso"><code>Conjunto Habitacional Professor Fulano de Tal</code></td><td class="falha"><code>Conjunto Habitacional Professo</code></td><td>bairro cortado no meio da palavra, sem aviso</td></tr>
+          <tr><td class="caso"><code>Apartamento 201 Bloco B</code></td><td class="falha"><code>Apartament</code></td><td>complemento cortado: o número do apartamento some</td></tr>
+          <tr><td class="caso"><code>Ap. 101 Bl. C</code></td><td class="falha"><code>Ap. 101 Bl</code></td><td>o bloco some</td></tr>
+          <tr><td class="caso"><code>-</code>, <code>N/A</code>, <code>0</code></td><td class="falha"><code>-</code>, <code>N/A</code>, <code>0</code></td><td>valor de preenchimento vai como bairro/complemento</td></tr>
+          <tr><td class="caso">Bairro <code>Bairro Centro</code></td><td><code>Bairro Centro</code></td><td>a palavra "Bairro" fica no nome</td></tr>
+          <tr><td class="caso">Bairro <code>CAMPO GRANDE</code> (igual ao município)</td><td><code>CAMPO GRANDE</code></td><td>provavelmente a cidade na coluna errada, sem aviso</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout aberto">
+      <p class="kicker">Complemento com 10 posições corta o que importa</p>
+      <p>
+        "Apartamento", "Bloco", "Casa", "Quadra", "Lote" ocupam quase todo o espaço; o número do apartamento ou o bloco é o
+        que se perde. Abreviar as palavras comuns antes de cortar resolve a maioria dos casos.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Valores de preenchimento</p>
+      <p>
+        <code>-</code>, <code>N/A</code>, <code>0</code> vão para o BPA-I como se fossem o nome do bairro ou o complemento.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="sexo-rua">
+    <h2>Sexo e situação de rua (<code>SEXO_PACIENTE</code>, <code>SITUACAO_RUA</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>Sexo</h4>
+        <p>
+          Coluna obrigatória. A análise <strong>não confere</strong> o valor. A importação aceita F/M/I e
+          Feminino/Masculino/Indeterminado; qualquer outro valor é gravado como veio (coluna de 1 caractere). BPA-I:
+          <code>prd-sexo</code> (seq 11, 1 posição; F, M ou I desde a versão 04.11 do BPA). Sexo vazio vai como
+          <strong>F</strong> no gerador.
+        </p>
+      </li>
+      <li>
+        <h4>Situação de rua</h4>
+        <p>
+          Coluna opcional. Aceita S/N, Sim/Não, 1/0 (<code>SimNaoUtils</code>); outro valor → <code>AVISO</code>
+          <code>SITUACAO_RUA_INVALIDA</code> e vai "N". Gravada <strong>no paciente</strong> (só quando a célula traz S/N). BPA-I:
+          <code>prd_situacao_rua</code> (seq "38" duplicado, 1 posição): o layout diz "N ou S; caso não tenha informação,
+          deixar espaço em branco"; hoje sem informação vai <strong>N</strong>. O BPA (versão 04.08) define a informação como
+          a situação do paciente <em>no momento do atendimento</em>.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor (teste de sondagem)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Análise</th><th>Resultado</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">Sexo <code>F</code>, <code>Feminino</code>, <code>m</code>, <code>I</code>, <code>Indeterminado</code></td><td>—</td><td class="ok">F, F, M, I, I</td></tr>
+          <tr><td class="caso">Sexo vazio</td><td>—</td><td class="falha">BPA-I com <code>F</code> — homem sem sexo informado sai como feminino</td></tr>
+          <tr><td class="caso">Sexo <code>Fem</code>, <code>Mulher</code></td><td>—</td><td class="falha"><strong>importação cancelada</strong> com erro de banco (mais de 1 caractere)</td></tr>
+          <tr><td class="caso">Sexo <code>H</code>, <code>1</code>, <code>X</code></td><td>—</td><td class="falha">vai <code>H</code>, <code>1</code>, <code>X</code> no BPA-I (inválido)</td></tr>
+          <tr><td class="caso">Situação de rua <code>S</code>, <code>Sim</code>, <code>1</code> / <code>nao</code></td><td>—</td><td class="ok">S / N</td></tr>
+          <tr><td class="caso">Situação de rua vazia</td><td>—</td><td>N (o layout prevê branco para "sem informação")</td></tr>
+          <tr><td class="caso">Situação de rua <code>X</code>, <code>Sim, desde 2020</code></td><td><code>SITUACAO_RUA_INVALIDA</code></td><td>N</td></tr>
+          <tr><td class="caso">Mesmo paciente: <strong>S</strong> no atendimento de outubro, <strong>N</strong> no de dezembro (duas importações)</td><td>—</td><td class="falha">o atendimento de outubro passa a sair com <strong>N</strong> — a informação é do paciente, não do atendimento</td></tr>
+          <tr><td class="caso">Situação de rua <strong>S</strong> sem CEP</td><td><code>CEP_AUSENTE</code> (erro)</td><td class="falha">planilha bloqueada — pessoa em situação de rua costuma não ter CEP</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">Sexo não reconhecido derruba a importação ou vai inválido <span class="pill risco">Grave</span></p>
+      <p>
+        "Fem", "Mulher" cancelam a importação inteira com mensagem técnica; "H", "1", "X" vão para o BPA-I como estão; sexo
+        vazio vira F. A análise não aponta nada (recomendação 32, já registrada).
+      </p>
+    </div>
+    <div class="callout risco">
+      <p class="kicker">Situação de rua é guardada no paciente, não no atendimento <span class="pill risco">Grave</span></p>
+      <p>
+        Uma importação nova com outro valor muda a situação de rua de <strong>todos</strong> os atendimentos anteriores do
+        paciente, inclusive de competências já geradas. A informação do BPA é a do momento do atendimento.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Situação de rua sem CEP</p>
+      <p>
+        Com o CEP obrigatório (Decisão 21), um paciente em situação de rua sem CEP bloqueia a planilha.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
+  <section id="sem-cpf">
+    <h2>Paciente sem CPF (<code>PACIENTE_SEM_CPF</code>)</h2>
+
+    <h3>Caminho do dado (regras já implementadas em etapas anteriores)</h3>
+    <ul class="plain">
+      <li>Coluna opcional; aceita S/N, Sim/Não, 1/0 (<code>SimNaoUtils</code>). Valor não reconhecido → aviso
+        <code>PACIENTE_SEM_CPF_INVALIDO</code>; coluna presente com célula vazia → aviso <code>PACIENTE_SEM_CPF_VAZIO</code> e
+        branco no BPA-I (Decisão 24).</li>
+      <li>CPF vazio só é aceito com "Sim" (<code>CPF_AUSENTE</code>); "Sim" com CPF preenchido é
+        <code>CPF_CONFLITO_SEM_CPF</code>; com "Sim", o CNS é obrigatório, com 15 dígitos e DV válido
+        (<code>CNS_OBRIGATORIO_SEM_CPF</code>) e vai no seq 10 do BPA-I, com o CPF (seq 38) em branco.</li>
+      <li>O paciente sem CPF recebe uma chave interna <code>SC</code> + 12 caracteres derivada do <strong>nome +
+        nascimento</strong> (<code>CpfUtils.chaveSemCpf</code>), porque o CPF é a chave do paciente no banco.</li>
+      <li>BPA-I seq 39 (<code>prd_sem_cpf</code>): valor da planilha; coluna ausente → derivado do CPF; célula vazia →
+        branco.</li>
+    </ul>
+
+    <h3>O que acontece (teste de sondagem)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Caso</th><th>Resultado</th></tr></thead>
+        <tbody>
+          <tr><td class="caso">"Sim", sem CPF, com CNS</td><td class="ok">seq 10 = CNS, CPF em branco, seq 39 = S</td></tr>
+          <tr><td class="caso">"X" com CPF preenchido</td><td class="ok">aviso <code>PACIENTE_SEM_CPF_INVALIDO</code>; seq 39 = N</td></tr>
+          <tr><td class="caso">Mesma pessoa sem CPF, "MARIA SILVA" e "MARIA DA SILVA" (mesmo CNS)</td><td class="falha">dois pacientes diferentes</td></tr>
+          <tr><td class="caso">Duas pessoas sem CPF, "JOSE SANTOS" com o mesmo nascimento e CNS diferentes</td><td class="falha"><strong>um paciente só</strong> — e o atendimento da primeira pessoa passa a sair com o CNS da segunda</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">A chave do paciente sem CPF é o nome + nascimento <span class="pill risco">Grave</span></p>
+      <p>
+        Desde 09/10/2026 o paciente sem CPF precisa de CNS válido — e o CNS é o documento que o identifica no BPA-I. Mas a
+        chave interna ainda usa nome + nascimento: homônimos com o mesmo nascimento viram uma pessoa só (o CNS de um
+        substitui o do outro em todos os atendimentos), e a mesma pessoa com grafias diferentes vira duas.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Campos novos valem a partir de uma competência</p>
+      <p>
+        O layout 2026 diz: <code>prd_sem_cpf</code> (seq 39) "válido a partir da competência 07/2026" e
+        <code>prd_situacao_rua</code> "válido a partir da competência 12/2024". O gerador envia S/N em qualquer
+        competência — numa remessa de competência anterior, o campo deveria ir em branco. Ver
+        <a href="#abertas">Decisão 26</a>.
+      </p>
+    </div>
+
+    <h3>Situação de rua sem CEP (Decisão 25) <span class="pill ok">✓ Implementado</span></h3>
+    <p>
+      Com a coluna "Situação de Rua" = Sim e o CEP vazio: <code>AVISO</code> <code>CEP_AUSENTE_SITUACAO_RUA</code> ("o CEP
+      será registrado em branco"), na análise e na importação; o BPA-I sai com o CEP em branco. Com CEP preenchido, segue
+      a validação normal do CEP. O município continua obrigatório: sem CEP, o IBGE só vem do nome — município fora da
+      tabela de MS vira <code>MUNICIPIO_NAO_ENCONTRADO</code>, agora com a mensagem "o paciente não tem CEP — verifique a
+      grafia do município" (antes dizia "o CEP null também não foi encontrado").
+    </p>
+  </section>
+
+  <!-- ======================================================= -->
+
   <section id="criticas-bpa">
     <h2>Críticas do programa BPA (DATASUS)</h2>
     <p>
@@ -2234,13 +2412,13 @@
         </p>
       </li>
       <li>
-        <h4>Mesmo CPF com nomes diferentes: avisar <span class="pill risco">Alta</span></h4>
+        <h4>Mesmo CPF com nomes diferentes: avisar <span class="pill ok">â Implementado (16/10/2026)</span></h4>
         <p>
           Novo <code>AVISO</code> (ex.: <code>CPF_COM_NOMES_DIFERENTES</code>) quando o mesmo CPF aparece na
           planilha com nomes que não batem (comparando sem acento, caixa e espaços extras), ou com um nome diferente
           do já gravado no banco. Item: <code>CPF 123… — "MARIA SILVA" (linhas 2, 5) × "JOSE SOUZA" (linha 9)</code>.
           Pequenas variações (<code>MARIA DA SILVA</code> × <code>MARIA SILVA</code>) também aparecem — é aviso, não
-          erro, porque pode ser só grafia. Ver <a href="#abertas">Decisão 12</a>.
+          erro, porque pode ser só grafia. Ver <a href="#abertas">Decisão 12</a>. Implementado: <code>CPF_COM_NOMES_DIFERENTES</code> na análise (planilha + nome do banco, via <code>comNomePacientePorCpf</code>) e no log de importação (<code>buscarOuCriarPaciente</code>); comparação por <code>TextoUtils.chaveNome</code>.
         </p>
       </li>
       <li>
@@ -2273,7 +2451,7 @@
         </p>
       </li>
       <li>
-        <h4>CNS ausente com CPF: não avisar <span class="pill">Média</span></h4>
+        <h4>CNS ausente com CPF: não avisar <span class="pill ok">✓ Implementado (16/10/2026)</span></h4>
         <p>
           Com CPF preenchido o CNS não vai para o BPA-I. Tirar o aviso de CNS vazio nesse caso (continua
           avisando CNS preenchido mas inválido). Ver <a href="#abertas">Decisão 13</a>.
@@ -2307,7 +2485,7 @@
         </p>
       </li>
       <li>
-        <h4>Sexo: não inventar "F" e conferir na análise <span class="pill risco">Alta</span></h4>
+        <h4>Sexo: não inventar "F" e conferir na análise <span class="pill ok">✓ Implementado</span></h4>
         <p>
           Sexo vazio ou não reconhecido vira <code>ERRO</code> no "Analisar Planilha" (aceitos: F, M, I, Feminino,
           Masculino, Indeterminado). Assim a importação nunca falha no banco e o gerador nunca precisa do
@@ -2532,6 +2710,97 @@
           <code>SEM Nº</code>, <code>0</code>/<code>00</code>… e vazio.
         </p>
       </li>
+      <li>
+        <h4>Bairro e complemento: cortar na palavra <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Usar o mesmo corte do endereço (<code>StringUtils.limitarNaPalavra</code>): bairro em 30 e complemento em 10, na
+          última palavra inteira. Tirar a palavra "Bairro" do começo do bairro ("Bairro Centro" → "Centro").
+        </p>
+      </li>
+      <li>
+        <h4>Complemento: abreviar as palavras comuns <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Antes de cortar, trocar pelas abreviações usuais dos Correios: Apartamento → AP, Bloco → BL, Casa → CS, Fundos →
+          FDS, Quadra → QD, Lote → LT, Sala → SL, Conjunto → CJ, Edifício → ED, Andar → AND (também "Apto", "Ap.", "Bl.").
+          Ex.: "Apartamento 201 Bloco B" → "AP 201 BL B" (11) → corte na palavra → "AP 201 BL", com aviso
+          (<a href="#abertas">Decisão 23</a>). Só é abreviado o complemento que <strong>não cabe</strong> em 10 — o que cabe
+          ("APTO 1", "Casa 2") fica como foi digitado.
+        </p>
+      </li>
+      <li>
+        <h4>Valores de preenchimento viram vazio <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Bairro ou complemento só com <code>-</code>, <code>.</code>, <code>X</code>, <code>0</code>, <code>N/A</code>,
+          <code>NA</code>, <code>NÃO INFORMADO</code>, <code>SEM</code> → brancos no BPA-I (campos opcionais), sem aviso.
+        </p>
+      </li>
+      <li>
+        <h4>Aviso quando bairro ou complemento for cortado <span class="pill ok">✓ Implementado (só complemento)</span></h4>
+        <p>
+          <code>AVISO</code> mostrando como vai sair no BPA-I (como no número). Ver <a href="#abertas">Decisão 23</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Bairro igual ao município <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <code>AVISO</code> quando o bairro é o próprio nome do município do paciente ("CAMPO GRANDE") — provavelmente a
+          cidade digitada na coluna errada.
+        </p>
+      </li>
+      <li>
+        <h4>Sexo: aceitar as formas usuais <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Além de F/M/I e Feminino/Masculino/Indeterminado: <code>Fem</code>, <code>Fem.</code>, <code>Mulher</code> → F;
+          <code>Masc</code>, <code>Masc.</code>, <code>Homem</code> → M. <code>H</code>, números e outros continuam não
+          reconhecidos (recomendação 32: erro).
+        </p>
+      </li>
+      <li>
+        <h4>Situação de rua por atendimento <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Gravar a situação de rua no <strong>atendimento</strong> (como já é feito com "Paciente sem CPF"), e não no
+          paciente: cada atendimento leva a situação informada na própria linha. Os atendimentos já gravados recebem o
+          valor atual do paciente (sem como recuperar o histórico).
+        </p>
+        <p>
+          Implementado em 16/10/2026: campo <code>AtendimentoBPAi.situacaoRua</code> (coluna nova, criada pelo
+          <code>hbm2ddl update</code>). Planilha sem a coluna grava "N" no atendimento; célula vazia grava "" (branco no BPA-I).
+          <code>Paciente.situacaoRua</code> deixou de ser atualizado e só é usado como reserva para atendimentos gravados
+          antes da mudança. A tabela da tela mostra o valor do atendimento.
+        </p>
+      </li>
+      <li>
+        <h4>Situação de rua sem informação <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Regra das colunas opcionais (<a href="#abertas">Decisão 24</a>), aplicada a "Situação de Rua" e "Paciente sem CPF":
+          coluna ausente → continua a regra de coluna opcional (aviso único e o padrão: "N" / derivado do CPF); coluna
+          presente com a célula vazia → <code>AVISO</code> por linha (<code>SITUACAO_RUA_VAZIA</code>,
+          <code>PACIENTE_SEM_CPF_VAZIO</code>) "será importada em branco" e o campo vai em branco no BPA-I.
+        </p>
+      </li>
+      <li>
+        <h4>Situação de rua sem CEP <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          <a href="#abertas">Decisão 25</a>: aviso <code>CEP_AUSENTE_SITUACAO_RUA</code> e CEP em branco; com CEP, segue
+          normal. Ver <a href="#sem-cpf">Paciente sem CPF</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Paciente sem CPF: chave pelo CNS <span class="pill risco">Alta</span></h4>
+        <p>
+          Trocar a chave interna do paciente sem CPF de nome + nascimento para o <strong>CNS</strong> (obrigatório e válido
+          nesse caso): homônimos deixam de virar uma pessoa só e grafias diferentes da mesma pessoa deixam de virar duas.
+          Pacientes já gravados com a chave antiga: na importação, se não achar pela chave nova, procurar pela antiga e
+          atualizar a chave (sem duplicar o paciente).
+        </p>
+      </li>
+      <li>
+        <h4>Campos novos só a partir da competência de validade <span class="pill ok">✓ Implementado (16/10/2026)</span></h4>
+        <p>
+          Ver <a href="#abertas">Decisão 26</a>: seq 39 (<code>prd_sem_cpf</code>) em branco para competência anterior a
+          07/2026 e situação de rua em branco para competência anterior a 12/2024. Implementado: <code>VigenciaLayoutUtils</code> no gerador (branco antes da vigência) e aviso <code>CAMPO_ANTES_DA_VIGENCIA</code> na análise e no log de importação quando a planilha traz "Sim" (o "Não" em branco não perde informação — avisar toda linha de planilha antiga seria ruído).
+        </p>
+      </li>
     </ol>
   </section>
 
@@ -2646,18 +2915,21 @@
         atributos do SIGTAP. Implementado — ver <a href="#recomendacoes">Recomendação 23</a>.
       </p>
     </div>
-    <div class="callout aberto">
-      <span class="pill aberto">12 · Mesmo CPF com nomes diferentes: aviso ou erro?</span>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 12 · Mesmo CPF com nomes diferentes: aviso</span>
       <p>
-        Recomendo <code>AVISO</code>, porque variação de grafia é comum e bloquearia muitas planilhas. Erro só
-        faria sentido se os nomes não tiverem nenhuma palavra em comum.
+        Decidido (16/10/2026): <code>AVISO</code> (<code>CPF_COM_NOMES_DIFERENTES</code>), não bloqueia. Compara sem acento,
+        caixa e espaços repetidos, dentro da planilha e com o nome já gravado no banco. Todas as linhas do CPF recebem o
+        aviso, com o valor <code>CPF … — "NOME" (linhas …) × "OUTRO" (linha …)</code>. Um só paciente é gravado, com o nome
+        da última linha importada.
       </p>
     </div>
-    <div class="callout aberto">
-      <span class="pill aberto">13 · CNS vazio com CPF: continuar avisando?</span>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 13 · CNS vazio com CPF: sem aviso</span>
       <p>
-        Recomendo tirar o aviso: o CNS não vai para o BPA-I quando há CPF. Se o núcleo quiser o CNS para outro uso
-        (cadastro, auditoria), mantém.
+        Decidido (16/10/2026): CNS vazio não gera mais aviso (análise e log de importação) — com CPF o CNS não vai para o
+        BPA-I. CNS preenchido mas inválido continua avisando (<code>CNS_INVALIDO</code>, <code>CNS_DV_INVALIDO</code>,
+        <code>CNS_INCOMUM</code>); paciente sem CPF continua exigindo o CNS (<code>CNS_OBRIGATORIO_SEM_CPF</code>).
       </p>
     </div>
     <div class="callout aberto">
@@ -2724,6 +2996,39 @@
       <p>
         Decidido (16/10/2026): número vazio e as formas de "sem número" vão como <code>SN</code> no BPA-I, sem aviso
         (<code>NumeroUtils</code>, também para dados já gravados).
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 23 · Aviso só para o complemento cortado</span>
+      <p>
+        Decidido (16/10/2026): complemento cortado gera <code>AVISO</code> <code>COMPLEMENTO_CORTADO</code>; bairro cortado
+        (na palavra, em 30) não gera aviso.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 24 · Colunas opcionais: ausente × célula vazia</span>
+      <p>
+        Decidido (16/10/2026): se a coluna opcional não existe, valem as regras de coluna opcional ausente (aviso único e o
+        padrão de cada campo — situação de rua "N", paciente sem CPF derivado do CPF). Se a coluna existe e a célula está
+        vazia, aviso informando que a célula está vazia e será importada em branco; no BPA-I o campo vai em branco. Valor
+        não reconhecido continua com a regra anterior (aviso e "N" / derivado do CPF).
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 25 · Paciente em situação de rua sem CEP: aviso</span>
+      <p>
+        Decidido (16/10/2026): quando existe a coluna "Situação de Rua" e o paciente está marcado com Sim, CEP vazio gera
+        aviso ("o CEP será registrado em branco"); se houver CEP, segue normalmente.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 26 · Campos novos antes da competência de validade: branco + aviso</span>
+      <p>
+        Decidido (16/10/2026): <code>prd_situacao_rua</code> vai em <strong>branco</strong> em atendimentos de competência
+        anterior a 12/2024 e <code>prd_sem_cpf</code> antes de 07/2026 (competência = mês da data do atendimento). Quando a
+        planilha traz "Sim" nesses casos, o <code>AVISO</code> <code>CAMPO_ANTES_DA_VIGENCIA</code> informa que o campo será
+        gerado em branco (análise e log de importação, agrupado por campo + competência). "Não" não gera aviso: o branco
+        equivale ao campo inexistente.
       </p>
     </div>
   </section>

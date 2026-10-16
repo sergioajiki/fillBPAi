@@ -9,13 +9,16 @@ import br.gov.ses.fillbpai.util.CidUtils;
 import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CepUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
+import br.gov.ses.fillbpai.util.EnderecoUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.util.NumeroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
+import br.gov.ses.fillbpai.util.SexoUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
+import br.gov.ses.fillbpai.util.VigenciaLayoutUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -97,7 +100,7 @@ public class AtendimentoProcessor {
 		// ===============================
 
 		validarCamposObrigatorios(dto);
-		validarCep(dto);
+		avisos.addAll(validarCep(dto));
 		validarCpf(dto);
 		validarCpfMedico(dto);
 		validarCbo(dto);
@@ -111,6 +114,7 @@ public class AtendimentoProcessor {
 		avisos.addAll(normalizarTelefone(dto));
 		avisos.addAll(normalizarLogradouro(dto));
 		avisos.addAll(normalizarNumero(dto));
+		avisos.addAll(normalizarBairroComplemento(dto));
 
 		// Município de MS com CEP de outro estado (decisão de 16/10/2026): aviso
 		if (CepUtils.isForaDeMsComMunicipioDeMs(dto.getCep(), dto.getMunicipio())) {
@@ -124,6 +128,10 @@ public class AtendimentoProcessor {
 		// ===============================
 
 		converterDatas(dto, avisos);
+
+		// Campos novos do layout antes da competência em que passaram a valer
+		// (decisão 26, 16/10/2026): vão em branco no BPA-I — aviso quando "Sim" (a informação se perde)
+		avisos.addAll(verificarVigenciaDoLayout(dto));
 
 		return avisos;
 	}
@@ -293,13 +301,26 @@ public class AtendimentoProcessor {
 
 	/**
 	 * Valida o CEP após normalização: vazio ou com tamanho diferente de 8
-	 * dígitos é erro bloqueante (mesma regra da análise).
+	 * dígitos é erro bloqueante (mesma regra da análise). Exceção: paciente em
+	 * situação de rua (= Sim) sem CEP é aceito com aviso e o CEP vai em branco
+	 * (Decisão 25); com CEP preenchido, segue a validação normal.
 	 *
+	 * @return lista com o aviso de CEP vazio de paciente em situação de rua, ou lista vazia
 	 * @throws IllegalArgumentException se o CEP estiver vazio ou com tamanho incorreto
 	 */
-	private void validarCep(LinhaImportacaoDTO dto) {
+	private List<String> validarCep(LinhaImportacaoDTO dto) {
 
+		List<String> avisos = new ArrayList<>();
 		String cep = dto.getCep();
+
+		// Paciente em situação de rua (coluna "Situação de Rua" = Sim) sem CEP:
+		// aceito, o CEP vai em branco, com aviso (Decisão 25, 16/10/2026)
+		if (isNullOrEmpty(cep) && isSituacaoRua(dto)) {
+			avisos.add("Paciente em situacao de rua sem CEP (CEP_AUSENTE_SITUACAO_RUA) - o CEP sera registrado em"
+					+ " branco");
+			dto.setCep(null);
+			return avisos;
+		}
 
 		// CEP vazio é erro também na importação (decisão de 16/10/2026) — antes
 		// só a análise bloqueava, e a importação aceitava a linha sem CEP
@@ -316,6 +337,13 @@ public class AtendimentoProcessor {
 			throw new IllegalArgumentException(
 					"CEP " + cep + " inválido (dígitos repetidos) — informe o CEP do endereço do paciente.");
 		}
+
+		return avisos;
+	}
+
+	/** Coluna "Situação de Rua" presente e marcada com Sim (S, Sim, 1). */
+	static boolean isSituacaoRua(LinhaImportacaoDTO dto) {
+		return "S".equals(SimNaoUtils.normalizar(dto.getSituacaoRua()));
 	}
 
 	/**
@@ -510,12 +538,43 @@ public class AtendimentoProcessor {
 
 		String bruto = dto.getSituacaoRua();
 
+		// Coluna presente com a célula vazia: em branco no BPA-I, com aviso
+		// (16/10/2026 — o layout manda branco quando não há informação)
+		if (bruto != null && bruto.isBlank()) {
+			avisos.add("Situacao de rua com a celula vazia (SITUACAO_RUA_VAZIA) - sera importada em branco");
+			dto.setSituacaoRua("");
+			return avisos;
+		}
+
 		if (SimNaoUtils.isInvalido(bruto)) {
 			avisos.add("Situacao de rua \"" + bruto.trim()
 					+ "\" nao reconhecida (use Sim/Nao ou S/N) - sera enviado 'N' na remessa");
 		}
 
 		dto.setSituacaoRua(SimNaoUtils.normalizar(bruto));
+
+		return avisos;
+	}
+
+	/** Avisos de campo preenchido antes da vigência no layout (ver {@link VigenciaLayoutUtils}). */
+	private List<String> verificarVigenciaDoLayout(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+		java.time.LocalDate data = dto.getDataAgendamento();
+
+		if (data == null) {
+			return avisos;
+		}
+
+		String competencia = VigenciaLayoutUtils.competencia(data);
+
+		if (VigenciaLayoutUtils.isAntesDaSituacaoRua(data) && "S".equals(dto.getSituacaoRua())) {
+			avisos.add(VigenciaLayoutUtils.mensagemSituacaoRua(competencia) + " (CAMPO_ANTES_DA_VIGENCIA)");
+		}
+
+		if (VigenciaLayoutUtils.isAntesDoSemCpf(data) && "S".equals(dto.getPacienteSemCpf())) {
+			avisos.add(VigenciaLayoutUtils.mensagemSemCpf(competencia) + " (CAMPO_ANTES_DA_VIGENCIA)");
+		}
 
 		return avisos;
 	}
@@ -537,6 +596,13 @@ public class AtendimentoProcessor {
 		List<String> avisos = new ArrayList<>();
 
 		String bruto = dto.getPacienteSemCpf();
+
+		// Coluna presente com a célula vazia: em branco no BPA-I, com aviso (16/10/2026)
+		if (bruto != null && bruto.isBlank()) {
+			avisos.add("Paciente sem CPF com a celula vazia (PACIENTE_SEM_CPF_VAZIO) - sera importado em branco");
+			dto.setPacienteSemCpf("");
+			return avisos;
+		}
 
 		if (SimNaoUtils.isInvalido(bruto)) {
 			avisos.add("Paciente sem CPF \"" + bruto.trim()
@@ -760,31 +826,30 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Normaliza o sexo do paciente para o código de 1 caractere usado no BPA-I.
-	 * Aceita valor abreviado (F/M/I) ou por extenso (Feminino/Masculino/Indeterminado),
-	 * em qualquer combinação de maiúsculas/minúsculas.
+	 * Normaliza o sexo do paciente para F/M/I ({@link SexoUtils}). Vazio ou não
+	 * reconhecido é erro da linha (16/10/2026 — recomendação 32): antes o valor
+	 * ia como veio ("Fem" cancelava a importação no banco, "H" ia para o BPA-I)
+	 * e vazio saía como F.
+	 *
+	 * @throws IllegalArgumentException se o sexo estiver vazio ou não for reconhecido
 	 */
 	private void normalizarSexo(LinhaImportacaoDTO dto) {
 
-		if (isNullOrEmpty(dto.getSexoPaciente())) {
-			return;
+		String bruto = dto.getSexoPaciente();
+
+		if (isNullOrEmpty(bruto)) {
+			throw new IllegalArgumentException("Sexo do paciente não informado (use F, M ou I).");
 		}
 
-		switch (dto.getSexoPaciente().trim().toUpperCase()) {
-			case "F":
-			case "FEMININO":
-				dto.setSexoPaciente("F");
-				break;
-			case "M":
-			case "MASCULINO":
-				dto.setSexoPaciente("M");
-				break;
-			case "I":
-			case "INDETERMINADO":
-				dto.setSexoPaciente("I");
-				break;
-			// Valor não reconhecido: mantém como veio
+		String sexo = SexoUtils.normalizar(bruto);
+
+		if (sexo == null) {
+			throw new IllegalArgumentException(
+					"Sexo do paciente \"" + bruto.trim() + "\" não reconhecido (use F, M ou I — Feminino,"
+							+ " Masculino ou Indeterminado).");
 		}
+
+		dto.setSexoPaciente(sexo);
 	}
 
 	/**
@@ -802,11 +867,8 @@ public class AtendimentoProcessor {
 		// Endereço: o tipo de logradouro sai do começo ANTES do corte em 30
 		// (antes o corte vinha primeiro e o "Rua " ocupava 4 posições), e o corte
 		// é na última palavra inteira — ver normalizarLogradouro
-		dto.setBairro(
-				StringUtils.limitarTamanho(dto.getBairro(), 30));
-
-		dto.setComplemento(
-				StringUtils.limitarTamanho(dto.getComplemento(), 10));
+		// Bairro e complemento: normalizados em normalizarBairroComplemento
+		// (preenchimento → vazio, abreviações, corte na palavra)
 
 		// Número: normalizado em normalizarNumero (SN, número inicial, até 5)
 
@@ -847,6 +909,36 @@ public class AtendimentoProcessor {
 		}
 
 		dto.setEndereco(StringUtils.limitarNaPalavra(prefixo.getEndereco(), 30));
+		return avisos;
+	}
+
+	/**
+	 * Bairro (seq 34, 30 posições) e complemento (seq 32, 10 posições) — ver
+	 * {@link EnderecoUtils} (16/10/2026): preenchimento ("-", "N/A", "0") vira
+	 * vazio; bairro sem a palavra "Bairro" e cortado na palavra, sem aviso;
+	 * complemento abreviado (AP, BL, CS…) e cortado na palavra, com aviso
+	 * quando algo se perde (Decisão 23); aviso quando o bairro é o próprio
+	 * município. Nunca bloqueia a linha.
+	 *
+	 * @return lista com os avisos aplicáveis, ou lista vazia
+	 */
+	private List<String> normalizarBairroComplemento(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+
+		if (EnderecoUtils.isBairroIgualMunicipio(dto.getBairro(), dto.getMunicipio())) {
+			avisos.add("Bairro \"" + dto.getBairro().trim() + "\" igual ao municipio do paciente"
+					+ " (BAIRRO_IGUAL_MUNICIPIO) - confira se o bairro foi preenchido na coluna certa");
+		}
+
+		EnderecoUtils.Complemento complemento = EnderecoUtils.complemento(dto.getComplemento());
+		if (complemento.cortado()) {
+			avisos.add(EnderecoUtils.mensagemComplementoCortado(dto.getComplemento(), complemento)
+					+ " (COMPLEMENTO_CORTADO)");
+		}
+
+		dto.setBairro(EnderecoUtils.bairro(dto.getBairro()));
+		dto.setComplemento(complemento.valor());
 		return avisos;
 	}
 

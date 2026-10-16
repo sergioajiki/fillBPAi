@@ -26,4 +26,12 @@ public class TextoUtils {
 				.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
 				.toUpperCase();
 	}
+
+	/**
+	 * Chave para comparar nomes de pessoa: sem acento, maiúsculas e espaços
+	 * repetidos reduzidos ("Maria  da Silva" = "MARIA DA SILVA").
+	 */
+	public static String chaveNome(String nome) {
+		return normalizar(nome).replaceAll("\\s+", " ");
+	}
 }

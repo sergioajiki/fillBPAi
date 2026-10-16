@@ -34,20 +34,19 @@ class CnsUtilsTest {
 	}
 
 	@Test
-	void processarComValorNuloGeraAvisoEDevolveCnsVazio() {
+	void processarComValorNuloNaoGeraAvisoEDevolveCnsVazio() {
 		CnsUtils.CnsResultado resultado = CnsUtils.processar(null);
 
 		assertThat(resultado.getCns()).isEmpty();
-		assertThat(resultado.getAvisos()).hasSize(1)
-				.first().asString().contains("CNS_INVALIDO");
+		assertThat(resultado.getAvisos()).isEmpty(); // Decisão 13
 	}
 
 	@Test
-	void processarComValorVazioGeraAvisoEDevolveCnsVazio() {
+	void processarComValorVazioNaoGeraAvisoEDevolveCnsVazio() {
 		CnsUtils.CnsResultado resultado = CnsUtils.processar("   ");
 
 		assertThat(resultado.getCns()).isEmpty();
-		assertThat(resultado.getAvisos()).hasSize(1);
+		assertThat(resultado.getAvisos()).isEmpty(); // Decisão 13
 	}
 
 	// ===== Dígito verificador (recomendação 25) =====

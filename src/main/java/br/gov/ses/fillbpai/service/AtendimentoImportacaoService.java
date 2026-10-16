@@ -5,6 +5,7 @@ import br.gov.ses.fillbpai.model.*;
 import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
+import br.gov.ses.fillbpai.util.TextoUtils;
 import br.gov.ses.fillbpai.repository.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityTransaction;
@@ -256,7 +257,7 @@ public class AtendimentoImportacaoService {
 		// Paciente (findOrCreate por CPF)
 		// ==============================
 
-		Paciente paciente = buscarOuCriarPaciente(dto);
+		Paciente paciente = buscarOuCriarPaciente(dto, resultado, linhaExcel);
 
 		// ==============================
 		// Endereço (atualiza sempre com dados mais recentes)
@@ -323,6 +324,11 @@ public class AtendimentoImportacaoService {
 		atendimento.setCboMedico(dto.getCboMedico());
 		atendimento.setCidConsulta(dto.getCidConsulta());
 		atendimento.setPacienteSemCpf(dto.getPacienteSemCpf());
+
+		// Situação de rua do momento deste atendimento (16/10/2026). Planilha sem a
+		// coluna (null) → "N", a regra de coluna opcional ausente; assim nulo no
+		// atendimento passa a significar só "gravado antes da mudança".
+		atendimento.setSituacaoRua(dto.getSituacaoRua() != null ? dto.getSituacaoRua() : "N");
 
 		// ==============================
 		// Herança de folha para novos atendimentos
@@ -434,7 +440,7 @@ public class AtendimentoImportacaoService {
 	 * Busca paciente pelo CPF. Se não existir, cria novo.
 	 * Se existir, atualiza os dados com a importação mais recente.
 	 */
-	private Paciente buscarOuCriarPaciente(LinhaImportacaoDTO dto) {
+	private Paciente buscarOuCriarPaciente(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel) {
 
 		// Paciente sem CPF ("Paciente sem CPF" = Sim, já validado no processador):
 		// o CPF é a chave do paciente no banco, então usa uma chave interna
@@ -445,6 +451,15 @@ public class AtendimentoImportacaoService {
 
 		return pacienteRepository.buscarPorCpf(dto.getCpfPaciente())
 				.map(paciente -> {
+					// Mesmo CPF com outro nome (decisão 12, 16/10/2026): aviso — o
+					// cadastro fica com o nome desta linha (a mais recente)
+					if (!CpfUtils.isChaveSemCpf(dto.getCpfPaciente()) && paciente.getNome() != null && !paciente.getNome().isBlank()
+							&& !TextoUtils.chaveNome(paciente.getNome()).equals(TextoUtils.chaveNome(dto.getPaciente()))) {
+						resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: CPF " + dto.getCpfPaciente()
+								+ " já cadastrado com o nome \"" + paciente.getNome().trim() + "\" e nesta linha com \""
+								+ dto.getPaciente().trim() + "\" — o cadastro fica com o nome desta linha; confira"
+								+ " na planilha se o CPF ou o nome está errado (CPF_COM_NOMES_DIFERENTES)");
+					}
 					// Atualiza dados com a importação mais recente
 					paciente.setNome(dto.getPaciente());
 					paciente.setCns(dto.getCnsPaciente());
@@ -453,9 +468,8 @@ public class AtendimentoImportacaoService {
 					paciente.setEtnia(dto.getEtniaPaciente());
 					paciente.setDataNascimento(dto.getDataNascimento());
 					paciente.setTelefone(dto.getTelefone());
-					if (dto.getSituacaoRua() != null) {
-						paciente.setSituacaoRua(dto.getSituacaoRua());
-					}
+					// Situação de rua não é mais do paciente: vai no atendimento
+					// (16/10/2026) — o valor legado do paciente fica intocado
 					return paciente;
 				})
 				.orElseGet(() -> {
@@ -468,7 +482,6 @@ public class AtendimentoImportacaoService {
 					novo.setEtnia(dto.getEtniaPaciente());
 					novo.setDataNascimento(dto.getDataNascimento());
 					novo.setTelefone(dto.getTelefone());
-					novo.setSituacaoRua(dto.getSituacaoRua());
 					pacienteRepository.salvar(novo);
 					return novo;
 				});
@@ -586,6 +599,11 @@ public class AtendimentoImportacaoService {
 	}
 
 	private static String mensagemIbgeNaoEncontrado(String municipio, String cep) {
+		// Sem CEP (paciente em situação de rua, Decisão 25) só resta o nome do município
+		if (cep == null || cep.isBlank()) {
+			return "Município \"" + municipio + "\" não encontrado e o paciente não tem CEP — verifique a grafia"
+					+ " do município.";
+		}
 		return "Município \"" + municipio + "\" não encontrado e o CEP " + cep + " também não foi encontrado"
 				+ " — verifique se a grafia do município e o CEP estão corretos.";
 	}

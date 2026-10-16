@@ -39,6 +39,7 @@ class AtendimentoProcessorTest {
 		dto.setRacaPaciente("BRANCA");
 		dto.setDataNascimentoString("01/01/1990");
 		dto.setCidConsulta("I10");
+		dto.setSexoPaciente("F");
 		return dto;
 	}
 
@@ -258,13 +259,41 @@ class AtendimentoProcessorTest {
 	}
 
 	@Test
-	void processarComSexoNaoReconhecidoMantemValorOriginal() {
+	void processarComSexoNaoReconhecidoLancaExcecao() {
+		// 16/10/2026: antes ficava como veio ("Fem" cancelava a importação no banco, "H" ia para o BPA-I)
+		for (String valor : List.of("OUTRO", "H", "1", "X")) {
+			LinhaImportacaoDTO dto = dtoValido();
+			dto.setSexoPaciente(valor);
+
+			assertThatThrownBy(() -> processor.processar(dto)).as(valor)
+					.isInstanceOf(IllegalArgumentException.class)
+					.hasMessageContaining("não reconhecido");
+		}
+	}
+
+	@Test
+	void processarSemSexoLancaExcecao() {
 		LinhaImportacaoDTO dto = dtoValido();
-		dto.setSexoPaciente("OUTRO");
+		dto.setSexoPaciente(null);
 
-		processor.processar(dto);
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("Sexo do paciente não informado");
+	}
 
-		assertThat(dto.getSexoPaciente()).isEqualTo("OUTRO");
+	@Test
+	void processarSexoAceitaAsFormasUsuais() {
+		java.util.Map<String, String> casos = java.util.Map.of(
+				"Fem", "F", "Fem.", "F", "Mulher", "F", "Masc", "M", "masc.", "M", "Homem", "M", "indeterminado", "I");
+
+		casos.forEach((valor, esperado) -> {
+			LinhaImportacaoDTO dto = dtoValido();
+			dto.setSexoPaciente(valor);
+
+			processor.processar(dto);
+
+			assertThat(dto.getSexoPaciente()).as(valor).isEqualTo(esperado);
+		});
 	}
 
 	// ===== CEP / CPF =====
@@ -277,6 +306,29 @@ class AtendimentoProcessorTest {
 		assertThatThrownBy(() -> processor.processar(dto))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("CEP com tamanho inválido");
+	}
+
+	@Test
+	void processarPacienteEmSituacaoDeRuaSemCepAceitaComAvisoECepEmBranco() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCep(null);
+		dto.setSituacaoRua("Sim");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getCep()).isNull();
+		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("CEP_AUSENTE_SITUACAO_RUA").contains("em branco"));
+	}
+
+	@Test
+	void processarPacienteEmSituacaoDeRuaComCepSegueNormal() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setSituacaoRua("Sim");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getCep()).isEqualTo("79003020");
+		assertThat(avisos).noneSatisfy(a -> assertThat(a).contains("CEP_AUSENTE_SITUACAO_RUA"));
 	}
 
 	@Test
@@ -852,6 +904,32 @@ class AtendimentoProcessorTest {
 	}
 
 	@Test
+	void processarBairroEComplementoNormalizaEAvisaSoOComplementoCortado() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setBairro("Bairro Conjunto Habitacional Professor Fulano de Tal");
+		dto.setComplemento("Apartamento 201 Bloco B");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getBairro()).isEqualTo("Conjunto Habitacional");
+		assertThat(dto.getComplemento()).isEqualTo("AP 201 BL");
+		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("COMPLEMENTO_CORTADO"));
+		assertThat(avisos).noneSatisfy(a -> assertThat(a).containsIgnoringCase("bairro \""));
+	}
+
+	@Test
+	void processarBairroEComplementoDePreenchimentoViramVazio() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setBairro("-");
+		dto.setComplemento("N/A");
+
+		processor.processar(dto);
+
+		assertThat(dto.getBairro()).isNull();
+		assertThat(dto.getComplemento()).isNull();
+	}
+
+	@Test
 	void processarNumeroDoEnderecoForaDoPadraoGeraAvisoEFicaComONumeroInicial() {
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setNumero("100 apto 201");
@@ -894,5 +972,51 @@ class AtendimentoProcessorTest {
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("7 dígitos")
 				.hasMessageContaining("formate a coluna como texto");
+	}
+
+	// ===== Vigência dos campos novos do layout (decisão 26, 16/10/2026) =====
+
+	@Test
+	void processarSimAntesDaVigenciaDoCampoGeraAviso() {
+		LinhaImportacaoDTO rua = dtoValido();
+		rua.setDataAgendamentoString("30/11/2024");
+		rua.setSituacaoRua("Sim");
+
+		assertThat(processor.processar(rua))
+				.anySatisfy(a -> assertThat(a).contains("competência 11/2024", "Situação de Rua",
+						"CAMPO_ANTES_DA_VIGENCIA"));
+
+		LinhaImportacaoDTO semCpf = dtoValido();
+		semCpf.setDataAgendamentoString("30/06/2026");
+		semCpf.setCpfPaciente(null);
+		semCpf.setPacienteSemCpf("Sim");
+
+		assertThat(processor.processar(semCpf))
+				.anySatisfy(a -> assertThat(a).contains("competência 06/2026", "Paciente sem CPF"));
+	}
+
+	@Test
+	void processarNaoAntesDaVigenciaOuSimJaVigenteNaoGeraAviso() {
+		LinhaImportacaoDTO nao = dtoValido();
+		nao.setDataAgendamentoString("30/11/2024");
+		nao.setSituacaoRua("Não");
+		nao.setPacienteSemCpf("Não");
+
+		LinhaImportacaoDTO vigente = dtoValido();
+		vigente.setDataAgendamentoString("01/12/2024");
+		vigente.setSituacaoRua("Sim");
+
+		assertThat(processor.processar(nao)).noneMatch(a -> a.contains("CAMPO_ANTES_DA_VIGENCIA"));
+		assertThat(processor.processar(vigente)).noneMatch(a -> a.contains("CAMPO_ANTES_DA_VIGENCIA"));
+	}
+
+	@Test
+	void processarComCnsVazioECpfPreenchidoNaoGeraAvisoDeCns() {
+		// Decisão 13 (16/10/2026): com CPF o CNS não vai para o BPA-I
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCnsPaciente(null);
+
+		assertThat(processor.processar(dto)).noneMatch(a -> a.contains("CNS"));
+		assertThat(dto.getCnsPaciente()).isEmpty();
 	}
 }

@@ -201,6 +201,33 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Número do endereço com mais de 5 caracteres — vai o número do começo ou SN. AVISO, não bloqueia (16/10/2026). */
 	public static final String NUMERO_FORA_DO_PADRAO = "NUMERO_FORA_DO_PADRAO";
 
+	/** Complemento maior que 10 caracteres depois de abreviado — cortado na palavra. AVISO, não bloqueia (Decisão 23, 16/10/2026). */
+	public static final String COMPLEMENTO_CORTADO = "COMPLEMENTO_CORTADO";
+
+	/** Bairro com o mesmo nome do município do paciente — provavelmente a cidade na coluna errada. AVISO, não bloqueia (16/10/2026). */
+	public static final String BAIRRO_IGUAL_MUNICIPIO = "BAIRRO_IGUAL_MUNICIPIO";
+
+	/** Coluna "Situação de Rua" presente com a célula vazia — vai em branco no BPA-I. AVISO, não bloqueia (16/10/2026). */
+	public static final String SITUACAO_RUA_VAZIA = "SITUACAO_RUA_VAZIA";
+
+	/** Coluna "Paciente sem CPF" presente com a célula vazia (CPF preenchido) — vai em branco no BPA-I. AVISO, não bloqueia (16/10/2026). */
+	public static final String PACIENTE_SEM_CPF_VAZIO = "PACIENTE_SEM_CPF_VAZIO";
+
+	/** Sexo do paciente não informado — antes saía como F no BPA-I. ERRO bloqueante (16/10/2026). */
+	public static final String SEXO_AUSENTE = "SEXO_AUSENTE";
+
+	/** Sexo do paciente não reconhecido (fora de F/M/I e sinônimos) — antes cancelava a importação ou ia inválido. ERRO bloqueante (16/10/2026). */
+	public static final String SEXO_INVALIDO = "SEXO_INVALIDO";
+
+	/** Paciente em situação de rua (= Sim) sem CEP — aceito, o CEP vai em branco. AVISO, não bloqueia (Decisão 25, 16/10/2026). */
+	public static final String CEP_AUSENTE_SITUACAO_RUA = "CEP_AUSENTE_SITUACAO_RUA";
+
+	/** Situação de Rua ou Paciente sem CPF preenchido em atendimento de competência anterior à vigência do campo no layout — vai em branco. AVISO (Decisão 26, 16/10/2026). */
+	public static final String CAMPO_ANTES_DA_VIGENCIA = "CAMPO_ANTES_DA_VIGENCIA";
+
+	/** Mesmo CPF de paciente com nomes diferentes (na planilha ou em relação ao cadastro) — um só paciente é gravado. AVISO (Decisão 12, 16/10/2026). */
+	public static final String CPF_COM_NOMES_DIFERENTES = "CPF_COM_NOMES_DIFERENTES";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;
