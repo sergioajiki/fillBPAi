@@ -786,6 +786,19 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
+	void importarSemCepBloqueiaAPlanilha() throws IOException {
+		// Antes a análise dava erro mas a importação aceitava a linha sem CEP
+		String[] linha = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		linha[20] = null;
+
+		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
+
+		assertThatThrownBy(() -> service.importar(caminho))
+				.hasMessageContaining("nenhuma linha foi importada")
+				.hasMessageContaining("CEP do endereço não informado");
+	}
+
+	@Test
 	void importarSemColunaTipoZonaNaoBloqueia() throws IOException {
 		String[] cabecalho = java.util.Arrays.stream(CABECALHO_COMPLETO)
 				.map(c -> c.equals("TIPO_ZONA") ? "OUTRA COLUNA" : c).toArray(String[]::new);

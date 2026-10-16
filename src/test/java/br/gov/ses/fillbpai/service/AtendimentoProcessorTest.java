@@ -280,6 +280,31 @@ class AtendimentoProcessorTest {
 	}
 
 	@Test
+	void processarSemCepLancaExcecao() {
+		// Decisão de 16/10/2026: CEP vazio é erro também na importação (antes só a análise bloqueava)
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCep(null);
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("CEP do endereço não informado");
+	}
+
+	@Test
+	void processarComMunicipioDeMsECepDeOutroEstadoGeraAviso() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCep("01310-100"); // São Paulo; município do dtoValido: CAMPO GRANDE
+
+		assertThat(processor.processar(dto)).anySatisfy(a -> assertThat(a)
+				.contains("CEP_FORA_DE_MS").contains("01310100").contains("CAMPO GRANDE"));
+	}
+
+	@Test
+	void processarComMunicipioDeMsECepDeMsNaoGeraAvisoDeCep() {
+		assertThat(processor.processar(dtoValido())).noneSatisfy(a -> assertThat(a).contains("CEP_FORA_DE_MS"));
+	}
+
+	@Test
 	void processarComCpfDeTamanhoInvalidoLancaExcecao() {
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setCpfPaciente("123");
@@ -822,6 +847,52 @@ class AtendimentoProcessorTest {
 		assertThat(dto.getEndereco()).hasSize(30);
 		assertThat(dto.getBairro()).hasSize(30);
 		assertThat(dto.getComplemento()).hasSize(10);
-		assertThat(dto.getNumero()).hasSize(5);
+		// Número com mais de 5 dígitos não é cortado (viraria outro número): vai SN, com aviso (16/10/2026)
+		assertThat(dto.getNumero()).isEqualTo("SN");
+	}
+
+	@Test
+	void processarNumeroDoEnderecoForaDoPadraoGeraAvisoEFicaComONumeroInicial() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setNumero("100 apto 201");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getNumero()).isEqualTo("100");
+		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("NUMERO_FORA_DO_PADRAO").contains("\"100\""));
+	}
+
+	@Test
+	void processarNumeroVazioOuSemNumeroViraSnSemAviso() {
+		for (String valor : java.util.Arrays.asList(null, "", "S/N", "sem número", "0")) {
+			LinhaImportacaoDTO dto = dtoValido();
+			dto.setNumero(valor);
+
+			List<String> avisos = processor.processar(dto);
+
+			assertThat(dto.getNumero()).as(String.valueOf(valor)).isEqualTo("SN");
+			assertThat(avisos).as(String.valueOf(valor)).noneSatisfy(a -> assertThat(a).contains("NUMERO_FORA_DO_PADRAO"));
+		}
+	}
+
+	@Test
+	void processarCepDePreenchimentoLancaExcecao() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCep("00000-000");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("dígitos repetidos");
+	}
+
+	@Test
+	void processarCepComSeteDigitosOrientaFormatarComoTexto() {
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCep("1310100");
+
+		assertThatThrownBy(() -> processor.processar(dto))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("7 dígitos")
+				.hasMessageContaining("formate a coluna como texto");
 	}
 }

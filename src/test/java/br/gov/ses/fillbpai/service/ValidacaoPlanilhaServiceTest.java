@@ -1360,6 +1360,39 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarCepDePreenchimentoGeraErroENumeroLongoGeraAviso() throws IOException {
+		String[] cepFalso = linhaValida();
+		cepFalso[COL_CEP] = "00000-000";
+		String[] numeroLongo = linhaValida();
+		numeroLongo[21] = "100 apto 201";
+		numeroLongo[COL_DATA_AGENDAMENTO] = "26/12/2024";
+		String[] semNumero = linhaValida();
+		semNumero[21] = "S/N";
+		semNumero[COL_DATA_AGENDAMENTO] = "27/12/2024";
+
+		List<ErroValidacao> erros = service.validar(
+				salvarPlanilha(CABECALHO_COMPLETO, cepFalso, numeroLongo, semNumero));
+
+		assertThat(erros).extracting(ErroValidacao::tipoErro)
+				.containsExactly(ErroValidacao.CEP_FALSO, ErroValidacao.NUMERO_FORA_DO_PADRAO);
+		assertThat(erros.get(0).severidade()).isEqualTo(ErroValidacao.Severidade.ERRO);
+		assertThat(erros.get(1).severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+		assertThat(erros.get(1).valor()).isEqualTo("\"100 apto 201\" → \"100\"");
+	}
+
+	@Test
+	void validarComMunicipioDeMsECepDeOutroEstadoGeraAviso() throws IOException {
+		String[] linha = linhaValida(); // município CAMPO GRANDE
+		linha[COL_CEP] = "01310-100";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(e -> {
+			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.CEP_FORA_DE_MS);
+			assertThat(e.detalhe()).contains("CEP 01310100 não é de Mato Grosso do Sul").contains("CAMPO GRANDE");
+		});
+	}
+
+	@Test
 	void validarColunaDeLogradouroNaoReconhecidaGeraSoAviso() throws IOException {
 		String[] invalido = linhaValida();
 		invalido[18] = "999";

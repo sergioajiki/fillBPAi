@@ -192,6 +192,15 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Coluna "Cód. Logradouro" preenchida com código/nome fora da tabela DNE (e endereço sem tipo reconhecido) — o gerador usa 081 (Rua). AVISO, não bloqueia (15/10/2026). */
 	public static final String LOGRADOURO_NAO_RECONHECIDO = "LOGRADOURO_NAO_RECONHECIDO";
 
+	/** Município de MS (tabela) com CEP de outro estado (não começa com 79). AVISO, não bloqueia (16/10/2026). */
+	public static final String CEP_FORA_DE_MS = "CEP_FORA_DE_MS";
+
+	/** CEP com os 8 dígitos iguais (00000000, 99999999) — CEP de preenchimento. ERRO bloqueante (16/10/2026). */
+	public static final String CEP_FALSO = "CEP_FALSO";
+
+	/** Número do endereço com mais de 5 caracteres — vai o número do começo ou SN. AVISO, não bloqueia (16/10/2026). */
+	public static final String NUMERO_FORA_DO_PADRAO = "NUMERO_FORA_DO_PADRAO";
+
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {
 		return severidade == Severidade.ERRO;

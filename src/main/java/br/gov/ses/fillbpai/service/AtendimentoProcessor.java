@@ -12,6 +12,7 @@ import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.LogradouroUtils;
+import br.gov.ses.fillbpai.util.NumeroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
@@ -109,6 +110,12 @@ public class AtendimentoProcessor {
 		avisos.addAll(normalizarCid(dto));
 		avisos.addAll(normalizarTelefone(dto));
 		avisos.addAll(normalizarLogradouro(dto));
+		avisos.addAll(normalizarNumero(dto));
+
+		// Município de MS com CEP de outro estado (decisão de 16/10/2026): aviso
+		if (CepUtils.isForaDeMsComMunicipioDeMs(dto.getCep(), dto.getMunicipio())) {
+			avisos.add(CepUtils.mensagemForaDeMs(dto.getCep(), dto.getMunicipio()) + " (CEP_FORA_DE_MS)");
+		}
 
 		// ===============================
 		// 5. Conversões
@@ -285,18 +292,29 @@ public class AtendimentoProcessor {
 	// ===============================
 
 	/**
-	 * Valida o tamanho do CEP após normalização.
-	 * CEP presente com tamanho diferente de 8 dígitos é erro bloqueante.
+	 * Valida o CEP após normalização: vazio ou com tamanho diferente de 8
+	 * dígitos é erro bloqueante (mesma regra da análise).
 	 *
-	 * @throws IllegalArgumentException se o CEP estiver presente mas com tamanho incorreto
+	 * @throws IllegalArgumentException se o CEP estiver vazio ou com tamanho incorreto
 	 */
 	private void validarCep(LinhaImportacaoDTO dto) {
 
 		String cep = dto.getCep();
 
-		if (!isNullOrEmpty(cep) && !CepUtils.isValido(cep)) {
+		// CEP vazio é erro também na importação (decisão de 16/10/2026) — antes
+		// só a análise bloqueava, e a importação aceitava a linha sem CEP
+		if (isNullOrEmpty(cep)) {
+			throw new IllegalArgumentException("CEP do endereço não informado.");
+		}
+
+		if (!CepUtils.isValido(cep)) {
+			throw new IllegalArgumentException(CepUtils.mensagemTamanhoInvalido(cep) + ".");
+		}
+
+		// CEP de preenchimento (todos os dígitos iguais) — 16/10/2026
+		if (CepUtils.isFalso(cep)) {
 			throw new IllegalArgumentException(
-					"CEP com tamanho inválido (" + cep.length() + " dígitos, esperado 8): " + cep);
+					"CEP " + cep + " inválido (dígitos repetidos) — informe o CEP do endereço do paciente.");
 		}
 	}
 
@@ -790,8 +808,7 @@ public class AtendimentoProcessor {
 		dto.setComplemento(
 				StringUtils.limitarTamanho(dto.getComplemento(), 10));
 
-		dto.setNumero(
-				StringUtils.limitarTamanho(dto.getNumero(), 5));
+		// Número: normalizado em normalizarNumero (SN, número inicial, até 5)
 
 		// Tipo de zona não vai para o BPA-I: só é cortado no tamanho da coluna
 		// (50), para nunca derrubar a importação
@@ -830,6 +847,26 @@ public class AtendimentoProcessor {
 		}
 
 		dto.setEndereco(StringUtils.limitarNaPalavra(prefixo.getEndereco(), 30));
+		return avisos;
+	}
+
+	/**
+	 * Número do endereço (BPA-I seq 33, 5 posições): vazio ou "sem número" → SN;
+	 * mais de 5 caracteres → número do começo ou SN, com aviso
+	 * ({@link NumeroUtils}, 16/10/2026). Nunca bloqueia a linha.
+	 *
+	 * @return lista com o aviso de número fora do padrão, ou lista vazia
+	 */
+	private List<String> normalizarNumero(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+		NumeroUtils.Resultado numero = NumeroUtils.normalizar(dto.getNumero());
+
+		if (numero.foraDoPadrao()) {
+			avisos.add(NumeroUtils.mensagemForaDoPadrao(dto.getNumero(), numero) + " (NUMERO_FORA_DO_PADRAO)");
+		}
+
+		dto.setNumero(numero.valor());
 		return avisos;
 	}
 

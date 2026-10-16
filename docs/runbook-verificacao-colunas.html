@@ -119,8 +119,8 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>19 de 27 colunas revisadas · 538 testes passando (<code>mvnw.cmd test</code>) · próxima etapa: revisar CEP, número, bairro e complemento</strong></span>
-      <span>Atualizado: <strong>15/10/2026</strong> (iniciado em 08/10/2026)</span>
+      <span>Status: <strong>21 de 27 colunas revisadas · 578 testes passando (<code>mvnw.cmd test</code>) · próxima etapa: revisar bairro e complemento</strong></span>
+      <span>Atualizado: <strong>16/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
       <a href="#continuidade">Continuidade (ler primeiro)</a>
@@ -144,6 +144,7 @@
       <a href="#telefone">Telefone</a>
       <a href="#zona">Tipo de zona</a>
       <a href="#logradouro">Logradouro e endereço</a>
+      <a href="#cep-numero">CEP e número</a>
       <a href="#criticas-bpa">Críticas do programa BPA</a>
       <a href="#padrao">Padrão encontrado</a>
       <a href="#implementado">O que mudou</a>
@@ -196,7 +197,7 @@
       </li>
     </ol>
 
-    <h3>O que foi feito (08/10 a 15/10/2026)</h3>
+    <h3>O que foi feito (08/10 a 16/10/2026)</h3>
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>Tema</th><th>Resumo</th></tr></thead>
@@ -213,6 +214,7 @@
           <tr><td class="caso">Nascimento e CID</td><td>Datas estritas (31/02 recusado) e sem zero aceitas; idade na data do atendimento; nascimento vazio/incoerente → erro; data mostrada sem ano → erro (nascimento) / aviso (atendimento); CID extraído da célula (CID_INVALIDO erro, CID_AUSENTE aviso).</td></tr>
           <tr><td class="caso">Telefone e tipo de zona</td><td>Primeiro telefone da célula, sem DDI/0; sem DDD ou inválido → aviso e em branco; tipo de zona virou coluna opcional.</td></tr>
           <tr><td class="caso">Logradouro e endereço</td><td>Tabela DNE de tipos de logradouro (<code>dados/tipos_logradouro.csv</code>, 393 tipos): tipo reconhecido no começo do endereço (inclusive abreviações) e na coluna (código ou nome); LOGRADOURO_NAO_RECONHECIDO (aviso, usa 081); endereço cortado em 30 depois do prefixo e na palavra.</td></tr>
+          <tr><td class="caso">CEP e número</td><td>CEP vazio é erro também na importação; CEP_FALSO (dígitos iguais, erro); CEP com 7 dígitos orienta formatar como texto; CEP_FORA_DE_MS (município de MS com CEP que não começa com 79, aviso). Número: vazio/"sem número" → SN; mais de 5 caracteres → número do começo ou SN, com aviso NUMERO_FORA_DO_PADRAO.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação).</td></tr>
         </tbody>
       </table>
@@ -223,15 +225,14 @@
       <li>
         <h4>Próximo par de colunas</h4>
         <p>
-          <code>CEP</code> e <code>NUMERO</code>, depois <code>BAIRRO</code> e <code>COMPLEMENTO</code> (todos do endereço do
-          paciente). Logradouro e endereço foram concluídos em 15/10/2026 — ver <a href="#logradouro">Logradouro e
-          endereço</a>.
+          <code>BAIRRO</code> e <code>COMPLEMENTO</code> (endereço do paciente). CEP e número foram concluídos em 16/10/2026
+          (recomendações 53 a 58, Decisões 21 e 22) — ver <a href="#cep-numero">CEP e número</a>.
         </p>
       </li>
       <li>
         <h4>Colunas que faltam revisar</h4>
         <p>
-          <code>CEP</code>, <code>NUMERO</code>, <code>BAIRRO</code>, <code>COMPLEMENTO</code>, <code>SEXO_PACIENTE</code>
+          <code>BAIRRO</code>, <code>COMPLEMENTO</code>, <code>SEXO_PACIENTE</code>
           (já há a recomendação 32), <code>SITUACAO_RUA</code>, <code>PACIENTE_SEM_CPF</code>. <code>MEDICO</code> e
           <code>CPF_MEDICO</code> têm runbook próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
@@ -284,8 +285,8 @@
       <span class="feito">TIPO_ZONA ✓</span>
       <span class="feito">COD_LOGRADOURO ✓</span>
       <span class="feito">ENDERECO ✓</span>
-      <span>CEP</span>
-      <span>NUMERO</span>
+      <span class="feito">CEP ✓</span>
+      <span class="feito">NUMERO ✓</span>
       <span>BAIRRO</span>
       <span>COMPLEMENTO</span>
       <span>SEXO_PACIENTE</span>
@@ -1688,6 +1689,66 @@
 
   <!-- ======================================================= -->
 
+  <section id="cep-numero">
+    <h2>CEP e número (<code>CEP</code>, <code>NUMERO</code>)</h2>
+
+    <h3>Caminho do dado</h3>
+    <ol class="plano">
+      <li>
+        <h4>CEP</h4>
+        <p>
+          Só dígitos (<code>CepUtils</code>). Análise: vazio → <code>CEP_AUSENTE</code>, diferente de 8 dígitos →
+          <code>CEP_INVALIDO</code> (os dois <code>ERRO</code>). Importação: só confere o tamanho — <strong>CEP vazio é
+          aceito</strong>. Usado na busca do IBGE quando o município não está na tabela de MS; se o município está na
+          tabela, o CEP não é olhado. BPA-I: <code>prd_cep_pcnte</code> (seq 29, 8 posições NUM, opcional no layout).
+        </p>
+      </li>
+      <li>
+        <h4>Número</h4>
+        <p>
+          Nenhuma conferência. Cortado em <strong>5 caracteres</strong> no <code>AtendimentoProcessor</code> e enviado em
+          <code>prd_num_pcnte</code> (seq 33, 5 posições ALFA; o layout indica "SN / 00" como padrão). Vazio sai em branco.
+        </p>
+      </li>
+    </ol>
+
+    <h3>O que acontece com cada valor (teste de sondagem, paciente de Campo Grande)</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>Célula</th><th>Análise</th><th>BPA-I</th><th></th></tr></thead>
+        <tbody>
+          <tr><td class="caso">CEP <code>79003-020</code></td><td>—</td><td class="ok"><code>79003020</code></td><td>certo</td></tr>
+          <tr><td class="caso">CEP vazio</td><td><code>CEP_AUSENTE</code> (erro)</td><td>brancos</td><td>a importação aceita — análise e importação divergem</td></tr>
+          <tr><td class="caso">CEP <code>01310-100</code> (São Paulo)</td><td>—</td><td class="falha"><code>01310100</code></td><td>CEP de outro estado com município de MS, sem aviso</td></tr>
+          <tr><td class="caso">CEP <code>00000000</code></td><td>—</td><td class="falha"><code>00000000</code></td><td>CEP de preenchimento aceito</td></tr>
+          <tr><td class="caso">CEP <code>01310100</code> digitado como número</td><td><code>CEP_INVALIDO</code> (7 dígitos)</td><td>—</td><td>o Excel tira o zero; a mensagem não orienta formatar como texto</td></tr>
+          <tr><td class="caso">Número vazio</td><td>—</td><td><code>␣␣␣␣␣</code></td><td>em branco (o layout sugere "SN")</td></tr>
+          <tr><td class="caso">Número <code>S/N</code>, <code>SEM NUMERO</code>, <code>0</code></td><td>—</td><td class="falha"><code>S/N</code>, <code>SEM N</code>, <code>0</code></td><td>"sem número" escrito de vários jeitos; um deles cortado</td></tr>
+          <tr><td class="caso">Número <code>123456</code></td><td>—</td><td class="falha"><code>12345</code></td><td>número trocado, sem aviso</td></tr>
+          <tr><td class="caso">Número <code>100 apto 201</code>, <code>Km 12,5</code>, <code>Lote 10 Quadra 5</code></td><td>—</td><td class="falha"><code>100 a</code>, <code>Km 12</code>, <code>Lote </code></td><td>corte no meio, sem aviso</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Problemas</h3>
+    <div class="callout risco">
+      <p class="kicker">CEP que não confere com o município passa</p>
+      <p>
+        Quando o município está na tabela de MS, o CEP não é conferido: um CEP de outro estado (ou
+        <code>00000000</code>) vai para o BPA-I junto com o município de MS. Todo CEP de MS começa com <code>79</code>.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <p class="kicker">Número cortado em 5 caracteres</p>
+      <p>
+        Valores maiores perdem o final sem aviso (<code>100 apto 201</code> → <code>100 a</code>), e "sem número" chega de
+        vários jeitos.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================= -->
+
   <section id="criticas-bpa">
     <h2>Críticas do programa BPA (DATASUS)</h2>
     <p>
@@ -2419,6 +2480,58 @@
           ROD. Ver <a href="#abertas">Decisão 20</a>.
         </p>
       </li>
+      <li>
+        <h4>CEP: conferir com o município de MS <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Município encontrado na tabela de MS com CEP que não começa com <code>79</code> → <code>AVISO</code>
+          <code>CEP_FORA_DE_MS</code> ("o CEP não é de Mato Grosso do Sul — confira o CEP e o município"). Para municípios de
+          outros estados o IBGE já vem do próprio CEP.
+        </p>
+      </li>
+      <li>
+        <h4>CEP de preenchimento <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          CEP com os 8 dígitos iguais (<code>00000000</code>, <code>99999999</code>) → <code>ERRO</code> <code>CEP_FALSO</code>,
+          como no CPF.
+        </p>
+      </li>
+      <li>
+        <h4>CEP sem o zero à esquerda: orientar <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Na mensagem de <code>CEP_INVALIDO</code> com 7 dígitos, orientar a formatar a coluna como texto e digitar os 8
+          dígitos (mesma decisão do CPF: não completar com zero).
+        </p>
+      </li>
+      <li>
+        <h4>CEP vazio: mesma regra na análise e na importação <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Hoje a análise dá erro e a importação aceita. Alinhar os dois — ver <a href="#abertas">Decisão 21</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Número: "sem número" padronizado <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Vazio e as variações <code>S/N</code>, <code>S N</code>, <code>SN</code>, <code>SEM NUMERO</code>, <code>SEM Nº</code>,
+          <code>0</code>, <code>00</code> → <code>SN</code> no BPA-I (padrão indicado no layout). Ver
+          <a href="#abertas">Decisão 22</a>.
+        </p>
+      </li>
+      <li>
+        <h4>Número com mais de 5 caracteres <span class="pill ok">✓ Implementado</span></h4>
+        <p>
+          Se começa com um número de até 5 dígitos (<code>100 apto 201</code>, <code>Km 12,5</code> → <code>100</code>,
+          <code>12</code>), fica com ele; senão (<code>123456</code>, <code>Lote 10 Quadra 5</code>) → <code>SN</code>. Nos dois
+          casos, <code>AVISO</code> <code>NUMERO_FORA_DO_PADRAO</code> mostrando como vai sair no BPA-I.
+        </p>
+        <p>
+          Ampliado em 16/10/2026: valor com até 5 caracteres que não é número de imóvel (dígitos com letra opcional no fim:
+          <code>100</code>, <code>12A</code>, <code>12-B</code>) nem forma de "sem número" (<code>-</code>, <code>X</code>,
+          <code>N/A</code>, <code>NT</code>, <code>LT 5</code>) também gera o aviso; vai como está. Formas de "sem número"
+          reconhecidas: <code>SN</code>, <code>S N</code>, <code>S/N</code>, <code>S.N.</code>, <code>S-N</code>,
+          <code>S/Nº</code>, <code>SEM</code>, <code>SEM N</code>, <code>SEM NUM</code>, <code>SEM NUMERO</code>,
+          <code>SEM Nº</code>, <code>0</code>/<code>00</code>… e vazio.
+        </p>
+      </li>
     </ol>
   </section>
 
@@ -2596,6 +2709,21 @@
         Fechada (15/10/2026): o usuário forneceu a tabela "Tipo de Logradouro — Número DNE", gravada em
         <code>dados/tipos_logradouro.csv</code> (393 tipos) e usada por <code>LogradouroUtils</code> no endereço e na coluna.
         Tipo não reconhecido continua indo como 081 (Rua).
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 21 · CEP vazio: erro</span>
+      <p>
+        Decidido (16/10/2026): CEP vazio é <code>ERRO</code> sempre, na análise (<code>CEP_AUSENTE</code>, como já era) e
+        agora também na importação. Município de MS com CEP de outro estado → <code>AVISO</code> <code>CEP_FORA_DE_MS</code>
+        (recomendação 53).
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 22 · Número vazio: SN</span>
+      <p>
+        Decidido (16/10/2026): número vazio e as formas de "sem número" vão como <code>SN</code> no BPA-I, sem aviso
+        (<code>NumeroUtils</code>, também para dados já gravados).
       </p>
     </div>
   </section>

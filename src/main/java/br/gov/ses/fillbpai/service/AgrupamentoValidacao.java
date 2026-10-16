@@ -223,6 +223,19 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.DATA_ATENDIMENTO_SEM_ANO, new InfoTipo(
 					"Data do atendimento fora do formato correto",
 					"A data não está no formato correto (dd/MM/aaaa).", 19)),
+			Map.entry(ErroValidacao.CEP_FALSO, new InfoTipo(
+					"CEP de preenchimento",
+					"CEP com todos os dígitos iguais (ex.: 00000000) não é um CEP de verdade. Informe o CEP do"
+							+ " endereço do paciente.", 10)),
+			Map.entry(ErroValidacao.NUMERO_FORA_DO_PADRAO, new InfoTipo(
+					"Número do endereço fora do padrão",
+					"O número deve ser o número do imóvel (ex.: 100 ou 12A, até 5 caracteres) ou uma forma de \"sem"
+							+ " número\" (S/N, SN, SEM NUMERO, 0). Outros valores vão como estão; com mais de 5"
+							+ " caracteres vai o número do começo (ex.: \"100 apto 201\" → 100) ou SN.", 27)),
+			Map.entry(ErroValidacao.CEP_FORA_DE_MS, new InfoTipo(
+					"CEP não confere com o município",
+					"O município é de Mato Grosso do Sul, mas o CEP não é (os CEPs de MS começam com 79). Confira"
+							+ " o CEP e o município na planilha.", 18)),
 			Map.entry(ErroValidacao.LOGRADOURO_NAO_RECONHECIDO, new InfoTipo(
 					"Tipo de logradouro não reconhecido",
 					"A coluna do tipo de logradouro deve ter o código ou o nome do tipo (ex.: 081 ou Rua, 008 ou"

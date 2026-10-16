@@ -320,6 +320,19 @@ class GeradorBPAiServiceTest {
 	}
 
 	@Test
+	void seq33NumeroVazioOuSemNumeroSaiComoSn() {
+		// Decisão de 16/10/2026: padrão "SN" do layout, também para dados já gravados
+		for (String numero : java.util.Arrays.asList(null, "", "S/N", "SEM NUMERO")) {
+			AtendimentoBPAi atendimento = criarAtendimentoCompleto();
+			atendimento.getPaciente().getEndereco().setNumero(numero);
+
+			String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+
+			assertThat(linha.substring(242, 247)).as(String.valueOf(numero)).isEqualTo("SN   ");
+		}
+	}
+
+	@Test
 	void pacienteComCpfNuncaEnviaOCnsJunto() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setCns("700207960618529");

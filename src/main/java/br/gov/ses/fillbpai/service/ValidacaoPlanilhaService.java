@@ -12,6 +12,7 @@ import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
 import br.gov.ses.fillbpai.util.LogradouroUtils;
+import br.gov.ses.fillbpai.util.NumeroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
@@ -380,6 +381,21 @@ public class ValidacaoPlanilhaService {
 		}
 
 		// -------------------------------------------------------
+		// Regra 0g: Número do endereço (BPA-I seq 33, 5 posições) — mesma regra
+		// de AtendimentoProcessor.normalizarNumero (16/10/2026): mais de 5
+		// caracteres → AVISO mostrando o que vai no BPA-I. Vazio/"sem número"
+		// vira SN sem aviso.
+		// -------------------------------------------------------
+		NumeroUtils.Resultado numero = NumeroUtils.normalizar(dto.getNumero());
+
+		if (numero.foraDoPadrao()) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.NUMERO_FORA_DO_PADRAO,
+					NumeroUtils.mensagemForaDoPadrao(dto.getNumero(), numero),
+					"\"" + dto.getNumero().trim() + "\" → \"" + numero.valor() + "\""));
+		}
+
+		// -------------------------------------------------------
 		// Regra 0d: CID da consulta (BPA-I seq 13) — mesma regra de
 		// AtendimentoProcessor.normalizarCid (decisão de 14/10/2026):
 		// vazio → AVISO; sem código CID-10 ou com mais de um → ERRO.
@@ -517,12 +533,23 @@ public class ValidacaoPlanilhaService {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CEP_AUSENTE, "CEP do endereço não informado", paciente));
 		} else if (!CepUtils.isValido(cep)) {
-			String cepNormalizado = CepUtils.normalizar(cep);
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CEP_INVALIDO,
-					"CEP com tamanho inválido (" + (cepNormalizado != null ? cepNormalizado.length() : 0)
-							+ " dígitos, esperado 8): " + cep.trim(),
+					CepUtils.mensagemTamanhoInvalido(cep),
 					paciente + " — \"" + cep.trim() + "\""));
+		} else if (CepUtils.isFalso(cep)) {
+			// CEP de preenchimento (00000000, 99999999) — 16/10/2026
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
+					ErroValidacao.CEP_FALSO,
+					"CEP " + cep.trim() + " inválido (dígitos repetidos) — informe o CEP do endereço do paciente",
+					paciente + " — \"" + cep.trim() + "\""));
+		} else if (CepUtils.isForaDeMsComMunicipioDeMs(cep, dto.getMunicipio())) {
+			// Município de MS (tabela) com CEP que não começa com 79 — o CEP não
+			// é usado para achar o IBGE nesse caso. AVISO (decisão de 16/10/2026)
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.CEP_FORA_DE_MS,
+					CepUtils.mensagemForaDeMs(cep, dto.getMunicipio()),
+					paciente + " — CEP " + CepUtils.normalizar(cep) + ", município \"" + dto.getMunicipio().trim() + "\""));
 		}
 
 		// -------------------------------------------------------

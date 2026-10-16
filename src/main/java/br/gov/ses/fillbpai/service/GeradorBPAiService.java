@@ -10,6 +10,7 @@ import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
+import br.gov.ses.fillbpai.util.NumeroUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
 import jakarta.persistence.EntityManager;
@@ -796,7 +797,9 @@ public class GeradorBPAiService {
 		/**
 		 * seq 33 - prd-num_pcnte
 		 */
-		String numero = endereco != null ? endereco.getNumero() : "";
+		// Vazio ou "sem número" → SN (padrão do layout, decisão de 16/10/2026);
+		// a mesma normalização da importação vale para dados antigos
+		String numero = NumeroUtils.normalizar(endereco != null ? endereco.getNumero() : null).valor();
 		sb.append(padRightSpaces(formatarAlfa(numero, 5), 5));
 
 		/**
