@@ -290,12 +290,11 @@ public final class AgrupamentoValidacao {
 					"O BPA-I será gerado com o CID em branco. Preencha o CID se o procedimento exigir.", 26)),
 			Map.entry(ErroValidacao.CNS_INVALIDO, new InfoTipo(
 					"CNS do paciente ausente ou incompleto",
-					"Menos de 15 dígitos ou não informado. Não impede a importação.", 30)),
+					"Menos de 15 dígitos. Não impede a importação.", 30)),
 			Map.entry(ErroValidacao.CNS_DV_INVALIDO, new InfoTipo(
 					"CNS do paciente com dígito verificador inválido",
 					"O CNS tem 15 dígitos, mas o dígito verificador não confere — provavelmente um dígito foi"
-							+ " digitado errado. Com CPF preenchido, o CNS não vai para o BPA-I; não impede a"
-							+ " importação.", 30)),
+							+ " digitado errado.", 30)),
 			Map.entry(ErroValidacao.CNS_INCOMUM, new InfoTipo(
 					"CNS do paciente com formato incomum",
 					"Mais de 15 dígitos. Não impede a importação.", 31)),
