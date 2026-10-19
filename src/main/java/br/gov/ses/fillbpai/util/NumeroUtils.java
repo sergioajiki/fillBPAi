@@ -21,14 +21,14 @@ public class NumeroUtils {
 
 	private static final int TAMANHO = 5;
 
-	/** Formas de "sem número": S/N, S N, S.N., SN, SEM NUMERO, SEM Nº, S/Nº, 0, 00... */
+	/** Formas de "sem número": S/N, S N, S.N., SN, SEM NUMERO, SEM Nº, S/Nº, 0, 00..., e só traço (-, --, –, —; 19/10/2026). */
 	private static final Pattern SEM_NUMERO_PADRAO =
-			Pattern.compile("S\\s*[/.\\-]?\\s*N\\s*[º°O.]?|SEM\\s*(N|NUM|NUMERO|N\\s*[º°O.])?\\.?|0+");
+			Pattern.compile("S\\s*[/.\\-]?\\s*N\\s*[º°O.]?|SEM\\s*(N|NUM|NUMERO|N\\s*[º°O.])?\\.?|0+|[-–—]+");
 
 	/**
 	 * Número de endereço no padrão: dígitos com uma letra opcional no fim
 	 * ({@code 100}, {@code 12A}, {@code 12-B}, {@code 12 B}). O resto
-	 * ({@code -}, {@code X}, {@code N/A}, {@code LT 5}) é aviso (16/10/2026).
+	 * ({@code X}, {@code N/A}, {@code LT 5}) é aviso (16/10/2026); traço sozinho é "sem número".
 	 */
 	private static final Pattern NUMERO_VALIDO = Pattern.compile("\\d{1,5}|\\d{1,3}\\s?-?\\s?[A-Z]");
 
@@ -47,7 +47,7 @@ public class NumeroUtils {
 	 * <ul>
 	 *   <li>vazio ou forma de "sem número" → {@code SN}, sem aviso;</li>
 	 *   <li>número no padrão ({@code 100}, {@code 12A}) → como veio, sem aviso;</li>
-	 *   <li>outro valor com até 5 caracteres ({@code -}, {@code X}, {@code N/A}) →
+	 *   <li>outro valor com até 5 caracteres ({@code X}, {@code N/A}) →
 	 *       como veio, com aviso;</li>
 	 *   <li>mais de 5: o número do começo (também depois de Nº/KM) se tiver até 5
 	 *       dígitos ("100 apto 201" → 100, "Km 12,5" → 12); senão {@code SN}

@@ -48,8 +48,8 @@ public class MainController {
 	/** Caminho do último log de importação salvo — atualizado a cada importação */
 	private Path caminhoLog = Path.of("database", "log_importacao.txt");
 
-	/** Caminho do último log de erros de validação salvo */
-	private Path caminhoLogErros = Path.of("database", "log_erros_validacao.txt");
+	/** Planilha da análise em andamento — mostrada no cabeçalho das janelas de validação */
+	private String caminhoPlanilhaAnalisada = "";
 
 	private final EntityManager entityManager;
 	private final FileChooserService fileChooserService;
@@ -295,6 +295,7 @@ public class MainController {
 		}
 
 		String nomePlanilha = nomePlanilhaSemExtensao(caminho);
+		caminhoPlanilhaAnalisada = caminho;
 
 		// CNS já conhecido por CPF de médico no banco local — permite à análise
 		// dizer quando uma grafia não cadastrada vai herdar o CNS do mesmo CPF.
@@ -341,7 +342,8 @@ public class MainController {
 
 		String nomeArquivo = Path.of(caminho).getFileName().toString();
 		String logErros = validacaoService.gerarLogTxt(demaisErros, nomeArquivo);
-		salvarLogErrosEmArquivo(logErros, nomePlanilha);
+		// O log da análise só é gravado pelo botão "Salvar Log TXT" (19/10/2026) —
+		// antes era salvo sempre em database/, sem ser lido pelo programa
 
 		boolean temEstrutural = demaisErros.stream().anyMatch(ErroValidacao::isEstrutural);
 
@@ -360,6 +362,38 @@ public class MainController {
 			// Apenas avisos — exibe com botão de importação direta
 			mostrarDialogoAvisosAnalise(demaisErros, logErros, nomePlanilha, caminho, stage, avisoLegado, avisosColunaOpcional);
 		}
+	}
+
+	/**
+	 * Cabeçalho das janelas de validação (19/10/2026): nome do arquivo e a pasta
+	 * onde ele está no computador, para o usuário saber qual planilha foi
+	 * analisada e onde corrigi-la. A pasta fica num campo de texto só leitura,
+	 * que dá para selecionar e copiar.
+	 */
+	private VBox criarCabecalhoPlanilha() {
+
+		Path arquivo = Path.of(caminhoPlanilhaAnalisada).toAbsolutePath();
+
+		Label nome = new Label("📄 Planilha: " + arquivo.getFileName());
+		nome.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+
+		Label rotuloPasta = new Label("Local:");
+		rotuloPasta.setStyle("-fx-text-fill: #57645C;");
+
+		TextField pasta = new TextField(arquivo.getParent() != null ? arquivo.getParent().toString() : "");
+		pasta.setEditable(false);
+		pasta.setFocusTraversable(false);
+		pasta.setStyle("-fx-background-color: transparent; -fx-padding: 0; -fx-text-fill: #57645C;");
+		HBox.setHgrow(pasta, javafx.scene.layout.Priority.ALWAYS);
+
+		HBox linhaPasta = new HBox(6, rotuloPasta, pasta);
+		linhaPasta.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+		VBox cabecalho = new VBox(2, nome, linhaPasta);
+		cabecalho.setPadding(new Insets(0, 0, 4, 0));
+		cabecalho.setStyle("-fx-border-color: transparent transparent #D5DBD7 transparent; -fx-border-width: 0 0 1 0;");
+
+		return cabecalho;
 	}
 
 	/**
@@ -459,6 +493,7 @@ public class MainController {
 		alert.setHeaderText("Nenhum erro encontrado");
 
 		VBox layout = new VBox(10);
+		layout.getChildren().add(criarCabecalhoPlanilha());
 
 		if (avisoLegado != null) {
 			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
@@ -540,6 +575,7 @@ public class MainController {
 		});
 
 		VBox layout = new VBox(10);
+		layout.getChildren().add(criarCabecalhoPlanilha());
 
 		if (avisoLegado != null) {
 			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
@@ -553,25 +589,6 @@ public class MainController {
 		layout.setPadding(new Insets(10));
 
 		exibirComRolagem(alert, layout);
-	}
-
-	/**
-	 * Salva o log de erros de validação em arquivo nomeado com a planilha de origem.
-	 */
-	private void salvarLogErrosEmArquivo(String conteudo, String nomePlanilha) {
-
-		caminhoLogErros = Path.of("database", "log_erros_validacao_" + nomePlanilha + ".txt");
-
-		try {
-
-			Files.createDirectories(caminhoLogErros.getParent());
-			Files.writeString(caminhoLogErros, conteudo, StandardCharsets.UTF_8);
-
-			log.info("Log de erros de validação salvo em: {}", caminhoLogErros.toAbsolutePath());
-
-		} catch (IOException e) {
-			log.error("Erro ao salvar log de erros: {}", e.getMessage());
-		}
 	}
 
 	/**
@@ -595,6 +612,7 @@ public class MainController {
 				: totalProblemas + " problemas encontrados no cabeçalho da planilha");
 
 		VBox conteudo = new VBox(14);
+		conteudo.getChildren().add(criarCabecalhoPlanilha());
 
 		if (!mapeamento.camposFaltando().isEmpty()) {
 			conteudo.getChildren().add(
@@ -785,6 +803,7 @@ public class MainController {
 		});
 
 		VBox layout = new VBox(10);
+		layout.getChildren().add(criarCabecalhoPlanilha());
 
 		// Ordem (19/10/2026): erros (o que bloqueia) → colunas opcionais (contexto
 		// da planilha inteira) → avisos (lista mais longa e menos urgente)

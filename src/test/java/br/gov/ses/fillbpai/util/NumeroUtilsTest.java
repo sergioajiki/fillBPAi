@@ -12,7 +12,7 @@ class NumeroUtilsTest {
 	@ParameterizedTest
 	@NullAndEmptySource
 	@ValueSource(strings = { "  ", "S/N", "s/n", "S N", "SN", "S.N.", "S/Nº", "SEM NUMERO", "Sem número", "SEM Nº",
-			"SEM N", "sem", "0", "00", "000" })
+			"SEM N", "sem", "0", "00", "000", "-", " -- ", "–", "—" })
 	void normalizarVazioOuSemNumeroViraSnSemAviso(String celula) {
 		NumeroUtils.Resultado r = NumeroUtils.normalizar(celula);
 
@@ -31,7 +31,7 @@ class NumeroUtilsTest {
 	}
 
 	@ParameterizedTest
-	@ValueSource(strings = { "-", "X", "N/A", "NT", "LT 5", "A12" })
+	@ValueSource(strings = { "X", "N/A", "NT", "LT 5", "A12" })
 	void normalizarOutroValorCurtoFicaComoVeioComAviso(String celula) {
 		// 16/10/2026: fora dos números e das formas de "sem número", avisar
 		NumeroUtils.Resultado r = NumeroUtils.normalizar(celula);
