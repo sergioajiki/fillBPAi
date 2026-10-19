@@ -247,10 +247,9 @@ public final class AgrupamentoValidacao {
 					"O BPA-I aceita até 30 caracteres no nome: o resto é cortado. O item mostra como o nome vai"
 							+ " sair; se preferir, abrevie na planilha (ex.: sobrenomes do meio).", 28)),
 			Map.entry(ErroValidacao.NOME_PACIENTE_SUSPEITO, new InfoTipo(
-					"Nome do paciente suspeito",
+					"Nome do paciente a conferir",
 					"Nome sem letras, com números, símbolos, uma palavra só ou de recém-nascido sem nome (\"RN DE …\")."
-							+ " Pode ser preenchimento de teste ou erro de digitação — confira na planilha. Não impede"
-							+ " a importação.", 27)),
+							+ " Confira se o nome está completo e correto na planilha. Não impede a importação.", 27)),
 			Map.entry(ErroValidacao.DATA_FORA_DO_ESPERADO, new InfoTipo(
 					"Data do atendimento futura ou muito antiga",
 					"A data do atendimento é depois de hoje ou tem mais de 2 anos. Em geral é o ano digitado"

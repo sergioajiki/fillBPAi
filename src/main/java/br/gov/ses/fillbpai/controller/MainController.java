@@ -132,7 +132,7 @@ public class MainController {
 			return;
 		}
 
-		String conteudoLog = montarConteudoLog(resultado);
+		String conteudoLog = montarConteudoLog(resultado, caminho);
 		salvarLogEmArquivo(conteudoLog, nomePlanilhaSemExtensao(caminho));
 		mostrarLog(conteudoLog);
 
@@ -146,11 +146,21 @@ public class MainController {
 	// ======================================================
 
 	/**
-	 * Monta o conteúdo textual completo do log de importação.
+	 * Monta o conteúdo textual completo do log de importação. Começa com a
+	 * identificação da importação (19/10/2026): nome da planilha, local do
+	 * arquivo no computador e data/hora — o arquivo do log fica guardado e
+	 * precisa dizer sozinho de que importação é.
 	 */
-	private String montarConteudoLog(ImportacaoResultado resultado) {
+	private String montarConteudoLog(ImportacaoResultado resultado, String caminho) {
 
 		StringBuilder sb = new StringBuilder();
+
+		Path arquivo = Path.of(caminho).toAbsolutePath();
+		sb.append("Planilha: ").append(arquivo.getFileName()).append("\n");
+		sb.append("Local: ").append(arquivo.getParent() != null ? arquivo.getParent() : "").append("\n");
+		sb.append("Importada em: ").append(java.time.LocalDateTime.now()
+				.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm"))).append("\n");
+		sb.append("\n");
 
 		// Conferência: toda linha com dados da planilha foi gravada (a importação
 		// é cancelada inteira se alguma falhar — ver AtendimentoImportacaoService)
@@ -163,25 +173,18 @@ public class MainController {
 		sb.append("Avisos: ").append(resultado.getTotalAvisos()).append("\n");
 		sb.append("\n");
 
-		if (!resultado.getErros().isEmpty()) {
-			sb.append("=== ERROS (linhas não importadas) ===\n");
-			for (String erro : resultado.getErros()) {
-				sb.append(erro).append("\n");
-			}
-		}
-
+		// Sem seção de erros (19/10/2026): pela regra do tudo ou nada, linha com
+		// erro cancela a importação inteira e vai para a janela "Importação
+		// bloqueada" — este log só existe quando tudo foi importado.
 		if (!resultado.getAvisos().isEmpty()) {
-			if (!resultado.getErros().isEmpty()) {
-				sb.append("\n");
-			}
-			sb.append("=== AVISOS (linhas importadas com ressalvas) ===\n");
+			sb.append("=== AVISOS — importados, confira os pontos abaixo ===\n");
 			for (String aviso : resultado.getAvisos()) {
 				sb.append(aviso).append("\n");
 			}
 		}
 
-		if (resultado.getErros().isEmpty() && resultado.getAvisos().isEmpty()) {
-			sb.append("Importação concluída sem erros ou avisos.");
+		if (resultado.getAvisos().isEmpty()) {
+			sb.append("Importação concluída sem avisos.");
 		}
 
 		return sb.toString();
