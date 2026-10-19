@@ -242,15 +242,39 @@ public class MainController {
 		alert.setTitle("Log de Importação");
 		alert.setHeaderText("Última Importação");
 
+		javafx.geometry.Rectangle2D tela = javafx.stage.Screen.getPrimary().getVisualBounds();
+
+		// Tamanho explícito (19/10/2026): sem largura definida a área de texto
+		// ficava estreita (40 colunas) e a janela, fixa, sem rolagem utilizável.
+		// Largura de até 1200 px e altura de até 600 px, limitadas ao monitor;
+		// a área de texto ocupa todo o espaço e rola por dentro.
+		double largura = Math.min(1200, tela.getWidth() * 0.9);
+		double altura = Math.min(600, tela.getHeight() * 0.6);
+
 		TextArea areaLog = new TextArea(conteudo);
 		areaLog.setEditable(false);
 		areaLog.setWrapText(true);
-		areaLog.setPrefHeight(400);
+		areaLog.setPrefSize(largura, altura);
+		areaLog.setMinHeight(200);
+		areaLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		VBox.setVgrow(areaLog, javafx.scene.layout.Priority.ALWAYS);
 
 		VBox layout = new VBox(10, areaLog);
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);
+		alert.getDialogPane().setPrefWidth(largura + 40);
+		alert.getDialogPane().setMaxHeight(tela.getHeight() * 0.85);
+		alert.setResizable(true);
+
+		// Abre no começo do log, com o foco na área de texto (roda do mouse e
+		// teclado funcionam sem precisar clicar antes)
+		alert.setOnShown(e -> Platform.runLater(() -> {
+			areaLog.positionCaret(0);
+			areaLog.setScrollTop(0);
+			areaLog.requestFocus();
+		}));
+
 		alert.showAndWait();
 	}
 
@@ -412,7 +436,10 @@ public class MainController {
 		Button btnImportar = new Button("Importar Planilha");
 		btnImportar.setOnAction(e -> {
 			alert.close();
-			processarImportacao(caminho, stage);
+			// Abre o log só depois de o loop modal deste Alert encerrar: aberto no
+			// mesmo handler, o log renderizava mas não recebia rolagem nem cliques
+			// (mesmo caso do botão "Abrir Configurações").
+			Platform.runLater(() -> processarImportacao(caminho, stage));
 		});
 
 		layout.getChildren().addAll(msg, btnImportar);
@@ -469,7 +496,10 @@ public class MainController {
 		Button btnImportar = new Button("Importar Planilha");
 		btnImportar.setOnAction(e -> {
 			alert.close();
-			processarImportacao(caminho, stage);
+			// Abre o log só depois de o loop modal deste Alert encerrar: aberto no
+			// mesmo handler, o log renderizava mas não recebia rolagem nem cliques
+			// (mesmo caso do botão "Abrir Configurações").
+			Platform.runLater(() -> processarImportacao(caminho, stage));
 		});
 
 		VBox layout = new VBox(10);

@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 649 testes passando (<code>mvnw.cmd test</code>) · próxima etapa: decidir a recomendação 68 e as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 649 testes passando · última atualização 19/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir a recomendação 68 e as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>16/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -200,7 +200,7 @@
       </li>
     </ol>
 
-    <h3>O que foi feito (08/10 a 16/10/2026)</h3>
+    <h3>O que foi feito (08/10 a 19/10/2026)</h3>
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>Tema</th><th>Resumo</th></tr></thead>
@@ -221,7 +221,8 @@
           <tr><td class="caso">Bairro e complemento</td><td>Preenchimento (<code>-</code>, <code>N/A</code>, <code>0</code>) vira vazio; bairro sem "Bairro" e cortado na palavra (sem aviso); complemento que não cabe é abreviado (AP, BL, CS, QD, LT…) e cortado na palavra, com aviso COMPLEMENTO_CORTADO; BAIRRO_IGUAL_MUNICIPIO (aviso).</td></tr>
           <tr><td class="caso">Sexo e situação de rua</td><td>SEXO_AUSENTE/SEXO_INVALIDO (erro; aceita Fem, Masc, Mulher, Homem); gerador nunca manda sexo inválido. Situação de rua gravada por atendimento (antes no paciente, e uma importação nova mudava os atendimentos anteriores). Colunas opcionais S/N presentes com célula vazia → aviso e branco no BPA-I.</td></tr>
           <tr><td class="caso">Paciente sem CPF e situação de rua sem CEP</td><td>Coluna revisada (regras já existiam); paciente em situação de rua sem CEP → aviso CEP_AUSENTE_SITUACAO_RUA e CEP em branco (Decisão 25); mensagem de município não encontrado sem CEP corrigida.</td></tr>
-          <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação).</td></tr>
+          <tr><td class="caso">Decisões 12, 13 e 26</td><td>Mesmo CPF com nomes diferentes → aviso CPF_COM_NOMES_DIFERENTES (planilha e banco; Decisão 12). CNS vazio com CPF não gera mais aviso (Decisão 13); explicações de CNS_INVALIDO/CNS_DV_INVALIDO sem o trecho "com CPF o CNS não vai para o BPA-I". Situação de rua antes de 12/2024 e paciente sem CPF antes de 07/2026 → branco no BPA-I, aviso CAMPO_ANTES_DA_VIGENCIA quando a planilha traz "Sim" (Decisão 26).</td></tr>
+          <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
     </div>
@@ -232,7 +233,7 @@
         <h4>Todas as colunas revisadas (16/10/2026)</h4>
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
-          junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso).
+          junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
           Aguardando decisão: recomendação 68 (chave do paciente sem CPF pelo CNS — <strong>alta</strong>). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
