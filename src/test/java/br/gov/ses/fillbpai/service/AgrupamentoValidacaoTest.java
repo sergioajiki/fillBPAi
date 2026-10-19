@@ -59,7 +59,7 @@ class AgrupamentoValidacaoTest {
 	@Test
 	void agruparOrdenaErrosAntesDeAvisosEPelaPrioridadeDoTipo() {
 		List<AgrupamentoValidacao.Grupo> grupos = AgrupamentoValidacao.agrupar(List.of(
-				aviso(2, ErroValidacao.CNS_INCOMUM, "MARIA"),
+				aviso(2, ErroValidacao.CNS_INVALIDO, "MARIA"),
 				aviso(3, ErroValidacao.HORA_INVALIDA, "\"-\""),
 				new ErroValidacao(4, Severidade.ERRO, ErroValidacao.CEP_AUSENTE, "CEP", "JOSE"),
 				aviso(5, ErroValidacao.CNS_PROFISSIONAL_NAO_CADASTRADO, "\"FULANO\"")));
@@ -68,7 +68,7 @@ class AgrupamentoValidacaoTest {
 				ErroValidacao.CEP_AUSENTE,
 				ErroValidacao.CNS_PROFISSIONAL_NAO_CADASTRADO,
 				ErroValidacao.HORA_INVALIDA,
-				ErroValidacao.CNS_INCOMUM);
+				ErroValidacao.CNS_INVALIDO);
 	}
 
 	@Test

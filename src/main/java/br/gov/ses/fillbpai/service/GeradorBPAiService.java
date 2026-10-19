@@ -12,6 +12,7 @@ import br.gov.ses.fillbpai.util.EnderecoUtils;
 import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.NumeroUtils;
+import br.gov.ses.fillbpai.util.NomePacienteUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SexoUtils;
 import br.gov.ses.fillbpai.util.TelefoneUtils;
@@ -716,7 +717,9 @@ public class GeradorBPAiService {
 		 * seq 19 - prd-nmpac
 		 * Nome completo do paciente
 		 */
-		String nomePaciente = paciente != null ? paciente.getNome() : "";
+		// Maiúsculas e espaços reduzidos também para dados antigos (recomendação 29)
+		String nomePaciente = paciente != null && paciente.getNome() != null
+				? NomePacienteUtils.padronizar(paciente.getNome()) : "";
 		sb.append(padRightSpaces(formatarAlfa(nomePaciente, 30), 30));
 
 		/**

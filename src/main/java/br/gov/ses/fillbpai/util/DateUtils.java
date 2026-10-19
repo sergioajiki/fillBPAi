@@ -118,4 +118,48 @@ public class DateUtils {
 
         return null;
     }
+
+    /**
+     * Data de hoje. A propriedade de sistema {@code fillbpai.hoje} (aaaa-MM-dd)
+     * fixa a data — usada pelos testes (pom.xml), para o aviso de data fora do
+     * esperado não mudar com o passar do tempo.
+     */
+    public static LocalDate hoje() {
+        String fixa = System.getProperty("fillbpai.hoje");
+        return fixa != null && !fixa.isBlank() ? LocalDate.parse(fixa.trim()) : LocalDate.now();
+    }
+
+    /** Atendimento mais antigo que isto (em anos, contando de hoje) gera aviso. */
+    public static final int ANOS_ATENDIMENTO_ANTIGO = 2;
+
+    /**
+     * Motivo de a data do atendimento estar fora do esperado, ou {@code null}:
+     * data futura, ou mais de {@link #ANOS_ATENDIMENTO_ANTIGO} anos antes de
+     * {@code hoje} — em geral erro de digitação no ano, que levaria o
+     * atendimento para uma competência errada (recomendação 4, 19/10/2026).
+     * Aviso, não erro: a data pode estar certa.
+     */
+    public static String dataAtendimentoForaDoEsperado(LocalDate dataAtendimento, LocalDate hoje) {
+
+        if (dataAtendimento == null || hoje == null) {
+            return null;
+        }
+
+        if (dataAtendimento.isAfter(hoje)) {
+            return "futura";
+        }
+
+        if (dataAtendimento.isBefore(hoje.minusYears(ANOS_ATENDIMENTO_ANTIGO))) {
+            return "com mais de " + ANOS_ATENDIMENTO_ANTIGO + " anos";
+        }
+
+        return null;
+    }
+
+    /** Mensagem do aviso de {@link #dataAtendimentoForaDoEsperado} (análise e log de importação). */
+    public static String mensagemDataForaDoEsperado(LocalDate dataAtendimento, String motivo) {
+        return "Data do atendimento " + formatar(dataAtendimento) + " " + motivo
+                + " — confira se o ano foi digitado certo; o atendimento entra na competência "
+                + String.format("%02d/%d", dataAtendimento.getMonthValue(), dataAtendimento.getYear());
+    }
 }

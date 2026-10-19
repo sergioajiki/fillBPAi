@@ -98,6 +98,12 @@ public class CnsUtils {
 	 * @param cns valor bruto do CNS
 	 * @return resultado com CNS normalizado e lista de avisos
 	 */
+	/** Mensagem do CNS com tamanho diferente de 15 dígitos (análise e importação). */
+	public static String mensagemTamanhoInvalido(String cnsNormalizado) {
+		return "CNS do paciente com " + cnsNormalizado.length() + " dígitos (" + cnsNormalizado
+				+ ") — o CNS tem 15 dígitos; não será gravado";
+	}
+
 	public static CnsResultado processar(String cns) {
 
 		List<String> avisos = new ArrayList<>();
@@ -110,18 +116,15 @@ public class CnsUtils {
 			return new CnsResultado("", avisos);
 		}
 
-		// CNS com menos de 15 dígitos — registrado com aviso (não bloqueia importação)
-		if (cnsLimpo.length() < 15) {
-			avisos.add("CNS inválido (apenas " + cnsLimpo.length()
-					+ " dígitos, mínimo 15) — registrado com aviso (CNS_INVALIDO): " + cns);
-			return new CnsResultado(cnsLimpo, avisos);
+		// CNS sem 15 dígitos (a menos ou a mais) — inválido: aviso e não é gravado
+		// (recomendação 26, 19/10/2026 — antes o de mais dígitos era "formato
+		// incomum" e era gravado; o CNS tem sempre 15 dígitos)
+		if (cnsLimpo.length() != 15) {
+			avisos.add(mensagemTamanhoInvalido(cnsLimpo) + " (CNS_INVALIDO)");
+			return new CnsResultado("", avisos);
 		}
 
-		// CNS com mais de 15 dígitos — formato incomum, aceito com aviso
-		if (cnsLimpo.length() > 15) {
-			avisos.add("CNS com formato incomum (" + cnsLimpo.length()
-					+ " dígitos, esperado 15): " + cnsLimpo);
-		} else if (!isDvValido(cnsLimpo)) {
+		if (!isDvValido(cnsLimpo)) {
 			// 15 dígitos com dígito verificador errado — aceito com aviso
 			// (paciente sem CPF é barrado antes, em AtendimentoProcessor)
 			avisos.add("CNS do paciente com dígito verificador inválido (CNS_DV_INVALIDO): " + cnsLimpo

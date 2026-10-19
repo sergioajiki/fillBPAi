@@ -167,6 +167,13 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
+                <configuration>
+                    <!-- "Hoje" fixo nos testes (DateUtils.hoje): o aviso de data
+                         futura/antiga não muda com o passar do tempo -->
+                    <systemPropertyVariables>
+                        <fillbpai.hoje>2026-10-19</fillbpai.hoje>
+                    </systemPropertyVariables>
+                </configuration>
             </plugin>
 
         </plugins>

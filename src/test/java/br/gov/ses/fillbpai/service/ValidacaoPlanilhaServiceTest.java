@@ -131,7 +131,7 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
-	void validarComCnsLongoGeraAvisoCnsIncomum() throws IOException {
+	void validarComCnsLongoGeraAvisoCnsInvalido() throws IOException {
 		String[] linha = linhaValida();
 		linha[COL_CNS_PACIENTE] = "7000094731924063";
 		String caminho = salvarPlanilha(CABECALHO_COMPLETO, linha);
@@ -140,7 +140,9 @@ class ValidacaoPlanilhaServiceTest {
 
 		assertThat(erros).singleElement().satisfies(erro -> {
 			assertThat(erro.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
-			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_INCOMUM);
+// Recomendação 26 (19/10/2026): mais de 15 dígitos é CNS inválido
+			assertThat(erro.tipoErro()).isEqualTo(ErroValidacao.CNS_INVALIDO);
+			assertThat(erro.detalhe()).contains("16 dígitos", "não será gravado");
 		});
 	}
 
@@ -1484,6 +1486,66 @@ class ValidacaoPlanilhaServiceTest {
 		// Mesmo nome com grafia diferente: sem aviso
 		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linhaValida(), mariaGrafia)))
 				.noneMatch(e -> ErroValidacao.CPF_COM_NOMES_DIFERENTES.equals(e.tipoErro()));
+	}
+
+	@Test
+	void validarPacienteSemCpfComMesmoCnsENomesDiferentesGeraAvisoPeloCns() throws IOException {
+		// Recomendação 68 (19/10/2026): sem CPF, o CNS identifica o paciente
+		String[] maria = linhaValida();
+		maria[COL_DATA_AGENDAMENTO] = "25/07/2026";
+		maria[COL_CPF_PACIENTE] = null;
+		maria[COL_PACIENTE_SEM_CPF] = "Sim";
+		String[] outra = maria.clone();
+		outra[10] = "ANA PEREIRA";
+		outra[COL_HORA_ATENDIMENTO] = "09:30";
+		String[] homonimo = maria.clone(); // mesmo nome, outro CNS: outra pessoa, sem aviso
+		homonimo[COL_CNS_PACIENTE] = "700207960611001";
+		homonimo[COL_HORA_ATENDIMENTO] = "10:30";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, maria, outra, homonimo))
+				.stream().filter(e -> ErroValidacao.CPF_COM_NOMES_DIFERENTES.equals(e.tipoErro())).toList();
+
+		assertThat(erros).extracting(ErroValidacao::linha).containsExactly(2, 3);
+		assertThat(erros.get(0).valor()).startsWith("CNS 700207960618529 — ");
+		assertThat(erros.get(0).detalhe()).contains("O mesmo CNS de paciente");
+	}
+
+	@Test
+	void validarDataDeAtendimentoFuturaOuMuitoAntigaGeraAviso() throws IOException {
+		// Recomendação 4 (19/10/2026): "hoje" fixo em 19/10/2026 nos testes (pom.xml)
+		String[] futura = linhaValida();
+		futura[COL_DATA_AGENDAMENTO] = "05/03/2062";
+		String[] antiga = linhaValida();
+		antiga[COL_DATA_AGENDAMENTO] = "05/03/2022";
+		antiga[COL_HORA_ATENDIMENTO] = "09:30";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, futura, antiga, linhaValida()))
+				.stream().filter(e -> ErroValidacao.DATA_FORA_DO_ESPERADO.equals(e.tipoErro())).toList();
+
+		assertThat(erros).extracting(ErroValidacao::linha, ErroValidacao::valor).containsExactly(
+				org.assertj.core.groups.Tuple.tuple(2, "05/03/2062 — futura"),
+				org.assertj.core.groups.Tuple.tuple(3, "05/03/2022 — com mais de 2 anos"));
+		assertThat(erros).noneMatch(ErroValidacao::isBloqueante);
+	}
+
+	@Test
+	void validarNomeLongoOuSuspeitoGeraAvisos() throws IOException {
+		// Recomendações 29 e 30 (19/10/2026)
+		String[] longo = linhaValida();
+		longo[10] = "Maria Aparecida dos Santos Oliveira";
+		String[] suspeito = linhaValida();
+		suspeito[10] = "TESTE";
+		suspeito[COL_CPF_PACIENTE] = "11144477735";
+
+		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, longo, suspeito))
+				.stream().filter(e -> e.tipoErro().startsWith("NOME_PACIENTE_")).toList();
+
+		assertThat(erros).extracting(ErroValidacao::linha, ErroValidacao::tipoErro, ErroValidacao::valor).containsExactly(
+				org.assertj.core.groups.Tuple.tuple(2, ErroValidacao.NOME_PACIENTE_LONGO,
+						"\"MARIA APARECIDA DOS SANTOS OLIVEIRA\" → \"MARIA APARECIDA DOS SANTOS OLI\""),
+				org.assertj.core.groups.Tuple.tuple(3, ErroValidacao.NOME_PACIENTE_SUSPEITO,
+						"\"TESTE\" — com uma palavra só"));
+		assertThat(erros).noneMatch(ErroValidacao::isBloqueante);
 	}
 
 	@Test

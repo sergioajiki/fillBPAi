@@ -86,6 +86,10 @@ public class CpfUtils {
     private static final String PREFIXO_SEM_CPF = "SC";
 
     /**
+     * <b>Chave antiga</b> (até 19/10/2026) — hoje usada só para achar pacientes
+     * já gravados e migrá-los para {@link #chaveSemCpfPorCns}, e como reserva
+     * na análise quando o CNS é inválido (a linha já tem erro).
+     * <p>
      * Chave interna para paciente sem CPF ("Paciente sem CPF" = Sim): o CPF é a
      * chave do paciente no banco (obrigatória, única, até 14 caracteres), então
      * esses pacientes são identificados por {@code "SC"} + 12 caracteres
@@ -105,6 +109,27 @@ public class CpfUtils {
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 indisponível", e);
         }
+    }
+
+    /**
+     * Chave interna do paciente sem CPF pelo CNS (recomendação 68, 19/10/2026):
+     * {@code "SC"} + o CNS em base 36, completado com zeros até 12 caracteres
+     * (cabe nos 14 da coluna; reversível, então dois CNS nunca dão a mesma
+     * chave). Substitui a chave por nome + nascimento ({@link #chaveSemCpf}),
+     * que juntava homônimos nascidos no mesmo dia e separava a mesma pessoa
+     * escrita de dois jeitos. {@code null} quando o CNS não tem 15 dígitos.
+     */
+    public static String chaveSemCpfPorCns(String cns) {
+
+        String digitos = cns == null ? "" : cns.replaceAll("[^0-9]", "");
+
+        if (digitos.length() != 15) {
+            return null;
+        }
+
+        String base36 = Long.toString(Long.parseLong(digitos), 36).toUpperCase();
+
+        return PREFIXO_SEM_CPF + "0".repeat(12 - base36.length()) + base36;
     }
 
     /** {@code true} se o valor é uma chave interna de paciente sem CPF, e não um CPF. */

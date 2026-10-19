@@ -242,10 +242,25 @@ public final class AgrupamentoValidacao {
 					"Paciente em situação de rua sem CEP",
 					"O paciente está marcado em situação de rua e não tem CEP: o CEP será registrado em branco. O"
 							+ " município continua obrigatório (é dele que vem o código IBGE).", 22)),
+			Map.entry(ErroValidacao.NOME_PACIENTE_LONGO, new InfoTipo(
+					"Nome do paciente maior que 30 caracteres",
+					"O BPA-I aceita até 30 caracteres no nome: o resto é cortado. O item mostra como o nome vai"
+							+ " sair; se preferir, abrevie na planilha (ex.: sobrenomes do meio).", 28)),
+			Map.entry(ErroValidacao.NOME_PACIENTE_SUSPEITO, new InfoTipo(
+					"Nome do paciente suspeito",
+					"Nome sem letras, com números, símbolos, uma palavra só ou de recém-nascido sem nome (\"RN DE …\")."
+							+ " Pode ser preenchimento de teste ou erro de digitação — confira na planilha. Não impede"
+							+ " a importação.", 27)),
+			Map.entry(ErroValidacao.DATA_FORA_DO_ESPERADO, new InfoTipo(
+					"Data do atendimento futura ou muito antiga",
+					"A data do atendimento é depois de hoje ou tem mais de 2 anos. Em geral é o ano digitado"
+							+ " errado (ex.: 2062 em vez de 2026), e o atendimento cairia numa competência errada."
+							+ " Se a data estiver certa, pode importar.", 9)),
 			Map.entry(ErroValidacao.CPF_COM_NOMES_DIFERENTES, new InfoTipo(
-					"Mesmo CPF com nomes diferentes",
-					"O CPF identifica o paciente: linhas com o mesmo CPF e nomes diferentes viram um só cadastro,"
-							+ " com o nome da última linha importada. Confira na planilha se o CPF ou o nome foi"
+					"Mesmo CPF (ou CNS) com nomes diferentes",
+					"O CPF identifica o paciente (sem CPF, o CNS): linhas com o mesmo documento e nomes diferentes"
+							+ " viram um só cadastro, com o nome da última linha importada. Confira na planilha se o"
+							+ " documento ou o nome foi"
 							+ " digitado errado. Diferenças só de acento, maiúsculas ou espaços não contam.", 12)),
 			Map.entry(ErroValidacao.CAMPO_ANTES_DA_VIGENCIA, new InfoTipo(
 					"Campo ainda não existia na competência",
@@ -289,15 +304,13 @@ public final class AgrupamentoValidacao {
 					"CID da consulta não informado",
 					"O BPA-I será gerado com o CID em branco. Preencha o CID se o procedimento exigir.", 26)),
 			Map.entry(ErroValidacao.CNS_INVALIDO, new InfoTipo(
-					"CNS do paciente ausente ou incompleto",
-					"Menos de 15 dígitos. Não impede a importação.", 30)),
+					"CNS do paciente sem 15 dígitos",
+					"O CNS tem 15 dígitos: com menos ou mais, o valor não é gravado (o CNS que o paciente já tem"
+							+ " no cadastro é mantido). Não impede a importação.", 30)),
 			Map.entry(ErroValidacao.CNS_DV_INVALIDO, new InfoTipo(
 					"CNS do paciente com dígito verificador inválido",
 					"O CNS tem 15 dígitos, mas o dígito verificador não confere — provavelmente um dígito foi"
 							+ " digitado errado.", 30)),
-			Map.entry(ErroValidacao.CNS_INCOMUM, new InfoTipo(
-					"CNS do paciente com formato incomum",
-					"Mais de 15 dígitos. Não impede a importação.", 31)),
 			Map.entry(ErroValidacao.COLUNA_OPCIONAL_AUSENTE, new InfoTipo(
 					"Coluna opcional ausente", "", 40)),
 			Map.entry(ErroValidacao.FORMATO_LEGADO_ESPECIALIDADE_MEDICO, new InfoTipo(

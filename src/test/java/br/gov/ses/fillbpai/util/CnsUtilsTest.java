@@ -28,7 +28,7 @@ class CnsUtilsTest {
 	void processarComMenosDeQuinzeDigitosGeraAvisoCnsInvalido() {
 		CnsUtils.CnsResultado resultado = CnsUtils.processar("12345");
 
-		assertThat(resultado.getCns()).isEqualTo("12345");
+		assertThat(resultado.getCns()).isEmpty(); // não grava CNS sem 15 dígitos (recomendação 26)
 		assertThat(resultado.getAvisos()).hasSize(1)
 				.first().asString().contains("CNS_INVALIDO");
 	}
@@ -88,13 +88,13 @@ class CnsUtilsTest {
 	}
 
 	@Test
-	void processarComMaisDeQuinzeDigitosAceitaComAvisoDeFormatoIncomum() {
+	void processarComMaisDeQuinzeDigitosGeraAvisoENaoGravaOValor() {
 		String cnsLegado = "7000094731924063";
 
 		CnsUtils.CnsResultado resultado = CnsUtils.processar(cnsLegado);
 
-		assertThat(resultado.getCns()).isEqualTo(cnsLegado);
-		assertThat(resultado.getAvisos()).hasSize(1)
-				.first().asString().contains("formato incomum");
+		// Recomendação 26 (19/10/2026): o CNS tem sempre 15 dígitos
+		assertThat(resultado.getCns()).isEmpty();
+		assertThat(resultado.getAvisos()).singleElement().asString().contains("CNS_INVALIDO", "16 dígitos");
 	}
 }

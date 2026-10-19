@@ -3,6 +3,7 @@ package br.gov.ses.fillbpai.service;
 import br.gov.ses.fillbpai.dto.LinhaImportacaoDTO;
 import br.gov.ses.fillbpai.model.*;
 import br.gov.ses.fillbpai.util.CnsProfissionalUtils;
+import br.gov.ses.fillbpai.util.CnsUtils;
 import br.gov.ses.fillbpai.util.CpfUtils;
 import br.gov.ses.fillbpai.util.IbgeUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
@@ -442,27 +443,40 @@ public class AtendimentoImportacaoService {
 	 */
 	private Paciente buscarOuCriarPaciente(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel) {
 
-		// Paciente sem CPF ("Paciente sem CPF" = Sim, já validado no processador):
-		// o CPF é a chave do paciente no banco, então usa uma chave interna
-		// estável derivada do nome + nascimento. Nunca vai para o BPA-I.
-		if (dto.getCpfPaciente() == null || dto.getCpfPaciente().isBlank()) {
-			dto.setCpfPaciente(CpfUtils.chaveSemCpf(dto.getPaciente(), dto.getDataNascimento()));
+		// Paciente sem CPF ("Paciente sem CPF" = Sim, já validado no processador,
+		// que também exige o CNS válido): o CPF é a chave do paciente no banco,
+		// então usa uma chave interna derivada do CNS (recomendação 68,
+		// 19/10/2026). Nunca vai para o BPA-I.
+		boolean semCpf = dto.getCpfPaciente() == null || dto.getCpfPaciente().isBlank();
+
+		// Documento que identifica o paciente nas mensagens
+		String documento;
+
+		if (semCpf) {
+			documento = "CNS " + dto.getCnsPaciente();
+			dto.setCpfPaciente(CpfUtils.chaveSemCpfPorCns(dto.getCnsPaciente()));
+			migrarChaveSemCpfAntiga(dto);
+		} else {
+			documento = "CPF " + dto.getCpfPaciente();
 		}
 
 		return pacienteRepository.buscarPorCpf(dto.getCpfPaciente())
 				.map(paciente -> {
-					// Mesmo CPF com outro nome (decisão 12, 16/10/2026): aviso — o
+					// Mesmo documento com outro nome (decisão 12, 16/10/2026): aviso — o
 					// cadastro fica com o nome desta linha (a mais recente)
-					if (!CpfUtils.isChaveSemCpf(dto.getCpfPaciente()) && paciente.getNome() != null && !paciente.getNome().isBlank()
+					if (paciente.getNome() != null && !paciente.getNome().isBlank()
 							&& !TextoUtils.chaveNome(paciente.getNome()).equals(TextoUtils.chaveNome(dto.getPaciente()))) {
-						resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: CPF " + dto.getCpfPaciente()
+						resultado.adicionarAviso("Linha " + linhaExcel + " - Aviso: " + documento
 								+ " já cadastrado com o nome \"" + paciente.getNome().trim() + "\" e nesta linha com \""
 								+ dto.getPaciente().trim() + "\" — o cadastro fica com o nome desta linha; confira"
-								+ " na planilha se o CPF ou o nome está errado (CPF_COM_NOMES_DIFERENTES)");
+								+ " na planilha se o " + (semCpf ? "CNS" : "CPF")
+								+ " ou o nome está errado (CPF_COM_NOMES_DIFERENTES)");
 					}
 					// Atualiza dados com a importação mais recente
 					paciente.setNome(dto.getPaciente());
-					paciente.setCns(dto.getCnsPaciente());
+					if (deveTrocarCns(paciente.getCns(), dto.getCnsPaciente())) {
+						paciente.setCns(dto.getCnsPaciente());
+					}
 					paciente.setSexo(dto.getSexoPaciente());
 					paciente.setRaca(dto.getRacaPaciente());
 					paciente.setEtnia(dto.getEtniaPaciente());
@@ -485,6 +499,46 @@ public class AtendimentoImportacaoService {
 					pacienteRepository.salvar(novo);
 					return novo;
 				});
+	}
+
+	/**
+	 * Recomendação 27 (19/10/2026): a linha só troca o CNS do cadastro quando
+	 * traz um CNS e ele não é pior que o gravado — linha sem CNS (ou com CNS
+	 * sem 15 dígitos, que chega vazio do processador) e CNS com dígito
+	 * verificador errado no lugar de um válido mantêm o CNS já conhecido.
+	 */
+	static boolean deveTrocarCns(String cnsGravado, String cnsDaLinha) {
+
+		if (cnsDaLinha == null || cnsDaLinha.isBlank()) {
+			return false;
+		}
+
+		if (cnsGravado == null || cnsGravado.isBlank()) {
+			return true;
+		}
+
+		return CnsUtils.isDvValido(cnsDaLinha) || !CnsUtils.isDvValido(cnsGravado);
+	}
+
+	/**
+	 * Paciente sem CPF gravado antes de 19/10/2026 com a chave antiga (nome +
+	 * nascimento): passa para a chave pelo CNS, sem duplicar o paciente nem
+	 * perder os atendimentos já ligados a ele. Só migra se o CNS gravado for
+	 * vazio ou o mesmo da linha — CNS diferente é um homônimo (outra pessoa),
+	 * que ganha cadastro próprio.
+	 */
+	private void migrarChaveSemCpfAntiga(LinhaImportacaoDTO dto) {
+
+		if (pacienteRepository.buscarPorCpf(dto.getCpfPaciente()).isPresent()) {
+			return;
+		}
+
+		String chaveAntiga = CpfUtils.chaveSemCpf(dto.getPaciente(), dto.getDataNascimento());
+
+		pacienteRepository.buscarPorCpf(chaveAntiga)
+				.filter(antigo -> antigo.getCns() == null || antigo.getCns().isBlank()
+						|| antigo.getCns().equals(dto.getCnsPaciente()))
+				.ifPresent(antigo -> antigo.setCpf(dto.getCpfPaciente()));
 	}
 
 	/**

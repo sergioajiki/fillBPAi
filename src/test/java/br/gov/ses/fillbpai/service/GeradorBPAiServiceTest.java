@@ -583,7 +583,8 @@ class GeradorBPAiServiceTest {
 		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
 		String nomeNoRegistro = registro(conteudo, 0).substring(112, 142).stripTrailing();
 
-		assertThat(nomeNoRegistro).isEqualTo("Ánderson's Café - Órgão...");
+		// Nome em maiúsculas também para dados antigos (recomendação 29)
+		assertThat(nomeNoRegistro).isEqualTo("ÁNDERSON'S CAFÉ - ÓRGÃO...");
 	}
 
 	@Test

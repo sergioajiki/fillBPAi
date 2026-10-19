@@ -14,6 +14,7 @@ import br.gov.ses.fillbpai.util.EspecialidadeUtils;
 import br.gov.ses.fillbpai.util.EtniaUtils;
 import br.gov.ses.fillbpai.util.LogradouroUtils;
 import br.gov.ses.fillbpai.util.NumeroUtils;
+import br.gov.ses.fillbpai.util.NomePacienteUtils;
 import br.gov.ses.fillbpai.util.RacaUtils;
 import br.gov.ses.fillbpai.util.SexoUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
@@ -100,6 +101,7 @@ public class AtendimentoProcessor {
 		// ===============================
 
 		validarCamposObrigatorios(dto);
+		avisos.addAll(normalizarNomePaciente(dto));
 		avisos.addAll(validarCep(dto));
 		validarCpf(dto);
 		validarCpfMedico(dto);
@@ -616,6 +618,33 @@ public class AtendimentoProcessor {
 	}
 
 	/**
+	 * Nome do paciente (recomendações 29 e 30, 19/10/2026): gravado em
+	 * maiúsculas com espaços repetidos reduzidos; aviso quando passa de 30
+	 * caracteres (mostra como sai no BPA-I) ou parece não ser um nome completo.
+	 */
+	private List<String> normalizarNomePaciente(LinhaImportacaoDTO dto) {
+
+		List<String> avisos = new ArrayList<>();
+
+		dto.setPaciente(NomePacienteUtils.padronizar(dto.getPaciente()));
+
+		String cortado = NomePacienteUtils.cortadoNoBpa(dto.getPaciente());
+		if (cortado != null) {
+			avisos.add("Nome do paciente \"" + dto.getPaciente() + "\" tem " + dto.getPaciente().length()
+					+ " caracteres — no BPA-I sai \"" + cortado + "\" (máximo 30); abrevie na planilha se"
+					+ " preferir (NOME_PACIENTE_LONGO)");
+		}
+
+		String suspeito = NomePacienteUtils.motivoSuspeito(dto.getPaciente());
+		if (suspeito != null) {
+			avisos.add("Nome do paciente \"" + dto.getPaciente() + "\" " + suspeito
+					+ " — confira na planilha (NOME_PACIENTE_SUSPEITO)");
+		}
+
+		return avisos;
+	}
+
+	/**
 	 * Valida campos obrigatórios para a importação.
 	 *
 	 * Campos obrigatórios:
@@ -698,6 +727,13 @@ public class AtendimentoProcessor {
 		if (dto.isDataAgendamentoSemAno() && dto.getDataAgendamento() != null) {
 			avisos.add("Data do atendimento (" + DateUtils.formatar(dto.getDataAgendamento()).substring(0, 5)
 					+ ") nao esta no formato correto (dd/MM/aaaa) (DATA_ATENDIMENTO_SEM_ANO)");
+		}
+
+		// Data futura ou muito antiga: aviso (recomendação 4, 19/10/2026)
+		String foraDoEsperado = DateUtils.dataAtendimentoForaDoEsperado(dto.getDataAgendamento(), DateUtils.hoje());
+		if (foraDoEsperado != null) {
+			avisos.add(DateUtils.mensagemDataForaDoEsperado(dto.getDataAgendamento(), foraDoEsperado)
+					+ " (DATA_FORA_DO_ESPERADO)");
 		}
 
 		avisos.addAll(converterHora(dto));

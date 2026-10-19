@@ -75,7 +75,15 @@ public class DetectorDuplicidade {
 
 		String cpf = dto.getCpfPaciente();
 
-		return cpf != null && !cpf.isBlank() ? cpf : CpfUtils.chaveSemCpf(dto.getPaciente(), dto.getDataNascimento());
+		if (cpf != null && !cpf.isBlank()) {
+			return cpf;
+		}
+
+		// Paciente sem CPF: chave pelo CNS (recomendação 68); CNS inválido já é
+		// erro na linha — usa a chave antiga só para não deixar a chave vazia
+		String chave = CpfUtils.chaveSemCpfPorCns(dto.getCnsPaciente());
+
+		return chave != null ? chave : CpfUtils.chaveSemCpf(dto.getPaciente(), dto.getDataNascimento());
 	}
 
 	/** Horário para mensagens: "08:30" ou "sem horário". */

@@ -20,6 +20,7 @@ import br.gov.ses.fillbpai.util.SexoUtils;
 import br.gov.ses.fillbpai.util.SimNaoUtils;
 import br.gov.ses.fillbpai.util.StringUtils;
 import br.gov.ses.fillbpai.util.TextoUtils;
+import br.gov.ses.fillbpai.util.NomePacienteUtils;
 import br.gov.ses.fillbpai.util.TimeUtils;
 import br.gov.ses.fillbpai.util.VigenciaLayoutUtils;
 import org.apache.poi.ss.usermodel.*;
@@ -305,6 +306,15 @@ public class ValidacaoPlanilhaService {
 		} else {
 			try {
 				java.time.LocalDate dataLida = DateUtils.parse(data);
+				// Data futura ou muito antiga (recomendação 4, 19/10/2026): AVISO —
+				// em geral ano digitado errado, que muda a competência
+				String foraDoEsperado = DateUtils.dataAtendimentoForaDoEsperado(dataLida, DateUtils.hoje());
+				if (foraDoEsperado != null) {
+					erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+							ErroValidacao.DATA_FORA_DO_ESPERADO,
+							DateUtils.mensagemDataForaDoEsperado(dataLida, foraDoEsperado),
+							DateUtils.formatar(dataLida) + " — " + foraDoEsperado));
+				}
 				// Célula que mostra só dia e mês: o Excel completou o ano. AVISO
 				// (decisão de 14/10/2026) — a coluna pode estar só formatada sem o ano
 				if (dto.isDataAgendamentoSemAno()) {
@@ -336,6 +346,29 @@ public class ValidacaoPlanilhaService {
 					ErroValidacao.PACIENTE_AUSENTE, "Nome do paciente nao informado",
 					"Paciente: (sem nome) — CPF " + (dto.getCpfPaciente() == null || dto.getCpfPaciente().isBlank()
 							? "não informado" : dto.getCpfPaciente().trim())));
+		}
+
+		// Nome do paciente (recomendações 29 e 30, 19/10/2026): AVISOS — nome
+		// que passa de 30 caracteres (mostra como sai no BPA-I) e nome que parece
+		// não ser um nome completo (números, símbolos, uma palavra só, RN)
+		String nomePadronizado = NomePacienteUtils.padronizar(dto.getPaciente());
+		String nomeCortado = NomePacienteUtils.cortadoNoBpa(nomePadronizado);
+
+		if (nomeCortado != null) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.NOME_PACIENTE_LONGO,
+					"Nome do paciente com " + nomePadronizado.length() + " caracteres - no BPA-I sai \"" + nomeCortado
+							+ "\" (maximo 30); abrevie na planilha se preferir",
+					"\"" + nomePadronizado + "\" → \"" + nomeCortado + "\""));
+		}
+
+		String nomeSuspeito = NomePacienteUtils.motivoSuspeito(nomePadronizado);
+
+		if (nomeSuspeito != null) {
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.NOME_PACIENTE_SUSPEITO,
+					"Nome do paciente \"" + nomePadronizado + "\" " + nomeSuspeito + " - confira na planilha",
+					"\"" + nomePadronizado + "\" — " + nomeSuspeito));
 		}
 
 		String nascimento = dto.getDataNascimentoString();
@@ -502,8 +535,9 @@ public class ValidacaoPlanilhaService {
 
 		// -------------------------------------------------------
 		// Regra 1: CNS do paciente
-		// - Ausente → sem aviso (Decisão 13); < 15 dígitos → AVISO, não bloqueia
-		// - > 15 dígitos (formato legado) → AVISO, não bloqueia
+		// - Ausente → sem aviso (Decisão 13)
+		// - Sem 15 dígitos (a menos ou a mais) → AVISO CNS_INVALIDO, não é gravado
+		//   (recomendação 26, 19/10/2026 — o de mais dígitos era CNS_INCOMUM)
 		// -------------------------------------------------------
 		String cnsNormalizado = CnsUtils.normalizar(dto.getCnsPaciente());
 
@@ -518,25 +552,18 @@ public class ValidacaoPlanilhaService {
 			// CNS vazio com CPF: sem aviso (Decisão 13, 16/10/2026) — o CNS só vai
 			// para o BPA-I quando o paciente não tem CPF. CPF vazio sem "Paciente
 			// sem CPF" = Sim já é CPF_AUSENTE.
-		} else if (cnsNormalizado.length() < 15) {
+		} else if (cnsNormalizado.length() != 15) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_INVALIDO,
-					"CNS inválido (apenas " + cnsNormalizado.length()
-							+ " dígitos, mínimo 15) — registrado com aviso (CNS_INVALIDO)",
+					CnsUtils.mensagemTamanhoInvalido(cnsNormalizado),
 					paciente + " — " + cnsNormalizado));
-		} else if (cnsNormalizado.length() == 15 && !CnsUtils.isDvValido(cnsNormalizado)) {
+		} else if (!CnsUtils.isDvValido(cnsNormalizado)) {
 			// Dígito verificador errado (recomendação 25): AVISO — com CPF o CNS
 			// não vai para o BPA-I; paciente sem CPF é ERRO na Regra 3
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CNS_DV_INVALIDO,
 					"CNS do paciente com digito verificador invalido: " + cnsNormalizado
 							+ " - confira se algum digito foi digitado errado",
-					paciente + " — " + cnsNormalizado));
-		} else if (cnsNormalizado.length() > 15) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-					ErroValidacao.CNS_INCOMUM,
-					"CNS com formato incomum (" + cnsNormalizado.length()
-							+ " dígitos, esperado 15): " + cnsNormalizado,
 					paciente + " — " + cnsNormalizado));
 		}
 
@@ -1112,20 +1139,34 @@ public class ValidacaoPlanilhaService {
 		}
 	}
 
-	/** Acumula o nome do paciente por CPF (só CPF válido; paciente sem CPF usa chave do próprio nome). */
+	/**
+	 * Acumula o nome do paciente pelo documento que o identifica: CPF válido, ou
+	 * o CNS válido do paciente sem CPF (chave do cadastro — recomendação 68).
+	 */
 	private static void registrarNomePaciente(LinhaImportacaoDTO dto, int linha,
 			Map<String, Map<String, NomePaciente>> nomesPorCpf) {
 
 		String cpf = dto.getCpfPaciente();
 		String nome = dto.getPaciente();
 
-		if (cpf == null || nome == null || nome.isBlank() || !CpfUtils.isValido(cpf)) {
+		if (nome == null || nome.isBlank()) {
+			return;
+		}
+
+		String documento;
+
+		if (cpf != null && CpfUtils.isValido(cpf)) {
+			documento = "CPF " + CpfUtils.normalizar(cpf);
+		} else if ((cpf == null || cpf.isBlank()) && "S".equals(SimNaoUtils.normalizar(dto.getPacienteSemCpf()))
+				&& CpfUtils.chaveSemCpfPorCns(dto.getCnsPaciente()) != null) {
+			documento = "CNS " + dto.getCnsPaciente().replaceAll("[^0-9]", "");
+		} else {
 			return;
 		}
 
 		String nomeFinal = nome.trim().replaceAll("\\s+", " ");
 
-		nomesPorCpf.computeIfAbsent(CpfUtils.normalizar(cpf), k -> new LinkedHashMap<>())
+		nomesPorCpf.computeIfAbsent(documento, k -> new LinkedHashMap<>())
 				.computeIfAbsent(TextoUtils.chaveNome(nomeFinal), k -> new NomePaciente(nomeFinal))
 				.linhas.add(linha);
 	}
@@ -1140,10 +1181,13 @@ public class ValidacaoPlanilhaService {
 
 		for (Map.Entry<String, Map<String, NomePaciente>> entrada : nomesPorCpf.entrySet()) {
 
-			String cpf = entrada.getKey();
+			// "CPF 123…" ou "CNS 700…" (paciente sem CPF)
+			String documento = entrada.getKey();
+			boolean porCns = documento.startsWith("CNS ");
 			Map<String, NomePaciente> nomes = entrada.getValue();
 
-			String nomeNoBanco = buscarNomePacienteNoBanco(cpf);
+			String nomeNoBanco = buscarNomePacienteNoBanco(porCns
+					? CpfUtils.chaveSemCpfPorCns(documento.substring(4)) : documento.substring(4));
 			boolean difereDoBanco = nomeNoBanco != null && !nomeNoBanco.isBlank()
 					&& !nomes.containsKey(TextoUtils.chaveNome(nomeNoBanco));
 
@@ -1161,10 +1205,12 @@ public class ValidacaoPlanilhaService {
 				partes.add("\"" + nomeNoBanco.trim() + "\" (já cadastrado)");
 			}
 
-			String valor = "CPF " + cpf + " — " + String.join(" × ", partes);
-			String detalhe = "O mesmo CPF de paciente aparece com nomes diferentes: " + String.join(" × ", partes)
-					+ ". O CPF identifica o paciente: será gravado um só cadastro, com o nome da última linha"
-					+ " importada. Confira na planilha se o CPF ou o nome está digitado errado";
+			String tipoDocumento = porCns ? "CNS" : "CPF";
+			String valor = documento + " — " + String.join(" × ", partes);
+			String detalhe = "O mesmo " + tipoDocumento + " de paciente aparece com nomes diferentes: "
+					+ String.join(" × ", partes) + ". O " + tipoDocumento + " identifica o paciente: será gravado"
+					+ " um só cadastro, com o nome da última linha importada. Confira na planilha se o "
+					+ tipoDocumento + " ou o nome está digitado errado";
 
 			for (NomePaciente nome : nomes.values()) {
 				for (int linha : nome.linhas) {

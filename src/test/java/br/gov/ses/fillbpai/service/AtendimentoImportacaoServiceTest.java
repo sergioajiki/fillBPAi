@@ -195,7 +195,7 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(resultado.getTotalSucesso()).isEqualTo(3);
 		assertThat(resultado.getAvisos()).filteredOn(a -> a.contains("CPF_COM_NOMES_DIFERENTES"))
 				.singleElement().satisfies(a -> assertThat(a).startsWith("Linha 4")
-						.contains("Maria  Sílva", "JOSE SOUZA"));
+						.contains("MARIA SÍLVA", "JOSE SOUZA")); // nome padronizado (recomendação 29)
 		assertThat(atendimentoRepository.buscarTodos()).extracting(a -> a.getPaciente().getNome())
 				.containsOnly("JOSE SOUZA");
 	}
@@ -310,6 +310,37 @@ class AtendimentoImportacaoServiceTest {
 		assertThat(contarEstabelecimentos()).isZero();
 	}
 
+	@Test
+	void reimportarSemCnsOuComCnsInvalidoMantemOCnsJaCadastrado() throws IOException {
+		// Recomendação 27 (19/10/2026)
+		String[] comCns = linhaValida("12345678909", "MARIA SILVA", "98765432100", "JOAO DA SILVA", "CARDIOLOGIA");
+		String[] semCns = comCns.clone();
+		semCns[11] = null;
+		semCns[2] = "09:30";
+		String[] cnsCurto = comCns.clone();
+		cnsCurto[11] = "12345";
+		cnsCurto[2] = "10:30";
+		String[] cnsDvErrado = comCns.clone();
+		cnsDvErrado[11] = "700207960618528";
+		cnsDvErrado[2] = "11:30";
+
+		service.importar(salvarPlanilha(CABECALHO_COMPLETO, comCns, semCns, cnsCurto, cnsDvErrado));
+
+		entityManager.clear();
+		assertThat(new br.gov.ses.fillbpai.repository.PacienteRepository(entityManager).buscarPorCpf("12345678909"))
+				.get().extracting(br.gov.ses.fillbpai.model.Paciente::getCns).isEqualTo("700207960618529");
+	}
+
+	@Test
+	void deveTrocarCnsSoQuandoALinhaTrazUmCnsNaoPiorQueOGravado() {
+		assertThat(AtendimentoImportacaoService.deveTrocarCns("700207960618529", null)).isFalse();
+		assertThat(AtendimentoImportacaoService.deveTrocarCns("700207960618529", "")).isFalse();
+		assertThat(AtendimentoImportacaoService.deveTrocarCns("700207960618529", "700207960618528")).isFalse();
+		assertThat(AtendimentoImportacaoService.deveTrocarCns("700207960618529", "700207960611001")).isTrue();
+		assertThat(AtendimentoImportacaoService.deveTrocarCns(null, "700207960618528")).isTrue();
+		assertThat(AtendimentoImportacaoService.deveTrocarCns("700207960618528", "700207960618529")).isTrue();
+	}
+
 	// ===== Paciente sem CPF =====
 
 	@Test
@@ -332,6 +363,87 @@ class AtendimentoImportacaoServiceTest {
 			assertThat(br.gov.ses.fillbpai.util.CpfUtils.isChaveSemCpf(a.getPaciente().getCpf())).isTrue();
 			assertThat(a.getPacienteSemCpf()).isEqualTo("S");
 		});
+	}
+
+	/** Linha de paciente sem CPF ("Paciente sem CPF" = Sim), com nome, CNS e horário dados. */
+	private String[] linhaSemCpf(String nome, String cns, String hora) {
+		String[] linha = java.util.Arrays.copyOf(
+				linhaValida(null, nome, "98765432100", "JOAO DA SILVA", "CARDIOLOGIA"),
+				CABECALHO_COMPLETO.length + 1);
+		linha[2] = hora;
+		linha[11] = cns;
+		linha[CABECALHO_COMPLETO.length] = "Sim";
+		return linha;
+	}
+
+	private String[] cabecalhoSemCpf() {
+		String[] cabecalho = java.util.Arrays.copyOf(CABECALHO_COMPLETO, CABECALHO_COMPLETO.length + 1);
+		cabecalho[CABECALHO_COMPLETO.length] = "Paciente sem CPF";
+		return cabecalho;
+	}
+
+	@Test
+	void importarPacienteSemCpfUsaOCnsComoChave() throws IOException {
+		// Recomendação 68 (19/10/2026): homônimos com CNS diferentes = dois pacientes;
+		// a mesma pessoa com grafias diferentes (mesmo CNS) = um paciente, com aviso
+		ImportacaoResultado resultado = service.importar(salvarPlanilha(cabecalhoSemCpf(),
+				linhaSemCpf("MARIA SILVA", "700207960618529", "08:30"),
+				linhaSemCpf("MARIA SILVA", "700207960611001", "09:30"),
+				linhaSemCpf("MARIA SYLVA", "700207960618529", "10:30")));
+
+		assertThat(resultado.getTotalSucesso()).isEqualTo(3);
+		entityManager.clear();
+		assertThat(atendimentoRepository.buscarTodos()).extracting(a -> a.getPaciente().getCpf())
+				.containsOnly(br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpfPorCns("700207960618529"),
+						br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpfPorCns("700207960611001"))
+				.hasSize(3);
+		assertThat(contarPacientes()).isEqualTo(2);
+		assertThat(resultado.getAvisos()).filteredOn(a -> a.contains("CPF_COM_NOMES_DIFERENTES"))
+				.singleElement().satisfies(a -> assertThat(a).startsWith("Linha 4").contains("CNS 700207960618529"));
+	}
+
+	@Test
+	void importarPacienteSemCpfMigraAChaveAntigaSemDuplicar() throws IOException {
+		// Paciente gravado antes da recomendação 68, com a chave nome + nascimento
+		br.gov.ses.fillbpai.model.Paciente antigo = new br.gov.ses.fillbpai.model.Paciente();
+		antigo.setCpf(br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpf("MARIA SILVA", LocalDate.of(1990, 1, 1)));
+		antigo.setNome("MARIA SILVA");
+		antigo.setCns("700207960618529");
+		entityManager.getTransaction().begin();
+		entityManager.persist(antigo);
+		entityManager.getTransaction().commit();
+		entityManager.clear();
+
+		service.importar(salvarPlanilha(cabecalhoSemCpf(), linhaSemCpf("MARIA SILVA", "700207960618529", "08:30")));
+
+		entityManager.clear();
+		assertThat(contarPacientes()).isEqualTo(1);
+		assertThat(atendimentoRepository.buscarTodos()).singleElement().satisfies(a -> assertThat(a.getPaciente()
+				.getCpf()).isEqualTo(br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpfPorCns("700207960618529")));
+	}
+
+	@Test
+	void importarHomonimoComCnsDiferenteNaoHerdaOPacienteDaChaveAntiga() throws IOException {
+		br.gov.ses.fillbpai.model.Paciente antigo = new br.gov.ses.fillbpai.model.Paciente();
+		String chaveAntiga = br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpf("MARIA SILVA", LocalDate.of(1990, 1, 1));
+		antigo.setCpf(chaveAntiga);
+		antigo.setNome("MARIA SILVA");
+		antigo.setCns("700207960611001");
+		entityManager.getTransaction().begin();
+		entityManager.persist(antigo);
+		entityManager.getTransaction().commit();
+		entityManager.clear();
+
+		service.importar(salvarPlanilha(cabecalhoSemCpf(), linhaSemCpf("MARIA SILVA", "700207960618529", "08:30")));
+
+		entityManager.clear();
+		assertThat(contarPacientes()).isEqualTo(2);
+		assertThat(new br.gov.ses.fillbpai.repository.PacienteRepository(entityManager).buscarPorCpf(chaveAntiga))
+				.isPresent();
+	}
+
+	private long contarPacientes() {
+		return (long) entityManager.createQuery("SELECT COUNT(p) FROM Paciente p").getSingleResult();
 	}
 
 	// ===== Município / IBGE =====

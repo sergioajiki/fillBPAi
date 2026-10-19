@@ -621,17 +621,19 @@ class AtendimentoProcessorTest {
 		List<String> avisos = processor.processar(dto);
 
 		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("CNS_INVALIDO"));
-		assertThat(dto.getCnsPaciente()).isEqualTo("123");
+		assertThat(dto.getCnsPaciente()).isEmpty(); // não grava CNS sem 15 dígitos (recomendação 26)
 	}
 
 	@Test
-	void processarComCnsLongoGeraAvisoDeFormatoIncomumMasNaoBloqueia() {
+	void processarComCnsLongoGeraAvisoDeCnsInvalidoENaoGravaOValor() {
 		LinhaImportacaoDTO dto = dtoValido();
 		dto.setCnsPaciente("7000094731924063");
 
 		List<String> avisos = processor.processar(dto);
 
-		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("formato incomum"));
+		// Recomendação 26 (19/10/2026)
+		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("CNS_INVALIDO", "16 dígitos"));
+		assertThat(dto.getCnsPaciente()).isEmpty();
 	}
 
 	// ===== RAÇA INDÍGENA: etnia obrigatória (erro, decisão de 13/10/2026) =====
@@ -1018,5 +1020,29 @@ class AtendimentoProcessorTest {
 
 		assertThat(processor.processar(dto)).noneMatch(a -> a.contains("CNS"));
 		assertThat(dto.getCnsPaciente()).isEmpty();
+	}
+
+	@Test
+	void processarDataDeAtendimentoFuturaGeraAvisoMasImporta() {
+		// Recomendação 4 (19/10/2026)
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setDataAgendamentoString("05/03/2062");
+
+		assertThat(processor.processar(dto))
+				.anySatisfy(a -> assertThat(a).contains("05/03/2062 futura", "DATA_FORA_DO_ESPERADO"));
+		assertThat(dto.getDataAgendamento()).isEqualTo(java.time.LocalDate.of(2062, 3, 5));
+	}
+
+	@Test
+	void processarPadronizaONomeEAvisaNomeLongoOuSuspeito() {
+		// Recomendações 29 e 30 (19/10/2026)
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setPaciente("  RN de Maria Aparecida dos Santos  Oliveira ");
+
+		List<String> avisos = processor.processar(dto);
+
+		assertThat(dto.getPaciente()).isEqualTo("RN DE MARIA APARECIDA DOS SANTOS OLIVEIRA");
+		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("NOME_PACIENTE_LONGO", "\"RN DE MARIA APARECIDA DOS SANT\""));
+		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("NOME_PACIENTE_SUSPEITO", "recém-nascido sem nome"));
 	}
 }

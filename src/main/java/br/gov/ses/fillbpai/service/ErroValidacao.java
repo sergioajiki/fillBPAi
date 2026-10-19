@@ -90,9 +90,6 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CPF do médico presente mas com tamanho incorreto (diferente de 11 dígitos após normalização) — ERRO bloqueante */
 	public static final String CPF_MEDICO_INVALIDO = "CPF_MEDICO_INVALIDO";
 
-	/** CNS do paciente com mais de 15 dígitos (formato incomum) — AVISO, não bloqueia */
-	public static final String CNS_INCOMUM = "CNS_INCOMUM";
-
 	/** Raça Indígena sem etnia — o BPA-I exige a etnia para raça 05 (decisão de 13/10/2026) — ERRO bloqueante */
 	public static final String RACA_INDIGENA = "RACA_INDIGENA";
 
@@ -227,6 +224,15 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 
 	/** Mesmo CPF de paciente com nomes diferentes (na planilha ou em relação ao cadastro) — um só paciente é gravado. AVISO (Decisão 12, 16/10/2026). */
 	public static final String CPF_COM_NOMES_DIFERENTES = "CPF_COM_NOMES_DIFERENTES";
+
+	/** Data do atendimento futura ou com mais de 2 anos — provável erro no ano, que muda a competência. AVISO (recomendação 4, 19/10/2026). */
+	public static final String DATA_FORA_DO_ESPERADO = "DATA_FORA_DO_ESPERADO";
+
+	/** Nome do paciente com mais de 30 caracteres — cortado no BPA-I. AVISO (recomendação 29, 19/10/2026). */
+	public static final String NOME_PACIENTE_LONGO = "NOME_PACIENTE_LONGO";
+
+	/** Nome do paciente com números, símbolos, uma palavra só ou "RN" (recém-nascido). AVISO (recomendação 30, 19/10/2026). */
+	public static final String NOME_PACIENTE_SUSPEITO = "NOME_PACIENTE_SUSPEITO";
 
 	/** Retorna true se este registro é bloqueante para a importação. */
 	public boolean isBloqueante() {

@@ -85,4 +85,18 @@ class CpfUtilsTest {
 		assertThat(CpfUtils.isChaveSemCpf("12345678909")).isFalse();
 		assertThat(CpfUtils.isChaveSemCpf(null)).isFalse();
 	}
+
+	@Test
+	void chaveSemCpfPorCnsCabeNaColunaEDistingueCadaCns() {
+		// Recomendação 68 (19/10/2026)
+		String chave = CpfUtils.chaveSemCpfPorCns("700 2079 6061 8529");
+
+		assertThat(chave).hasSize(14).startsWith("SC");
+		assertThat(CpfUtils.isChaveSemCpf(chave)).isTrue();
+		assertThat(chave).isEqualTo(CpfUtils.chaveSemCpfPorCns("700207960618529"));
+		assertThat(chave).isNotEqualTo(CpfUtils.chaveSemCpfPorCns("700207960611001"));
+		assertThat(CpfUtils.chaveSemCpfPorCns("999999999999999")).hasSize(14);
+		assertThat(CpfUtils.chaveSemCpfPorCns("70020796061852")).isNull();
+		assertThat(CpfUtils.chaveSemCpfPorCns(null)).isNull();
+	}
 }

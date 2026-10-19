@@ -83,4 +83,25 @@ class DateUtilsTest {
 		assertThat(DateUtils.incoerenciaNascimento(LocalDate.of(1990, 1, 1), atendimento)).isNull();
 		assertThat(DateUtils.incoerenciaNascimento(atendimento, atendimento)).isNull(); // recém-nascido
 	}
+
+	// ===== Data do atendimento fora do esperado (recomendação 4, 19/10/2026) =====
+
+	@Test
+	void dataAtendimentoForaDoEsperadoAvisaFuturaEComMaisDeDoisAnos() {
+		java.time.LocalDate hoje = java.time.LocalDate.of(2026, 10, 19);
+
+		assertThat(DateUtils.dataAtendimentoForaDoEsperado(java.time.LocalDate.of(2026, 10, 20), hoje)).isEqualTo("futura");
+		assertThat(DateUtils.dataAtendimentoForaDoEsperado(java.time.LocalDate.of(2062, 10, 1), hoje)).isEqualTo("futura");
+		assertThat(DateUtils.dataAtendimentoForaDoEsperado(java.time.LocalDate.of(2024, 10, 18), hoje))
+				.isEqualTo("com mais de 2 anos");
+		assertThat(DateUtils.dataAtendimentoForaDoEsperado(java.time.LocalDate.of(2024, 10, 19), hoje)).isNull();
+		assertThat(DateUtils.dataAtendimentoForaDoEsperado(hoje, hoje)).isNull();
+		assertThat(DateUtils.dataAtendimentoForaDoEsperado(null, hoje)).isNull();
+	}
+
+	@Test
+	void mensagemDataForaDoEsperadoMostraADataEACompetencia() {
+		assertThat(DateUtils.mensagemDataForaDoEsperado(java.time.LocalDate.of(2062, 3, 5), "futura"))
+				.contains("05/03/2062 futura", "confira se o ano", "competência 03/2062");
+	}
 }
