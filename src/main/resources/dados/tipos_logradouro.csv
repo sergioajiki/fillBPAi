@@ -18,7 +18,8 @@ codigo;nome
 020;CONJUNTO
 021;COLÔNIA
 022;CORREDOR
-023;CAMPO
+# 023 (Campo) desativado em 19/10/2026 — para reativar, tire o # da linha abaixo
+#023;CAMPO
 024;CÓRREGO
 027;DESVIO
 028;DISTRITO

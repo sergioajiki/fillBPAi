@@ -302,11 +302,11 @@ public final class AgrupamentoValidacao {
 							+ " Com mais de um telefone na célula, vale o primeiro.", 27)),
 			Map.entry(ErroValidacao.CID_AUSENTE, new InfoTipo(
 					"CID da consulta não informado",
-					"O BPA-I será gerado com o CID em branco. Preencha o CID se o procedimento exigir.", 26)),
+					"CID vazio ou só com traço (\"-\" = sem CID). O BPA-I será gerado com o CID em branco. Preencha o"
+							+ " CID se o procedimento exigir.", 26)),
 			Map.entry(ErroValidacao.CNS_INVALIDO, new InfoTipo(
 					"CNS do paciente sem 15 dígitos",
-					"O CNS tem 15 dígitos: com menos ou mais, o valor não é gravado (o CNS que o paciente já tem"
-							+ " no cadastro é mantido). Não impede a importação.", 30)),
+					"O CNS deve ter 15 dígitos, com menos ou mais, o valor não é gravado.", 30)),
 			Map.entry(ErroValidacao.CNS_DV_INVALIDO, new InfoTipo(
 					"CNS do paciente com dígito verificador inválido",
 					"O CNS tem 15 dígitos, mas o dígito verificador não confere — provavelmente um dígito foi"

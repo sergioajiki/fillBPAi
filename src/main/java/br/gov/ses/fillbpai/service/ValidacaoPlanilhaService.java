@@ -493,6 +493,11 @@ public class ValidacaoPlanilhaService {
 		if (cid == null || cid.isBlank()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.CID_AUSENTE, "CID da consulta nao informado", paciente));
+		} else if (CidUtils.isSemCid(cid)) {
+			// "-" = sem CID (19/10/2026): mesmo aviso do CID vazio, CID em branco no BPA-I
+			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
+					ErroValidacao.CID_AUSENTE, "CID da consulta informado como \"" + cid.trim()
+							+ "\" (sem CID) - o BPA-I sera gerado com o CID em branco", paciente));
 		} else if (CidUtils.extrair(cid) == null) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.ERRO,
 					ErroValidacao.CID_INVALIDO,

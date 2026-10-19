@@ -17,7 +17,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Tipo de logradouro do BPA-I (seq 30, {@code prd_lograd_pcnte}) pela tabela
  * oficial de tipos de logradouro do DNE ({@code dados/tipos_logradouro.csv},
- * 393 tipos, código de 3 dígitos — fornecida pelo usuário em 15/10/2026).
+ * 393 tipos, código de 3 dígitos — fornecida pelo usuário em 15/10/2026; linhas com # são
+ * comentário: 023 Campo desativado em 19/10/2026).
  * <p>
  * Dois usos:
  * <ul>
@@ -172,7 +173,8 @@ public class LogradouroUtils {
 				BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
 				String linha;
 				while ((linha = reader.readLine()) != null) {
-					if (linha.isBlank() || linha.startsWith("codigo")) {
+					// Linha com # = comentário (tipo desativado, ex.: 023 Campo, 19/10/2026)
+					if (linha.isBlank() || linha.startsWith("codigo") || linha.startsWith("#")) {
 						continue;
 					}
 					String[] partes = linha.split(";", 2);

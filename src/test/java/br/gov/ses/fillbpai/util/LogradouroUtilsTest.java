@@ -113,4 +113,15 @@ class LogradouroUtilsTest {
 		assertThat(LogradouroUtils.isColunaNaoReconhecida("")).isFalse();
 		assertThat(LogradouroUtils.isColunaNaoReconhecida(null)).isFalse();
 	}
+
+	@Test
+	void campoDesativadoNaoEReconhecidoComoTipoDeLogradouro() {
+		// 023 (Campo) comentado na tabela em 19/10/2026: "Campo ..." fica no endereço
+		LogradouroUtils.LogradouroResultado resultado = LogradouroUtils.resolver("Campo dos Bandeirantes");
+
+		assertThat(resultado.getCodLogradouro()).isNotEqualTo("023");
+		assertThat(resultado.getEndereco()).isEqualTo("Campo dos Bandeirantes");
+		assertThat(LogradouroUtils.codigoDaColuna("023")).isNull();
+		assertThat(LogradouroUtils.codigoDaColuna("Campo")).isNull();
+	}
 }

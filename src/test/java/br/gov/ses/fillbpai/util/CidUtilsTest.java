@@ -47,4 +47,17 @@ class CidUtilsTest {
 		assertThat(CidUtils.motivoInvalido("I10, E11")).contains("mais de um CID");
 		assertThat(CidUtils.motivoInvalido("Hipertensão")).contains("nenhum código CID-10");
 	}
+
+	@Test
+	void isSemCidReconheceSoTraco() {
+		// 19/10/2026: "-" = sem CID — aviso e CID em branco, não erro
+		assertThat(CidUtils.isSemCid("-")).isTrue();
+		assertThat(CidUtils.isSemCid(" -- ")).isTrue();
+		assertThat(CidUtils.isSemCid("—")).isTrue();
+		assertThat(CidUtils.isSemCid("–")).isTrue();
+		assertThat(CidUtils.isSemCid("I10")).isFalse();
+		assertThat(CidUtils.isSemCid("Hipertensão")).isFalse();
+		assertThat(CidUtils.isSemCid("")).isFalse();
+		assertThat(CidUtils.isSemCid(null)).isFalse();
+	}
 }

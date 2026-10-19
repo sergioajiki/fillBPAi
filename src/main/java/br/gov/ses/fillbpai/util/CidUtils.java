@@ -61,6 +61,16 @@ public class CidUtils {
 		return codigos.size() == 1 ? codigos.get(0) : null;
 	}
 
+	/**
+	 * {@code true} quando a célula só tem traço ({@code -}, {@code --},
+	 * {@code –}, {@code —}): forma usada nas planilhas para "sem CID". Tratado
+	 * como CID não informado — aviso, e o BPA-I sai com o CID em branco, como
+	 * o layout permite (19/10/2026; antes era CID_INVALIDO e bloqueava).
+	 */
+	public static boolean isSemCid(String celula) {
+		return celula != null && celula.trim().matches("[-–—]+");
+	}
+
 	/** Motivo de a célula preenchida não ter um CID aceito — para as mensagens de erro. */
 	public static String motivoInvalido(String celula) {
 		return codigos(celula).size() > 1

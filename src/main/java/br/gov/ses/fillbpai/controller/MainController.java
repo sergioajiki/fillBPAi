@@ -363,52 +363,89 @@ public class MainController {
 	}
 
 	/**
-	 * Monta o banner de aviso de "formato de planilha legado" (coluna
-	 * "Especialidade/Médico" combinada) — mesmas cores usadas nos runbooks do
-	 * projeto (accent verde), conforme mockup validado antes da implementação.
+	 * Monta o bloco de "formato de planilha legado" (coluna
+	 * "Especialidade/Médico" combinada), no formato de {@link #criarBlocoInformativo}.
 	 */
 	private VBox criarBannerFormatoLegado(ErroValidacao aviso) {
 
-		Label kicker = new Label("⚠ Formato de planilha legado detectado");
-		kicker.setStyle("-fx-font-weight: bold; -fx-text-fill: #2F6F5E;");
-
-		// setWrapText só quebra linha se a largura for limitada — sem o limite o
-		// Label cresce para caber o texto inteiro numa linha só, e o diálogo
-		// (que se ajusta ao conteúdo) ultrapassa a tela.
-		Label texto = labelQuebrado(aviso.detalhe());
-
-		VBox banner = new VBox(6, kicker, texto);
-		banner.setMaxWidth(Double.MAX_VALUE);
-		banner.setPadding(new Insets(12, 14, 12, 14));
-		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
-				+ "-fx-border-width: 0 0 0 3; -fx-background-radius: 6; -fx-border-radius: 6;");
-
-		return banner;
+		// Mesmo formato dos blocos de erros/avisos e do de colunas opcionais (19/10/2026)
+		return criarBlocoInformativo(
+				"ℹ FORMATO DE PLANILHA LEGADO DETECTADO — não impede a importação",
+				List.of(java.util.Map.entry("Coluna \"Especialidade/Médico\" combinada", aviso.detalhe())));
 	}
 
 	/**
-	 * Monta o banner de aviso "colunas opcionais não encontradas" — mesmo
-	 * estilo visual do banner de formato legado ({@link #criarBannerFormatoLegado}),
-	 * mas com um item de lista por coluna ausente, já que pode haver mais de
-	 * uma ao mesmo tempo (ex.: COD_LOGRADOURO e SITUACAO_RUA).
+	 * Bloco informativo verde no formato de {@link #criarBlocoSeveridade}:
+	 * faixa de cabeçalho colorida e corpo com borda, com um {@code TitledPane}
+	 * aberto por item (título → texto em itálico). Usado pelos blocos de
+	 * formato legado e de colunas opcionais não encontradas. Verde para não se
+	 * confundir com erro (vermelho) nem aviso (âmbar).
+	 */
+	private VBox criarBlocoInformativo(String cabecalho, List<java.util.Map.Entry<String, String>> itens) {
+
+		String corForte = "#2F6F5E";
+		String corSuave = "#DCEAE4";
+
+		Label header = new Label(cabecalho);
+		header.setMaxWidth(Double.MAX_VALUE);
+		header.setStyle(
+				"-fx-background-color: " + corSuave + "; -fx-text-fill: " + corForte + "; "
+						+ "-fx-font-weight: bold; -fx-padding: 7 12 7 12; "
+						+ "-fx-background-radius: 6 6 0 0;");
+
+		VBox lista = new VBox(6);
+
+		for (java.util.Map.Entry<String, String> item : itens) {
+
+			// setWrapText só quebra linha se a largura for limitada (labelQuebrado) —
+			// sem o limite o diálogo, que se ajusta ao conteúdo, ultrapassa a tela.
+			Label texto = labelQuebrado(item.getValue());
+			texto.setStyle("-fx-text-fill: #57645C; -fx-font-style: italic;");
+
+			TitledPane painel = new TitledPane(item.getKey(), new VBox(6, texto));
+			painel.setAnimated(false);
+			painel.setExpanded(true);
+			lista.getChildren().add(painel);
+		}
+
+		VBox corpo = new VBox(8, lista);
+		corpo.setPadding(new Insets(8));
+		corpo.setStyle(
+				"-fx-border-color: " + corForte + "; -fx-border-width: 1; "
+						+ "-fx-border-radius: 0 0 6 6; -fx-background-radius: 0 0 6 6;");
+
+		return new VBox(0, header, corpo);
+	}
+
+	/**
+	 * Monta o bloco "colunas opcionais não encontradas" no mesmo estilo dos
+	 * blocos de erros e avisos ({@link #criarBlocoSeveridade}, 19/10/2026):
+	 * faixa de cabeçalho colorida e, abaixo, um corpo com borda e um
+	 * {@code TitledPane} por coluna ausente (título = nome da coluna, conteúdo
+	 * = o que o sistema faz sem ela). Cor verde, para não se confundir com erro
+	 * (vermelho) nem aviso (âmbar). Todos abertos: são poucos e curtos.
 	 */
 	private VBox criarBannerColunasOpcionaisAusentes(List<ErroValidacao> avisos) {
 
-		Label kicker = new Label("⚠ Colunas opcionais não encontradas");
-		kicker.setStyle("-fx-font-weight: bold; -fx-text-fill: #2F6F5E;");
+		List<java.util.Map.Entry<String, String>> itens = new java.util.ArrayList<>();
 
-		VBox itens = new VBox(4);
 		for (ErroValidacao aviso : avisos) {
-			itens.getChildren().add(labelQuebrado("•  " + aviso.detalhe()));
+
+			// Detalhe: 'Coluna "X" não encontrada no cabeçalho — <o que acontece>'
+			java.util.regex.Matcher nome = java.util.regex.Pattern.compile("\"([^\"]+)\"").matcher(aviso.detalhe());
+			String titulo = nome.find() ? "Coluna \"" + nome.group(1) + "\"" : "Coluna opcional";
+
+			int separador = aviso.detalhe().indexOf(" — ");
+			String explicacao = separador >= 0 ? aviso.detalhe().substring(separador + 3) : aviso.detalhe();
+			if (!explicacao.isEmpty()) {
+				explicacao = Character.toUpperCase(explicacao.charAt(0)) + explicacao.substring(1);
+			}
+
+			itens.add(java.util.Map.entry(titulo, explicacao));
 		}
 
-		VBox banner = new VBox(6, kicker, itens);
-		banner.setMaxWidth(Double.MAX_VALUE);
-		banner.setPadding(new Insets(12, 14, 12, 14));
-		banner.setStyle("-fx-background-color: #DCEAE4; -fx-border-color: #2F6F5E; "
-				+ "-fx-border-width: 0 0 0 3; -fx-background-radius: 6; -fx-border-radius: 6;");
-
-		return banner;
+		return criarBlocoInformativo(
+				"ℹ COLUNAS OPCIONAIS NÃO ENCONTRADAS — não impedem a importação (" + avisos.size() + ")", itens);
 	}
 
 	/**
@@ -749,11 +786,13 @@ public class MainController {
 
 		VBox layout = new VBox(10);
 
+		// Ordem (19/10/2026): erros (o que bloqueia) → colunas opcionais (contexto
+		// da planilha inteira) → avisos (lista mais longa e menos urgente)
+		layout.getChildren().add(blocoErros);
+
 		if (!avisosColunaOpcional.isEmpty()) {
 			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
 		}
-
-		layout.getChildren().add(blocoErros);
 
 		if (!naoBloqueantes.isEmpty()) {
 			VBox blocoAvisos = criarBlocoSeveridade(

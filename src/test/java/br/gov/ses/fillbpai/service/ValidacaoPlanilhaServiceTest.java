@@ -1549,6 +1549,19 @@ class ValidacaoPlanilhaServiceTest {
 	}
 
 	@Test
+	void validarCidComTracoGeraAvisoCidAusente() throws IOException {
+		// 19/10/2026: "-" = sem CID — aviso e CID em branco no BPA-I, não erro
+		String[] linha = linhaValida();
+		linha[COL_CID] = "-";
+
+		assertThat(service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha))).singleElement().satisfies(e -> {
+			assertThat(e.tipoErro()).isEqualTo(ErroValidacao.CID_AUSENTE);
+			assertThat(e.isBloqueante()).isFalse();
+			assertThat(e.detalhe()).contains("\"-\" (sem CID)", "em branco");
+		});
+	}
+
+	@Test
 	void validarCpfComNomeDiferenteDoCadastradoNoBancoGeraAviso() throws IOException {
 		ValidacaoPlanilhaService comBanco = new ValidacaoPlanilhaService()
 				.comNomePacientePorCpf(cpf -> "12345678909".equals(cpf) ? "Ana Pereira" : null);

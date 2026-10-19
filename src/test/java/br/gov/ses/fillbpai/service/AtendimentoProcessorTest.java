@@ -1045,4 +1045,14 @@ class AtendimentoProcessorTest {
 		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("NOME_PACIENTE_LONGO", "\"RN DE MARIA APARECIDA DOS SANT\""));
 		assertThat(avisos).anySatisfy(a -> assertThat(a).contains("NOME_PACIENTE_SUSPEITO", "recém-nascido sem nome"));
 	}
+
+	@Test
+	void processarCidComTracoGeraAvisoEDeixaOCidEmBranco() {
+		// 19/10/2026: "-" = sem CID — aviso, não erro
+		LinhaImportacaoDTO dto = dtoValido();
+		dto.setCidConsulta("-");
+
+		assertThat(processor.processar(dto)).anySatisfy(a -> assertThat(a).contains("CID_AUSENTE", "\"-\" (sem CID)"));
+		assertThat(dto.getCidConsulta()).isNull();
+	}
 }

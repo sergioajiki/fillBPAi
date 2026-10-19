@@ -788,6 +788,14 @@ public class AtendimentoProcessor {
 			return avisos;
 		}
 
+		// "-" = sem CID (19/10/2026): aviso, CID em branco — mesma regra da análise
+		if (CidUtils.isSemCid(cid)) {
+			avisos.add("CID da consulta informado como \"" + cid.trim()
+					+ "\" (sem CID) (CID_AUSENTE) - o BPA-I sera gerado com o CID em branco");
+			dto.setCidConsulta(null);
+			return avisos;
+		}
+
 		String codigo = CidUtils.extrair(cid);
 
 		if (codigo == null) {
