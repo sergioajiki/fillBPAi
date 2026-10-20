@@ -55,6 +55,14 @@ Responsável por:
 
 ## Pacote `config`
 
+### `DadosUnidade`
+`src/main/java/br/gov/ses/fillbpai/config/DadosUnidade.java`
+
+Dados da unidade que envia o BPA-I — fonte única para o cabeçalho do arquivo (`GeradorBPAiService.montarHeader`), o CNES gravado nos atendimentos e a janela "Sobre" (20/10/2026). Antes os valores estavam repetidos dentro do gerador.
+
+Ainda fixos no código: para instalar em outra unidade, estes valores passarão para Configurações → Unidade (a implementar).
+
+
 ### `DatabaseInitializer`
 `src/main/java/br/gov/ses/fillbpai/config/DatabaseInitializer.java`
 
@@ -176,6 +184,22 @@ Tela principal de dados: barra "Exibir tabela" (Competência, Período, Completo
 - `carregarDoBanco(): void`
 - `atualizarCompetencia(): void` *(privado)* — Atualiza o texto do badge de competência com base nos dados carregados. Competência = yyyyMM da data de agendamento mais recente.
 - `atualizarTextoCompetencia(String texto): void` *(privado)* — Atualiza o texto do badge/botão de competência na barra inferior.
+
+### `SobreDialog`
+`src/main/java/br/gov/ses/fillbpai/ui/SobreDialog.java`
+
+Janela "Sobre o PonteBPA" (20/10/2026), aberta pelo botão "Sobre" no canto direito da barra superior: versão e data da compilação, unidade (os mesmos dados do cabeçalho do BPA-I), layout, ambiente e as pastas de dados com "Abrir pasta". "Copiar informações" copia o resumo em texto, para colar num pedido de ajuda. Os dados vêm de `SobreService`, lidos na hora em que a janela abre.
+
+**Métodos:**
+- `SobreDialog(SobreService sobreService) (construtor)`
+- `abrir(Window owner): void`
+- `criarMarca(SobreService.InformacoesSobre info): Node` *(privado)* — Logo, nome, descrição e, à direita, versão e data da compilação.
+- `criarBlocos(SobreService.InformacoesSobre info): Node` *(privado)* — Unidade à esquerda; Layout BPA-I e Ambiente à direita.
+- `criarBlocoDados(SobreService.InformacoesSobre info, Label aviso): Node` *(privado)* — Pastas de dados, cada uma com "Abrir pasta".
+- `criarRodape(SobreService.InformacoesSobre info, Alert alert): Node` *(privado)* — Licença à esquerda; "Copiar informações" e "Fechar" à direita.
+- `abrirPasta(Path pasta, Label aviso): void` *(privado)* — Abre a pasta no Explorador de Arquivos, criando-a se ainda não existir (ex.: pasta de logs antes da primeira importação). Roda fora da thread do JavaFX; falha vira um aviso na própria janela.
+- `bloco(String titulo, Node corpo): VBox` *(privado)* — Título do bloco em maiúsculas, cinza, sobre o conteúdo.
+- `tabela(Object... trincas): GridPane` *(privado)* — Pares rótulo → valor em duas colunas; trincas (rótulo, valor, monoespaçado).
 
 ---
 
@@ -451,6 +475,24 @@ A resolução de nome usa `ColunaAliasUtils`, que já combina os aliases padrão
 - `colunasSemCabecalho(Sheet sheet): List<String>` *(privado)* — Colunas com cabeçalho vazio mas com dados: "coluna E (ex.: "CARDIOLOGIA")".
 - `extrairTexto(Cell celula): String` *(privado)* — Extrai o texto de uma célula de cabeçalho, qualquer que seja o tipo.
 - record `ResultadoMapeamento( Map<String, Integer> indices, List<String> camposFaltando, List<String> camposOpcionaisFaltando, List<String> camposDuplicados, List<String> colunasNaoReconhecidas, Map<String, List<String>> colunasPorCampoDuplicado, boolean especialidadeMedicoCombinados, List<String> colunasSemCabecalho)` — Resultado do mapeamento de um cabeçalho.
+
+### `SobreService`
+`src/main/java/br/gov/ses/fillbpai/service/SobreService.java`
+
+Informações da janela "Sobre" (20/10/2026): versão e data da compilação (gravadas pelo Maven em `versao.properties`), dados da unidade e do layout (`DadosUnidade` — os mesmos do cabeçalho do BPA-I), ambiente (Java, sistema, banco) e as pastas de dados. Sem JavaFX — testável; a janela fica em `ui.SobreDialog`.
+
+**Métodos:**
+- `PastaDados(String rotulo, Path caminho): record` — Uma pasta de dados mostrada na janela, com o botão "Abrir pasta".
+- `InformacoesSobre(String versao, LocalDateTime compilado, String cnes, String orgao, String sigla, String cnpj, String layout, String versaoHeader, String java, String sistema, String banco, List<PastaDados> pastas): record` — Tudo o que a janela mostra.
+- `InformacoesSobre.compiladoFormatado(): String` — "compilado em 20/10/2026 15:10", ou vazio se a data não é conhecida.
+- `InformacoesSobre.textoParaCopiar(): String` — Texto do botão "Copiar informações", para colar num pedido de ajuda.
+- `SobreService(Path pastaLogs, Path pastaCadastros) (construtor)`
+- `carregar(): InformacoesSobre` — Lê as informações na hora em que a janela abre.
+- `valorOu(String valor, String padrao): String` — Valor gravado pelo Maven; sem filtragem fica o próprio `${...`}, tratado como ausente.
+- `dataCompilacao(String texto): LocalDateTime` — Data da compilação em UTC (`2026-10-20T19:10:00Z`) → horário local; `null` se ausente ou inválida.
+- `formatarCnpj(String cnpj): String` — "02955271000126" → "02.955.271/0001-26"; outro tamanho fica como veio.
+- record `PastaDados(String rotulo, Path caminho)` — Uma pasta de dados mostrada na janela, com o botão "Abrir pasta".
+- record `InformacoesSobre(String versao, LocalDateTime compilado, String cnes, String orgao, String sigla, String cnpj, String layout, String versaoHeader, String java, String sistema, String banco, List<PastaDados> pastas)` — Tudo o que a janela mostra.
 
 ### `ValidacaoPlanilhaService`
 `src/main/java/br/gov/ses/fillbpai/service/ValidacaoPlanilhaService.java`

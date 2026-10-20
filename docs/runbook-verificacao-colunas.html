@@ -119,8 +119,8 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 690 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
-      <span>Atualizado: <strong>16/10/2026</strong> (iniciado em 08/10/2026)</span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 697 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
+      <span>Atualizado: <strong>20/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
       <a href="#continuidade">Continuidade (ler primeiro)</a>
@@ -233,7 +233,9 @@
           <tr><td class="caso">"Paciente sem CPF" vazio com CPF (20/10/2026)</td><td>Coluna "Paciente sem CPF" presente com a célula vazia e o CPF do paciente preenchido e válido: a importação grava "N", sem aviso (antes: aviso PACIENTE_SEM_CPF_VAZIO e branco no BPA-I — tipo removido). CPF vazio com a célula vazia continua erro (CPF_AUSENTE); CPF inválido continua erro de CPF.</td></tr>
           <tr><td class="caso">Histórico de logs de importação (20/10/2026)</td><td>Depois de reiniciar, "Ver Log Importação" dizia "Nenhum log de importação encontrado" (procurava um arquivo que não era mais gravado), e reimportar a mesma planilha apagava o log anterior. Agora: um arquivo por importação, com data e hora no nome; o botão abre o histórico (lista mais recente primeiro, com data/hora, planilha, linhas e avisos; busca; log selecionado com "Copiar log"). Logs antigos sem cabeçalho aparecem com a data do arquivo. Os logs ficam na pasta própria <code>logs/</code>, separada do banco; os que estavam em <code>database/</code> são movidos ao abrir o programa (sem sobrescrever). <code>HistoricoLogsService</code>, com testes. Simulação aprovada antes.</td></tr>
           <tr><td class="caso">Folha e remessa (20/10/2026)</td><td>Regra única de folha, calculada na geração e válida por competência: especialidade → médico, folha nova a cada 99 linhas (<code>numerarFolhas</code>); parcial e completa com a mesma numeração. Depois de salvar o arquivo, folha, linha e data/hora da remessa são gravadas nos atendimentos e a tabela mostra as colunas Folha, Linha e Remessa. Corrigidos: folha 000 no parcial sem folha definida, linha voltando a 01 na mesma folha após 99, folha com 4 dígitos na completa (numeração do ano inteiro), header do parcial com nº de linhas no lugar de nº de folhas, "gerado com sucesso" ao cancelar. Removidos o botão "Definir Folha" e a herança de folha na importação. Simulação aprovada antes (colunas Folha e Linha separadas).</td></tr>
-          <tr><td class="caso">Nome exibido: PonteBPA (20/10/2026)</td><td>O programa passa a se chamar <strong>PonteBPA</strong> para o usuário (janela principal, seletor de planilha, README; depois, janela "Sobre" e instalador). A troca é só visual: repositório, <code>artifactId</code>, pacote <code>br.gov.ses.fillbpai</code>, classes, métodos, arquivo do banco e a propriedade <code>fillbpai.hoje</code> continuam iguais.</td></tr>
+          <tr><td class="caso">Nome exibido: PonteBPA (20/10/2026)</td><td>O programa passa a se chamar <strong>PonteBPA</strong> para o usuário (janela principal, seletor de planilha, README e janela "Sobre", implementada em 20/10/2026; depois, o instalador). A troca é só visual: repositório, <code>artifactId</code>, pacote <code>br.gov.ses.fillbpai</code>, classes, métodos, arquivo do banco e a propriedade <code>fillbpai.hoje</code> continuam iguais.</td></tr>
+          <tr><td class="caso">Janela Sobre (20/10/2026)</td><td>Botão <strong>Sobre</strong> no canto direito da barra superior, como na simulação aprovada: versão e data da compilação (do <code>pom.xml</code>, agora <strong>1.0.0</strong>, via <code>versao.properties</code> filtrado pelo Maven), Unidade (CNES, órgão, sigla, CNPJ), Layout BPA-I, Ambiente (Java, sistema, H2) e Dados (pastas de logs e de cadastros, com "Abrir pasta"); "Copiar informações" e "Fechar". Os dados da unidade saíram do gerador para <code>config/DadosUnidade</code> — fonte única do cabeçalho do BPA-I e da janela (primeiro passo para a aba Unidade da instalação em outras unidades). <code>SobreService</code> com testes; <code>SobreDialog</code>.</td></tr>
+          <tr><td class="caso">Documentação técnica (20/10/2026)</td><td><code>docs/DOCUMENTACAO_TECNICA.md</code> (de 10/09, desatualizada: faltavam ~20 classes) refeita a partir dos javadocs pelo script <code>node docs/gerar-documentacao.js</code>; introdução e tabela "Pastas e arquivos em execução" em <code>docs/documentacao-tecnica-cabecalho.md</code>, editado à mão. Javadocs de classe acrescentados em <code>RelatorioController</code> e <code>StringUtils</code>. Regenerar sempre que a documentação dos métodos mudar.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -246,7 +248,7 @@
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
           junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
-          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0) e documentação técnica gerada dos javadocs. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
@@ -256,6 +258,17 @@
           31 (aviso de competência com mais de 3 meses), 3, 5 e 6 (formatos
           extras de data, grafia do tipo de serviço, atendimentos já gravados sem SIGTAP), 45 (CID ×
           sexo/idade, adiada). Decisões em aberto: 3, 14, 30 (INE).
+        </p>
+      </li>
+      <li>
+        <h4>Instalação em outra unidade (cronograma proposto, aguardando decisão)</h4>
+        <p>
+          Já feito: versão 1.0.0 no <code>pom.xml</code>, janela Sobre e dados da unidade numa fonte única
+          (<code>config/DadosUnidade</code>). Falta: aba <strong>Configurações → Unidade</strong> (CNES, órgão, sigla,
+          CNPJ editáveis, gravados fora do código); banco, logs e cadastros na pasta do usuário
+          (<code>AppData\Local\PonteBPA\…</code>) em vez de relativos à pasta do programa e de <code>src/main/resources</code>;
+          console H2 (porta 8082) desligado; <code>medicos_cns.csv</code> vazio no pacote (o atual é do núcleo);
+          pacote com Java embutido (<code>jpackage</code>); homologação, instalação, treinamento e acompanhamento.
         </p>
       </li>
       <li>

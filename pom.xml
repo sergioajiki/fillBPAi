@@ -11,7 +11,7 @@
 
     <groupId>br.gov.ses</groupId>
     <artifactId>fillBPAi</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
 
     <name>fillBPAi</name>
@@ -28,6 +28,9 @@
 
         <!-- Encoding padrão -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Data da compilação gravada em versao.properties (janela Sobre); em UTC, convertida na tela -->
+        <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
 
         <!-- Versões das dependências -->
         <javafx.version>21.0.2</javafx.version>
@@ -138,6 +141,25 @@
          Build e Plugins
          ========================= -->
     <build>
+        <!-- Só versao.properties passa por filtragem (versão e data da compilação);
+             os demais recursos (CSV, planilhas) são copiados sem alteração -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+                <includes>
+                    <include>versao.properties</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <excludes>
+                    <exclude>versao.properties</exclude>
+                </excludes>
+            </resource>
+        </resources>
+
         <plugins>
 
             <!-- Compilador Java -->

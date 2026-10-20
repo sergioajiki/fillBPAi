@@ -1,7 +1,7 @@
 # fillBPAi — Projeto CLAUDE.md
 
 ## Sobre o Projeto
-**Nome exibido: PonteBPA** (20/10/2026) — título da janela principal e do seletor de planilha, README e futuras janela "Sobre" e instalador. A troca é só visual: repositório, `artifactId`, pacote `br.gov.ses.fillbpai`, classes, métodos, arquivo do banco (`fillbpai.mv.db`) e a propriedade `fillbpai.hoje` continuam iguais. Não renomear código por causa do nome.
+**Nome exibido: PonteBPA** (20/10/2026) — título da janela principal e do seletor de planilha, README, janela "Sobre" e futuro instalador. A troca é só visual: repositório, `artifactId`, pacote `br.gov.ses.fillbpai`, classes, métodos, arquivo do banco (`fillbpai.mv.db`) e a propriedade `fillbpai.hoje` continuam iguais. Não renomear código por causa do nome.
 
 Aplicação desktop JavaFX que importa dados de atendimentos de saúde de planilhas Excel e gera arquivos magnéticos BPA-I (Boletim de Produção Ambulatorial Individualizada) no formato exigido pelo DATASUS/Ministério da Saúde.
 
@@ -162,7 +162,8 @@ Importação grava linha a linha (`flush` por linha). Erro do banco numa linha m
 ### Layout da UI
 Layout em `BorderPane` (sidebar de navegação + barra fixa de geração), não mais em linhas horizontais empilhadas. Reescrito para separar fisicamente "visualizar tabela" de "gerar BPA-I", que antes ficavam misturados na mesma barra e causavam confusão (toggle de exibição colado ao botão de geração, dois botões "Gerar BPA-I"/"Gerar BPA-I Parcial" parecidos, busca livre e combo de especialidade/médico mutuamente exclusivos sem indicação visual).
 
-1. **topBar** (`MainController`): `[Analisar Planilha]` `[Ver Log Importação]` `[Configurações]` — não exibe mais competência (movida para a barra inferior, fonte única).
+1. **topBar** (`MainController`): `[Analisar Planilha]` `[Ver Log Importação]` `[Configurações]` e, no canto direito, `[Sobre]` — não exibe mais competência (movida para a barra inferior, fonte única).
+   - **Janela "Sobre"** (20/10/2026, `ui.SobreDialog` + `service.SobreService`, testável): versão e data da compilação, Unidade (CNES, órgão, sigla, CNPJ), Layout BPA-I (layout, versão no header), Ambiente (Java, sistema, H2), Dados (pastas de logs e de cadastros, com "Abrir pasta" — cria a pasta se faltar), rodapé "Uso interno — Superintendência de Saúde Digital / SES-MS" com "Copiar informações" (texto para pedido de ajuda) e "Fechar". A versão vem do `pom.xml` (**1.0.0** desde 20/10/2026): `src/main/resources/versao.properties` é o único recurso com filtragem do Maven (`${project.version}`, `${maven.build.timestamp}` em UTC, convertido para a hora local); rodando sem o Maven aparece "desenvolvimento". Unidade e layout vêm de `config.DadosUnidade`, a mesma fonte do cabeçalho do BPA-I (`GeradorBPAiService.montarHeader`) e do CNES padrão do atendimento — antes os valores estavam fixos dentro do gerador; para outra unidade, passarão para Configurações → Unidade (a implementar).
 2. **Topo do conteúdo** (`RelatorioController.criarBarraExibicao()`): `Exibir tabela:` + toggle `Competência | Período | Completo` + `[Selecionar Período]` (só no modo Período) + legenda do modo ativo.
    - Controla **apenas o que a tabela mostra**; nunca afeta a competência de geração.
 3. **Sidebar esquerda** (`RelatorioController.criarSidebarNavegacao()`): campo de busca + `TreeView` de especialidades → médicos, substituindo busca livre + combos de especialidade/médico.

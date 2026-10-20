@@ -48,7 +48,7 @@ public class AtendimentoBPAi {
 	// ==============================
 
 	@Column(name = "cnes_nts")
-	private String cnesNts = "6970451";
+	private String cnesNts = br.gov.ses.fillbpai.config.DadosUnidade.CNES;
 
 	@Column(name = "cod_ine")
 	private String codIne;

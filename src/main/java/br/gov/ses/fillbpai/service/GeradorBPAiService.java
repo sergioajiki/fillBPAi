@@ -1,5 +1,6 @@
 package br.gov.ses.fillbpai.service;
 
+import br.gov.ses.fillbpai.config.DadosUnidade;
 import br.gov.ses.fillbpai.model.AtendimentoBPAi;
 import br.gov.ses.fillbpai.model.Endereco;
 import br.gov.ses.fillbpai.model.Paciente;
@@ -486,12 +487,12 @@ public class GeradorBPAiService {
 		sb.append(padLeftZeros(String.valueOf(totalLinhas), 6)); // seq 4 cbc-lin
 		sb.append(padLeftZeros(String.valueOf(totalFolhas), 6)); // seq 5 cbc-flh
 		sb.append(padLeftZeros(String.valueOf(somaControle), 4)); // seq 6 cbc-smt-vrf
-		sb.append(padRightSpaces("NUCLEO DE TELESSAUDE DE MS", 30)); // seq 7
-		sb.append(padRightSpaces("NTMS", 6)); // seq 8
-		sb.append(padLeftZeros("02955271000126", 14)); // seq 9
-		sb.append(padRightSpaces("SECRETARIA ESTADUAL DE SAUDE", 40)); // seq 10
-		sb.append("E"); // seq 11
-		sb.append(padRightSpaces("ED04.10", 10)); // seq 12
+		sb.append(padRightSpaces(DadosUnidade.ORGAO, 30)); // seq 7
+		sb.append(padRightSpaces(DadosUnidade.SIGLA, 6)); // seq 8
+		sb.append(padLeftZeros(DadosUnidade.CNPJ, 14)); // seq 9
+		sb.append(padRightSpaces(DadosUnidade.DESTINO, 40)); // seq 10
+		sb.append(DadosUnidade.INDICADOR_DESTINO); // seq 11
+		sb.append(padRightSpaces(DadosUnidade.VERSAO_HEADER, 10)); // seq 12
 
 		return sb.toString();
 	}

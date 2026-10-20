@@ -52,6 +52,9 @@ public class MainController {
 	/** Pasta dos logs de importação — um arquivo por importação, separada do banco (20/10/2026). */
 	private static final Path PASTA_LOGS = Path.of("logs");
 
+	/** Pasta dos cadastros editados em Configurações (CNS de médicos, nomes de colunas) — mostrada na janela "Sobre". */
+	private static final Path PASTA_CADASTROS = Path.of("src", "main", "resources", "dados");
+
 	/** Pasta onde os logs ficavam até 20/10/2026, junto do banco — migrados ao abrir o programa. */
 	private static final Path PASTA_LOGS_ANTIGA = Path.of("database");
 
@@ -102,7 +105,16 @@ public class MainController {
 		btnConfiguracoes.setOnAction(e ->
 				configuracoesDialog.abrir(rootLayout.getScene().getWindow()));
 
-		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnVerLog, btnConfiguracoes);
+		// "Sobre" no canto direito (20/10/2026): versão, unidade, ambiente e pastas de dados
+		Button btnSobre = new Button("Sobre");
+		btnSobre.setOnAction(e -> new br.gov.ses.fillbpai.ui.SobreDialog(
+				new br.gov.ses.fillbpai.service.SobreService(PASTA_LOGS, PASTA_CADASTROS))
+				.abrir(rootLayout.getScene().getWindow()));
+
+		javafx.scene.layout.Region espacoTopBar = new javafx.scene.layout.Region();
+		HBox.setHgrow(espacoTopBar, javafx.scene.layout.Priority.ALWAYS);
+
+		HBox topBar = new HBox(10, btnAnalisarPlanilha, btnVerLog, btnConfiguracoes, espacoTopBar, btnSobre);
 		topBar.setPadding(new Insets(10));
 
 		rootLayout.setTop(topBar);

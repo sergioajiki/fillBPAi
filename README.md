@@ -20,6 +20,7 @@ O arquivo segue o layout oficial de 2026 (`data/Layout_Exportacao_BPA_2026.pdf`)
 - **Linhas repetidas** — mesmo paciente, médico, data, procedimento e horário é erro; horário diferente é aviso de suspeita, e as linhas são importadas separadas.
 - **Reimportar a mesma planilha atualiza** os atendimentos em vez de duplicar.
 - **Histórico de logs de importação** (botão **Ver Log Importação**) — um arquivo por importação, com planilha, pasta, data/hora, conferência de linhas, avisos e ciência; a janela lista as importações da mais recente para a mais antiga, com busca e "Copiar log".
+- **Sobre** (canto direito da barra superior) — versão e data da compilação, dados da unidade e do layout usados no BPA-I, ambiente (Java, sistema, banco) e as pastas de logs e de cadastros com "Abrir pasta"; "Copiar informações" gera um resumo para pedidos de ajuda.
 
 ### Configurações
 - **Colunas da Planilha** — nomes de cabeçalho aceitos para cada campo (aliases), para planilhas com nomes de coluna diferentes. Acessível também a partir do erro de estrutura.
@@ -65,6 +66,7 @@ fillBPAi/
     ├── main/java/br/gov/ses/fillbpai/
     │   ├── app/MainApp.java                         # Ponto de entrada JavaFX
     │   ├── config/DatabaseInitializer.java          # H2 + Hibernate
+    │   ├── config/DadosUnidade.java                 # CNES, órgão, sigla, CNPJ e versão do header do BPA-I
     │   ├── controller/MainController.java           # Barra superior, análise, importação, logs
     │   ├── dto/                                     # LinhaImportacaoDTO (planilha), AtendimentoBPAiDTO (tabela)
     │   ├── model/                                   # AtendimentoBPAi, Paciente, Endereco, Medico, Estabelecimento
@@ -80,8 +82,9 @@ fillBPAi/
     │   │   ├── AtendimentoImportacaoService.java    # Importação (tudo ou nada)
     │   │   ├── ImportacaoResultado.java             # Resumo da importação
     │   │   ├── HistoricoLogsService.java            # Histórico dos logs de importação
+    │   │   ├── SobreService.java                    # Informações da janela Sobre (versão do pom)
     │   │   └── GeradorBPAiService.java              # Arquivo BPA-I, folhas e remessa
-    │   ├── ui/                                      # RelatorioController (tela), ConfiguracoesDialog, FileChooserService
+    │   ├── ui/                                      # RelatorioController (tela), ConfiguracoesDialog, SobreDialog, FileChooserService
     │   └── util/                                    # Regras por campo: CPF, CNS, CEP, IBGE, CID, CBO, sexo, raça,
     │                                                #   etnia, nome, datas, hora, telefone, logradouro, número,
     │                                                #   bairro/complemento, S/N, vigência do layout…
@@ -187,7 +190,7 @@ mvnw.cmd test           # testes
 mvnw.cmd javafx:run     # executar
 ```
 
-O banco H2 fica em `database/` e os logs de importação em `logs/`, criados na primeira execução. Ainda não há instalador: para levar o programa a outra unidade é preciso, antes, tornar configuráveis os dados da unidade (hoje o CNES, o nome, a sigla e o CNPJ do núcleo estão fixos no BPA-I), mover banco, logs e cadastros para a pasta do usuário e gerar um pacote com o Java embutido (`jpackage`).
+O banco H2 fica em `database/` e os logs de importação em `logs/`, criados na primeira execução. Ainda não há instalador: para levar o programa a outra unidade é preciso, antes, tornar configuráveis os dados da unidade (hoje o CNES, o nome, a sigla e o CNPJ do núcleo estão fixos em `config/DadosUnidade.java`), mover banco, logs e cadastros para a pasta do usuário e gerar um pacote com o Java embutido (`jpackage`).
 
 ---
 
