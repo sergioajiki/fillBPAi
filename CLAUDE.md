@@ -20,6 +20,7 @@ O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de a
 ## Build & Run
 - Usar o wrapper do projeto: `mvnw.cmd compile` (na raiz do projeto)
 - `mvn test` roda automaticamente via PostToolUse hook (Edit/Write) — NÃO rodar manualmente em agents/subagents
+- Documentação dos testes: `docs/DOCUMENTACAO_TESTES.md`, gerada por `node docs/gerar-documentacao-testes.js` (depois de rodar os testes; cabeçalho editável em `docs/documentacao-testes-cabecalho.md`). Contagem de testes: usar a do script ou `mvnw clean test` — somar os `.txt` de `target/surefire-reports` inclui relatórios antigos de testes apagados (sondagens)
 
 ## GitHub
 - Repositório: https://github.com/sergioajiki/fillBPAi.git

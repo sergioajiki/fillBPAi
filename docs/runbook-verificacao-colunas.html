@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 699 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 533 testes (685 execuções) passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>20/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -163,7 +163,7 @@
       (em outra sessão ou por outra pessoa): ler esta seção, depois <a href="#andamento">Andamento</a>,
       <a href="#recomendacoes">Recomendações</a> (as que não estão marcadas ✓) e <a href="#abertas">Decisões em aberto</a>.
       As regras já implementadas estão resumidas também no <code>CLAUDE.md</code> do projeto (tipos de ERRO/AVISO,
-      utilitários e campos do BPA-I).
+      utilitários e campos do BPA-I). Referência de classes e métodos em <code>docs/DOCUMENTACAO_TECNICA.md</code>; lista dos testes e resultado da última execução em <code>docs/DOCUMENTACAO_TESTES.md</code>.
     </p>
 
     <h3>Como a revisão é feita</h3>
@@ -177,7 +177,7 @@
           sondagem temporário (planilha de uma linha, análise + importação em H2 + geração), removido depois;
           (3) seção da coluna neste runbook com tabela "o que acontece com cada valor", problemas, recomendações
           numeradas e decisões; (4) o usuário decide; (5) implementação com testes, atualização do <code>CLAUDE.md</code> e
-          deste runbook (marcar ✓ nas recomendações, fechar decisões, marcar a coluna em Andamento).
+          deste runbook (marcar ✓ nas recomendações, fechar decisões, marcar a coluna em Andamento); depois, gerar de novo a documentação técnica (<code>node docs/gerar-documentacao.js</code>) e a dos testes (<code>node docs/gerar-documentacao-testes.js</code>).
         </p>
       </li>
       <li>
@@ -237,6 +237,7 @@
           <tr><td class="caso">Janela Sobre (20/10/2026)</td><td>Botão <strong>Sobre</strong> no canto direito da barra superior, como na simulação aprovada: versão e data da compilação (do <code>pom.xml</code>, agora <strong>1.0.0</strong>, via <code>versao.properties</code> filtrado pelo Maven), Unidade (CNES, órgão, sigla, CNPJ), Layout BPA-I, Ambiente (Java, sistema, H2) e Dados (pastas de logs e de cadastros, com "Abrir pasta"); "Copiar informações" e "Fechar". Os dados da unidade saíram do gerador para <code>config/DadosUnidade</code> — fonte única do cabeçalho do BPA-I e da janela (primeiro passo para a aba Unidade da instalação em outras unidades). <code>SobreService</code> com testes; <code>SobreDialog</code>.</td></tr>
           <tr><td class="caso">Documentação técnica (20/10/2026)</td><td><code>docs/DOCUMENTACAO_TECNICA.md</code> (de 10/09, desatualizada: faltavam ~20 classes) refeita a partir dos javadocs pelo script <code>node docs/gerar-documentacao.js</code>; introdução e tabela "Pastas e arquivos em execução" em <code>docs/documentacao-tecnica-cabecalho.md</code>, editado à mão. Javadocs de classe acrescentados em <code>RelatorioController</code> e <code>StringUtils</code>. Regenerar sempre que a documentação dos métodos mudar.</td></tr>
           <tr><td class="caso">INE em branco (20/10/2026)</td><td>Decisão 30: o núcleo não tem INE. O gerador lê o INE padrão da unidade em <code>DadosUnidade.INE</code> (vazio no núcleo → 10 brancos; <code>campoIne</code> aceita só 10 dígitos), e a janela Sobre mostra "INE: não informado" — quando existir a aba Unidade, o INE vira um campo editável ali. Coluna "INE" retirada da tabela e campos <code>codIne</code> (nunca preenchidos) removidos do atendimento e do DTO da planilha.</td></tr>
+          <tr><td class="caso">Documentação dos testes (20/10/2026)</td><td><code>docs/DOCUMENTACAO_TESTES.md</code>: todos os testes, classe por classe, com o que cada um confere (frase montada do nome do método + comentário), valores dos casos parametrizados e resultado da última execução; ambiente dos testes (H2 em memória, "hoje" fixo, internet simulada, arquivos temporários). Gerada por <code>node docs/gerar-documentacao-testes.js</code> a partir do código e de <code>target/surefire-reports</code>. O runbook de testes de setembro ficou como histórico. Contagem corrigida: 533 testes, 685 execuções — os números de 19 e 20/10 somavam 14 execuções de relatórios antigos de testes de sondagem já apagados, que continuavam em <code>target/</code>.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -249,7 +250,7 @@
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
           junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
-          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0) e documentação técnica gerada dos javadocs. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
