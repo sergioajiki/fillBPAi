@@ -49,8 +49,11 @@ public class MainController {
 
 	private static final Logger log = LoggerFactory.getLogger(MainController.class);
 
-	/** Pasta dos logs de importação — um arquivo por importação (20/10/2026). */
-	private static final Path PASTA_LOGS = Path.of("database");
+	/** Pasta dos logs de importação — um arquivo por importação, separada do banco (20/10/2026). */
+	private static final Path PASTA_LOGS = Path.of("logs");
+
+	/** Pasta onde os logs ficavam até 20/10/2026, junto do banco — migrados ao abrir o programa. */
+	private static final Path PASTA_LOGS_ANTIGA = Path.of("database");
 
 	/** Histórico dos logs de importação — lido pelo botão "Ver Log Importação". */
 	private final HistoricoLogsService historicoLogs = new HistoricoLogsService(PASTA_LOGS);
@@ -71,6 +74,12 @@ public class MainController {
 		this.relatorioController = new RelatorioController(entityManager);
 		this.configuracoesDialog = new ConfiguracoesDialog();
 		this.rootLayout = rootLayout;
+
+		// Logs gravados antes da separação vão para a pasta própria
+		int migrados = historicoLogs.migrarDe(PASTA_LOGS_ANTIGA);
+		if (migrados > 0) {
+			log.info("{} log(s) de importação movido(s) de {} para {}", migrados, PASTA_LOGS_ANTIGA, PASTA_LOGS);
+		}
 
 		configurarLayout();
 

@@ -50,7 +50,9 @@ public class MainApp extends Application {
         // 🔹 Cena
         Scene scene = new Scene(root, 1500, 700);
 
-        primaryStage.setTitle("Importador BPAi");
+        // Nome exibido do programa (20/10/2026): só o texto visível mudou —
+        // pacotes, classes e o projeto Maven continuam como fillbpai
+        primaryStage.setTitle("PonteBPA");
         primaryStage.setScene(scene);
         primaryStage.show();
     }

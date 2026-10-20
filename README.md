@@ -1,6 +1,8 @@
-# fillBPAi
+# PonteBPA
 
-Aplicação desktop JavaFX utilizada pelo **Núcleo de Telessaúde de MS** para importar dados de atendimentos de saúde a partir de planilhas Excel e gerar arquivos magnéticos **BPA-I** (Boletim de Produção Ambulatorial Individualizada) no formato exigido pelo DATASUS/Ministério da Saúde para envio ao SIA/SUS.
+> Nome exibido do programa. No código, o projeto continua como **fillBPAi** (repositório, `artifactId` do Maven, pacote `br.gov.ses.fillbpai`, arquivo do banco) — a troca de nome é só visual.
+
+Aplicação desktop JavaFX utilizada pela **Superintendência de Saúde Digital (SES-MS)** para importar dados de atendimentos de saúde a partir de planilhas Excel e gerar arquivos magnéticos **BPA-I** (Boletim de Produção Ambulatorial Individualizada) no formato exigido pelo DATASUS/Ministério da Saúde para envio ao SIA/SUS.
 
 O arquivo segue o layout oficial de 2026 (`data/Layout_Exportacao_BPA_2026.pdf`).
 
@@ -57,7 +59,8 @@ fillBPAi/
 ├── mvnw / mvnw.cmd                     # Maven Wrapper
 ├── data/                               # Layouts oficiais do BPA (PDF)
 ├── docs/                               # Runbooks de decisões e revisões (HTML)
-├── database/                           # Banco H2 e logs de importação (criados em execução)
+├── database/                           # Banco H2 (criado em execução)
+├── logs/                               # Logs de importação, um por importação (criados em execução)
 └── src/
     ├── main/java/br/gov/ses/fillbpai/
     │   ├── app/MainApp.java                         # Ponto de entrada JavaFX
@@ -113,7 +116,7 @@ Planilha .xlsx
      └─ conferência: linhas da planilha = atendimentos gravados
    │
    ▼
-Log de importação (database/log_importacao_<planilha>_<data-hora>.txt)
+Log de importação (logs/log_importacao_<planilha>_<data-hora>.txt)
    │
    ▼
 📅 Competência + [Gerar BPA-I — completo | médico]
@@ -184,7 +187,7 @@ mvnw.cmd test           # testes
 mvnw.cmd javafx:run     # executar
 ```
 
-O banco H2 e os logs ficam em `database/`, criados na primeira execução. Ainda não há instalador: para levar o programa a outra unidade é preciso, antes, tornar configuráveis os dados da unidade (hoje o CNES, o nome, a sigla e o CNPJ do núcleo estão fixos no BPA-I), mover banco, logs e cadastros para a pasta do usuário e gerar um pacote com o Java embutido (`jpackage`).
+O banco H2 fica em `database/` e os logs de importação em `logs/`, criados na primeira execução. Ainda não há instalador: para levar o programa a outra unidade é preciso, antes, tornar configuráveis os dados da unidade (hoje o CNES, o nome, a sigla e o CNPJ do núcleo estão fixos no BPA-I), mover banco, logs e cadastros para a pasta do usuário e gerar um pacote com o Java embutido (`jpackage`).
 
 ---
 
@@ -198,4 +201,4 @@ O banco H2 e os logs ficam em `database/`, criados na primeira execução. Ainda
 
 ## Licença
 
-Uso interno — Núcleo de Telessaúde / Secretaria Estadual de Saúde de Mato Grosso do Sul.
+Uso interno — Superintendência de Saúde Digital / Secretaria Estadual de Saúde de Mato Grosso do Sul.

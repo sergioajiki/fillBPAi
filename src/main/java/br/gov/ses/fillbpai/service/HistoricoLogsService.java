@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 
 /**
  * Histórico dos logs de importação (20/10/2026): um arquivo por importação em
- * {@code database/}, com data e hora no nome
+ * {@code logs/} (pasta própria, separada do banco), com data e hora no nome
  * ({@code log_importacao_<planilha>_<aaaa-MM-dd_HHmm>.txt}) — reimportar a
  * mesma planilha não apaga o log anterior, e o histórico continua disponível
  * depois de reiniciar o programa.
@@ -67,6 +67,51 @@ public class HistoricoLogsService {
 		public String quandoFormatado() {
 			return quando.format(FORMATO_CABECALHO);
 		}
+	}
+
+	/**
+	 * Move para a pasta dos logs os logs de importação gravados numa pasta
+	 * antiga (até 20/10/2026 eles ficavam junto do banco, em {@code database/}),
+	 * para o histórico continuar completo. Log com o mesmo nome já na pasta
+	 * nova fica onde está. Falha ao mover não interrompe o programa.
+	 *
+	 * @return quantos logs foram movidos
+	 */
+	public int migrarDe(Path pastaAntiga) {
+
+		if (!Files.isDirectory(pastaAntiga)) {
+			return 0;
+		}
+
+		// lista antes de mover: no Windows, mover com a listagem aberta pode prender a pasta
+		List<Path> antigos;
+		try (Stream<Path> arquivos = Files.list(pastaAntiga)) {
+			antigos = arquivos.filter(p -> {
+						String nome = p.getFileName().toString();
+						return nome.startsWith(PREFIXO) && nome.endsWith(".txt") && Files.isRegularFile(p);
+					})
+					.toList();
+		} catch (IOException e) {
+			return 0;
+		}
+
+		int movidos = 0;
+
+		for (Path antigo : antigos) {
+			Path destino = pasta.resolve(antigo.getFileName().toString());
+			if (Files.exists(destino)) {
+				continue;
+			}
+			try {
+				Files.createDirectories(pasta);
+				Files.move(antigo, destino);
+				movidos++;
+			} catch (IOException e) {
+				// fica na pasta antiga; tenta de novo na próxima abertura do programa
+			}
+		}
+
+		return movidos;
 	}
 
 	/** Caminho para gravar o log de uma importação nova — nunca sobrescreve um log existente. */

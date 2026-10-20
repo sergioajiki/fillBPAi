@@ -23,7 +23,7 @@ public class FileChooserService {
 
         FileChooser fileChooser = new FileChooser();
 
-        fileChooser.setTitle("Selecionar Planilha BPAi");
+        fileChooser.setTitle("PonteBPA — Selecionar Planilha");
 
         fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter(

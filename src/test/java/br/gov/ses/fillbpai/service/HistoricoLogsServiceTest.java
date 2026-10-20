@@ -96,4 +96,29 @@ class HistoricoLogsServiceTest {
 
 		assertThat(servico.conteudo(servico.listar().get(0))).startsWith("Planilha: x.xlsx");
 	}
+
+	@Test
+	void migrarDeMoveOsLogsDaPastaAntigaSemSobrescreverNemMexerNoBanco() throws IOException {
+		Path antiga = Files.createDirectories(pasta.resolve("database"));
+		Path nova = pasta.resolve("logs");
+		Files.writeString(antiga.resolve("log_importacao_A_2026-10-16_0915.txt"), "A", StandardCharsets.UTF_8);
+		Files.writeString(antiga.resolve("log_importacao_B_2026-10-17_1000.txt"), "B antigo", StandardCharsets.UTF_8);
+		Files.writeString(antiga.resolve("fillbpai.mv.db"), "banco", StandardCharsets.UTF_8);
+		Files.createDirectories(nova);
+		Files.writeString(nova.resolve("log_importacao_B_2026-10-17_1000.txt"), "B novo", StandardCharsets.UTF_8);
+
+		int movidos = new HistoricoLogsService(nova).migrarDe(antiga);
+
+		assertThat(movidos).isEqualTo(1);
+		assertThat(nova.resolve("log_importacao_A_2026-10-16_0915.txt")).hasContent("A");
+		assertThat(antiga.resolve("log_importacao_A_2026-10-16_0915.txt")).doesNotExist();
+		assertThat(nova.resolve("log_importacao_B_2026-10-17_1000.txt")).hasContent("B novo");
+		assertThat(antiga.resolve("log_importacao_B_2026-10-17_1000.txt")).exists();
+		assertThat(antiga.resolve("fillbpai.mv.db")).exists();
+	}
+
+	@Test
+	void migrarDePastaInexistenteNaoFazNada() {
+		assertThat(new HistoricoLogsService(pasta).migrarDe(pasta.resolve("nao-existe"))).isZero();
+	}
 }
