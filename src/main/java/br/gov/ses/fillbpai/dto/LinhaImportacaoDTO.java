@@ -22,7 +22,6 @@ public class LinhaImportacaoDTO {
 	private LocalDate dataAgendamento;
 	private LocalTime horaAtendimento;
 	private String cidConsulta;
-	private String codIne;
 
 	// ==============================
 	// Dados do estabelecimento
@@ -118,14 +117,6 @@ public class LinhaImportacaoDTO {
 
 	public void setCidConsulta(String cidConsulta) {
 		this.cidConsulta = cidConsulta;
-	}
-
-	public String getCodIne() {
-		return codIne;
-	}
-
-	public void setCodIne(String codIne) {
-		this.codIne = codIne;
 	}
 
 	public String getCodEstabelecimento() {

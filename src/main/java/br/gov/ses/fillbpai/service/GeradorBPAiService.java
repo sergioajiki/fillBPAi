@@ -782,9 +782,10 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 37 - prd-ine
-		 * NUM, default Brancos
+		 * NUM, default Brancos. INE padrão da unidade (`DadosUnidade.INE`); vazio no
+		 * núcleo, que não tem INE (Decisão 30, 20/10/2026) → 10 brancos.
 		 */
-		sb.append(padNumOpcional(a.getCodIne(), 10));
+		sb.append(campoIne(DadosUnidade.INE));
 
 		/**
 		 * seq 38 - prd_cpf_pcnte
@@ -878,6 +879,18 @@ public class GeradorBPAiService {
 	 * - Quando preenchido → apenas números, zeros à esquerda
 	 * - Quando vazio → espaços em branco (default "Brancos" do layout)
 	 */
+	/**
+	 * Campo do INE (seq 37, 10 posições): exatamente 10 dígitos (máscara
+	 * ignorada) ou 10 brancos. Vazio ou fora do tamanho vai em branco — um INE
+	 * maior que o campo deslocaria o registro inteiro.
+	 */
+	String campoIne(String ine) {
+
+		String digitos = ine == null ? "" : ine.replaceAll("[^0-9]", "");
+
+		return digitos.length() == 10 ? digitos : padRightSpaces("", 10);
+	}
+
 	private String padNumOpcional(String valor, int tamanho) {
 
 		if (valor == null)

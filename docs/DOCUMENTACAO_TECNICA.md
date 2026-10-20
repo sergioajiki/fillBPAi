@@ -406,7 +406,7 @@ Campos NUM opcionais: brancos quando vazios, zeros à esquerda quando preenchido
 - `montarHeader(List<AtendimentoBPAi> lista, String competencia, int totalFolhas): String` *(privado)* — Header do arquivo (132 caracteres): competência, total de linhas, total de folhas distintas do arquivo e campo de controle. Antes a geração parcial informava o número de linhas como número de folhas.
 - `montarRegistro(AtendimentoBPAi a, String competencia, int folha, int linha): String` *(privado)* — Um registro BPA-I (seq 1 a 39, 351 caracteres; o CRLF da seq 40 é acrescentado por `#gerarConteudo`).
 - `calcularSomaVerificacao(List<AtendimentoBPAi> lista): int` *(privado)* — Campo de controle do header: soma dos códigos de procedimento (SIGTAP, só dígitos) e das quantidades (1 por registro), em módulo 1111, mais 1111.
-- `padNumOpcional(String valor, int tamanho): String` *(privado)* — Campos NUM opcionais do BPA-I:; Quando preenchido → apenas números, zeros à esquerda; Quando vazio → espaços em branco (default "Brancos" do layout)
+- `campoIne(String ine): String` — Campo do INE (seq 37, 10 posições): exatamente 10 dígitos (máscara ignorada) ou 10 brancos. Vazio ou fora do tamanho vai em branco — um INE maior que o campo deslocaria o registro inteiro.
 - `padRightSpaces(String valor, int tamanho): String` *(privado)* — Campo ALFA de tamanho fixo: completa com espaços à direita e **corta** o que passar do tamanho. Antes não cortava — um valor maior que o campo (ex.: CBO "2251-25") deslocava todos os campos seguintes do registro.
 - `formatarCid(String cid): String` *(privado)* — CID-10 do atendimento, sem ponto (`I10`, `I109`). A importação já grava só o código; para dados antigos (célula gravada como veio, ex.: "I10; Hipertensão") extrai o código — antes cortava o texto em 4 caracteres e gerava CIDs inexistentes ("I10H"). Sem exatamente um código: brancos.
 - `sanitizarLatin1(String valor): String` *(privado)* — Substitui caracteres fora do conjunto ISO-8859-1 (ex.: aspas curvas, travessão, reticências digitadas via Word/Excel, emojis) por equivalentes ASCII ou espaço, evitando falha ao gravar o arquivo BPA-I.
@@ -483,7 +483,7 @@ Informações da janela "Sobre" (20/10/2026): versão e data da compilação (gr
 
 **Métodos:**
 - `PastaDados(String rotulo, Path caminho): record` — Uma pasta de dados mostrada na janela, com o botão "Abrir pasta".
-- `InformacoesSobre(String versao, LocalDateTime compilado, String cnes, String orgao, String sigla, String cnpj, String layout, String versaoHeader, String java, String sistema, String banco, List<PastaDados> pastas): record` — Tudo o que a janela mostra.
+- `InformacoesSobre(String versao, LocalDateTime compilado, String cnes, String orgao, String sigla, String cnpj, String ine, String layout, String versaoHeader, String java, String sistema, String banco, List<PastaDados> pastas): record` — Tudo o que a janela mostra.
 - `InformacoesSobre.compiladoFormatado(): String` — "compilado em 20/10/2026 15:10", ou vazio se a data não é conhecida.
 - `InformacoesSobre.textoParaCopiar(): String` — Texto do botão "Copiar informações", para colar num pedido de ajuda.
 - `SobreService(Path pastaLogs, Path pastaCadastros) (construtor)`
@@ -492,7 +492,7 @@ Informações da janela "Sobre" (20/10/2026): versão e data da compilação (gr
 - `dataCompilacao(String texto): LocalDateTime` — Data da compilação em UTC (`2026-10-20T19:10:00Z`) → horário local; `null` se ausente ou inválida.
 - `formatarCnpj(String cnpj): String` — "02955271000126" → "02.955.271/0001-26"; outro tamanho fica como veio.
 - record `PastaDados(String rotulo, Path caminho)` — Uma pasta de dados mostrada na janela, com o botão "Abrir pasta".
-- record `InformacoesSobre(String versao, LocalDateTime compilado, String cnes, String orgao, String sigla, String cnpj, String layout, String versaoHeader, String java, String sistema, String banco, List<PastaDados> pastas)` — Tudo o que a janela mostra.
+- record `InformacoesSobre(String versao, LocalDateTime compilado, String cnes, String orgao, String sigla, String cnpj, String ine, String layout, String versaoHeader, String java, String sistema, String banco, List<PastaDados> pastas)` — Tudo o que a janela mostra.
 
 ### `ValidacaoPlanilhaService`
 `src/main/java/br/gov/ses/fillbpai/service/ValidacaoPlanilhaService.java`

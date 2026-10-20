@@ -1181,9 +1181,6 @@ public class RelatorioController {
 				criarColuna("Estabelecimento",
 						AtendimentoBPAiDTO::getEstabelecimento),
 
-				criarColuna("INE",
-						AtendimentoBPAiDTO::getCodIne),
-
 				// Folha e linha com que o atendimento foi para a última remessa
 				// BPA-I, e quando (20/10/2026); "—" / "não enviada" antes disso
 				criarColuna("Folha",

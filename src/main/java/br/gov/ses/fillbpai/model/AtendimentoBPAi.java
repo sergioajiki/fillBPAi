@@ -50,9 +50,6 @@ public class AtendimentoBPAi {
 	@Column(name = "cnes_nts")
 	private String cnesNts = br.gov.ses.fillbpai.config.DadosUnidade.CNES;
 
-	@Column(name = "cod_ine")
-	private String codIne;
-
 	/**
 	 * Folha ({@code prd-flh}) com que o atendimento foi para a última remessa
 	 * BPA-I — gravada na geração (20/10/2026), junto com {@link #linhaFolha} e
@@ -154,14 +151,6 @@ public class AtendimentoBPAi {
 
 	public void setCnesNts(String cnesNts) {
 		this.cnesNts = cnesNts;
-	}
-
-	public String getCodIne() {
-		return codIne;
-	}
-
-	public void setCodIne(String codIne) {
-		this.codIne = codIne;
 	}
 
 	public String getFolha() {

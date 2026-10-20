@@ -28,6 +28,9 @@ public class SobreService {
 	/** Texto usado quando o programa roda sem passar pelo Maven (ex.: direto na IDE). */
 	static final String SEM_VERSAO = "desenvolvimento";
 
+	/** Texto para INE vazio em {@link DadosUnidade#INE} — vai em branco no BPA-I (Decisão 30). */
+	static final String INE_NAO_INFORMADO = "não informado";
+
 	private static final DateTimeFormatter FORMATO_DATA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
 	/** Uma pasta de dados mostrada na janela, com o botão "Abrir pasta". */
@@ -40,7 +43,7 @@ public class SobreService {
 	 * @param compilado data/hora local da compilação, ou {@code null} se desconhecida
 	 */
 	public record InformacoesSobre(String versao, LocalDateTime compilado,
-			String cnes, String orgao, String sigla, String cnpj,
+			String cnes, String orgao, String sigla, String cnpj, String ine,
 			String layout, String versaoHeader,
 			String java, String sistema, String banco,
 			List<PastaDados> pastas) {
@@ -61,7 +64,7 @@ public class SobreService {
 			}
 			sb.append('\n');
 			sb.append("Unidade: CNES ").append(cnes).append(" — ").append(orgao)
-					.append(" (").append(sigla).append(")\n");
+					.append(" (").append(sigla).append(") · INE ").append(ine).append('\n');
 			sb.append("Layout BPA-I: ").append(layout).append(" — versão no header ").append(versaoHeader).append('\n');
 			sb.append("Java ").append(java).append(" · ").append(sistema).append(" · ").append(banco);
 
@@ -93,6 +96,7 @@ public class SobreService {
 				DadosUnidade.ORGAO,
 				DadosUnidade.SIGLA,
 				formatarCnpj(DadosUnidade.CNPJ),
+				DadosUnidade.INE.isBlank() ? INE_NAO_INFORMADO : DadosUnidade.INE,
 				DadosUnidade.LAYOUT,
 				DadosUnidade.VERSAO_HEADER,
 				System.getProperty("java.version"),

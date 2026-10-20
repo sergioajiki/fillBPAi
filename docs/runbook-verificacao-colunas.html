@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 697 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 699 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>20/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -236,6 +236,7 @@
           <tr><td class="caso">Nome exibido: PonteBPA (20/10/2026)</td><td>O programa passa a se chamar <strong>PonteBPA</strong> para o usuário (janela principal, seletor de planilha, README e janela "Sobre", implementada em 20/10/2026; depois, o instalador). A troca é só visual: repositório, <code>artifactId</code>, pacote <code>br.gov.ses.fillbpai</code>, classes, métodos, arquivo do banco e a propriedade <code>fillbpai.hoje</code> continuam iguais.</td></tr>
           <tr><td class="caso">Janela Sobre (20/10/2026)</td><td>Botão <strong>Sobre</strong> no canto direito da barra superior, como na simulação aprovada: versão e data da compilação (do <code>pom.xml</code>, agora <strong>1.0.0</strong>, via <code>versao.properties</code> filtrado pelo Maven), Unidade (CNES, órgão, sigla, CNPJ), Layout BPA-I, Ambiente (Java, sistema, H2) e Dados (pastas de logs e de cadastros, com "Abrir pasta"); "Copiar informações" e "Fechar". Os dados da unidade saíram do gerador para <code>config/DadosUnidade</code> — fonte única do cabeçalho do BPA-I e da janela (primeiro passo para a aba Unidade da instalação em outras unidades). <code>SobreService</code> com testes; <code>SobreDialog</code>.</td></tr>
           <tr><td class="caso">Documentação técnica (20/10/2026)</td><td><code>docs/DOCUMENTACAO_TECNICA.md</code> (de 10/09, desatualizada: faltavam ~20 classes) refeita a partir dos javadocs pelo script <code>node docs/gerar-documentacao.js</code>; introdução e tabela "Pastas e arquivos em execução" em <code>docs/documentacao-tecnica-cabecalho.md</code>, editado à mão. Javadocs de classe acrescentados em <code>RelatorioController</code> e <code>StringUtils</code>. Regenerar sempre que a documentação dos métodos mudar.</td></tr>
+          <tr><td class="caso">INE em branco (20/10/2026)</td><td>Decisão 30: o núcleo não tem INE. O gerador lê o INE padrão da unidade em <code>DadosUnidade.INE</code> (vazio no núcleo → 10 brancos; <code>campoIne</code> aceita só 10 dígitos), e a janela Sobre mostra "INE: não informado" — quando existir a aba Unidade, o INE vira um campo editável ali. Coluna "INE" retirada da tabela e campos <code>codIne</code> (nunca preenchidos) removidos do atendimento e do DTO da planilha.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -257,7 +258,7 @@
         <p>
           31 (aviso de competência com mais de 3 meses), 3, 5 e 6 (formatos
           extras de data, grafia do tipo de serviço, atendimentos já gravados sem SIGTAP), 45 (CID ×
-          sexo/idade, adiada). Decisões em aberto: 3, 14, 30 (INE).
+          sexo/idade, adiada). Decisões em aberto: 3, 14.
         </p>
       </li>
       <li>
@@ -265,7 +266,7 @@
         <p>
           Já feito: versão 1.0.0 no <code>pom.xml</code>, janela Sobre e dados da unidade numa fonte única
           (<code>config/DadosUnidade</code>). Falta: aba <strong>Configurações → Unidade</strong> (CNES, órgão, sigla,
-          CNPJ editáveis, gravados fora do código); banco, logs e cadastros na pasta do usuário
+          CNPJ e INE padrão editáveis, gravados fora do código); INE por atendimento para unidade com várias equipes, se necessário; banco, logs e cadastros na pasta do usuário
           (<code>AppData\Local\PonteBPA\…</code>) em vez de relativos à pasta do programa e de <code>src/main/resources</code>;
           console H2 (porta 8082) desligado; <code>medicos_cns.csv</code> vazio no pacote (o atual é do núcleo);
           pacote com Java embutido (<code>jpackage</code>); homologação, instalação, treinamento e acompanhamento.
@@ -3099,13 +3100,15 @@
         dígitos.
       </p>
     </div>
-    <div class="callout aberto">
-      <span class="pill aberto">30 · INE (campo 37, <code>prd_ine</code>)</span>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 30 · INE (campo 37, <code>prd_ine</code>): sempre em branco</span>
       <p>
-        O layout marca o INE como obrigatório ("X"), com padrão "brancos", a partir da competência 08/2015. Hoje a planilha
-        não tem coluna de INE, o campo fica sempre vazio no banco e o BPA-I sai com 10 brancos; a coluna "INE" da tabela
-        aparece sempre vazia. O INE identifica uma equipe de saúde (Atenção Primária). Pendente: confirmar se o núcleo tem
-        INE ou se o SIA já criticou INE em branco. Se não, manter os brancos e considerar tirar a coluna vazia da tabela.
+        Decidido (20/10/2026): o núcleo não tem INE (o INE identifica uma equipe da Atenção Primária), então o campo vai
+        sempre com 10 brancos na remessa — o padrão "brancos" do layout. O gerador lê o INE padrão da unidade
+        (<code>DadosUnidade.INE</code>, vazio no núcleo → brancos; seq 37). Uma unidade com uma equipe poderá preencher esse INE na futura
+        aba Configurações → Unidade; com várias equipes, o INE por atendimento fica para o cronograma de instalação. A coluna "INE", que aparecia sempre
+        vazia, saiu da tabela; os campos <code>codIne</code> do atendimento e da linha da planilha, que nada preenchia, foram
+        removidos (a coluna <code>cod_ine</code> antiga do banco fica vazia, sem efeito).
       </p>
     </div>
   </section>

@@ -225,7 +225,7 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(247, 277)).isEqualTo(String.format("%-30s", "CENTRO"));         // seq 34
 		assertThat(linha.substring(277, 288)).isEqualTo("67999999999"); // seq 35 prd-ddtel_pcnte
 		assertThat(linha.substring(288, 328)).isEqualTo(" ".repeat(40)); // seq 36 prd-email_pcnte
-		assertThat(linha.substring(328, 338)).isEqualTo(" ".repeat(10)); // seq 37 prd-ine
+		assertThat(linha.substring(328, 338)).isEqualTo(" ".repeat(10)); // seq 37 prd-ine: sempre em branco (Decisão 30)
 		assertThat(linha.substring(338, 349)).isEqualTo("12345678909");  // seq 38 prd-cpf_pcnte
 		assertThat(linha.substring(349, 350)).isEqualTo("N");            // seq "38" dup. prd-situacao_rua
 		assertThat(linha.substring(350, 351)).isEqualTo(" ");            // seq 39 prd-sem_cpf: branco antes da competência 07/2026
@@ -647,5 +647,21 @@ class GeradorBPAiServiceTest {
 		String cidNoRegistro = registro(conteudo, 0).substring(81, 85).stripTrailing();
 
 		assertThat(cidNoRegistro).isEqualTo("I109");
+	}
+
+	// ===== INE (seq 37) — Decisão 30 =====
+
+	@Test
+	void campoIneVazioSaiComDezBrancosEPreenchidoComOsDezDigitos() {
+		assertThat(service.campoIne("")).isEqualTo(" ".repeat(10));
+		assertThat(service.campoIne(null)).isEqualTo(" ".repeat(10));
+		assertThat(service.campoIne("0001234567")).isEqualTo("0001234567");
+		assertThat(service.campoIne("000.123.456-7")).isEqualTo("0001234567"); // máscara ignorada
+	}
+
+	@Test
+	void campoIneForaDoTamanhoSaiEmBrancoParaNaoDeslocarORegistro() {
+		assertThat(service.campoIne("123")).isEqualTo(" ".repeat(10));
+		assertThat(service.campoIne("12345678901")).isEqualTo(" ".repeat(10));
 	}
 }

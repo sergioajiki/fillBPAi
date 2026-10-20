@@ -22,6 +22,7 @@ class SobreServiceTest {
 		assertThat(info.cnes()).isEqualTo(DadosUnidade.CNES);
 		assertThat(info.orgao()).isEqualTo(DadosUnidade.ORGAO);
 		assertThat(info.cnpj()).isEqualTo("02.955.271/0001-26");
+		assertThat(info.ine()).isEqualTo("não informado"); // núcleo sem INE (Decisão 30)
 		assertThat(info.versaoHeader()).isEqualTo(DadosUnidade.VERSAO_HEADER);
 		assertThat(info.banco()).startsWith("H2 2.");
 		assertThat(info.pastas()).extracting(SobreService.PastaDados::rotulo).containsExactly("Logs", "Cadastros");
@@ -33,12 +34,12 @@ class SobreServiceTest {
 	void textoParaCopiarTemUmaInformacaoPorLinha() {
 		SobreService.InformacoesSobre info = new SobreService.InformacoesSobre("1.0.0",
 				LocalDateTime.of(2026, 10, 20, 15, 10), "6970451", "NUCLEO DE TELESSAUDE DE MS", "NTMS",
-				"02.955.271/0001-26", "Exportação BPA 2026", "ED04.10", "21.0.8", "Windows 11 10.0", "H2 2.2.224",
+				"02.955.271/0001-26", "não informado", "Exportação BPA 2026", "ED04.10", "21.0.8", "Windows 11 10.0", "H2 2.2.224",
 				List.of(new SobreService.PastaDados("Logs", Path.of("C:/PonteBPA/logs"))));
 
 		assertThat(info.textoParaCopiar().split("\n")).containsExactly(
 				"PonteBPA 1.0.0 (compilado em 20/10/2026 15:10)",
-				"Unidade: CNES 6970451 — NUCLEO DE TELESSAUDE DE MS (NTMS)",
+				"Unidade: CNES 6970451 — NUCLEO DE TELESSAUDE DE MS (NTMS) · INE não informado",
 				"Layout BPA-I: Exportação BPA 2026 — versão no header ED04.10",
 				"Java 21.0.8 · Windows 11 10.0 · H2 2.2.224",
 				"Logs: " + Path.of("C:/PonteBPA/logs"));
@@ -47,7 +48,7 @@ class SobreServiceTest {
 	@Test
 	void semDataDeCompilacaoOTextoNaoMostraParenteses() {
 		SobreService.InformacoesSobre info = new SobreService.InformacoesSobre("desenvolvimento", null,
-				"1", "O", "S", "C", "L", "V", "J", "SO", "B", List.of());
+				"1", "O", "S", "C", "I", "L", "V", "J", "SO", "B", List.of());
 
 		assertThat(info.textoParaCopiar()).startsWith("PonteBPA desenvolvimento\n");
 		assertThat(info.compiladoFormatado()).isEmpty();

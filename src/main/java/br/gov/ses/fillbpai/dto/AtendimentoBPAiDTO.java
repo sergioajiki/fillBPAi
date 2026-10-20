@@ -57,7 +57,6 @@ public class AtendimentoBPAiDTO {
 
 	public String getCnesNts() { return entity.getCnesNts(); }
 
-	public String getCodIne() { return entity.getCodIne(); }
 
 	/**
 	 * Folha da última remessa BPA-I, com 3 dígitos ("003"); "—" se ainda não

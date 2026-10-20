@@ -126,7 +126,8 @@ public class SobreDialog {
 				"CNES", info.cnes(), true,
 				"Órgão", info.orgao(), false,
 				"Sigla", info.sigla(), false,
-				"CNPJ", info.cnpj(), true));
+				"CNPJ", info.cnpj(), true,
+				"INE", info.ine(), false));
 
 		VBox layout = bloco("Layout BPA-I", tabela(
 				"Layout", info.layout(), false,

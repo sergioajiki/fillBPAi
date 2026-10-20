@@ -23,6 +23,15 @@ public final class DadosUnidade {
 	/** CNPJ do órgão de origem, só dígitos (header seq 9, 14 posições). */
 	public static final String CNPJ = "02955271000126";
 
+	/**
+	 * INE padrão da unidade (registro seq 37, {@code prd-ine}, 10 dígitos),
+	 * enviado em todos os atendimentos. Vazio = 10 brancos na remessa — o caso
+	 * do núcleo, que não tem INE (Decisão 30, 20/10/2026). Para unidade com uma
+	 * única equipe; com várias equipes o INE varia por atendimento (coluna na
+	 * planilha ou cadastro por profissional — a avaliar).
+	 */
+	public static final String INE = "";
+
 	/** Órgão de destino (header seq 10, 40 posições). */
 	public static final String DESTINO = "SECRETARIA ESTADUAL DE SAUDE";
 
