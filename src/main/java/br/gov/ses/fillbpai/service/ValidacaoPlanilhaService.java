@@ -45,30 +45,26 @@ import java.util.function.Function;
 /**
  * Serviço responsável por validar uma planilha Excel antes da importação.
  * <p>
- * Percorre todas as linhas da planilha e aplica regras de validação
- * bloqueantes e não bloqueantes sobre os dados brutos. Nenhum dado é
- * persistido — o objetivo é apenas identificar e reportar inconsistências
- * para correção manual.
+ * Percorre todas as linhas da planilha e aplica as mesmas regras da
+ * importação ({@link AtendimentoProcessor} e {@code AtendimentoImportacaoService}),
+ * sem gravar nada. Toda linha que a importação rejeitaria aparece aqui como
+ * ERRO — a importação é tudo ou nada. Os AVISOS não exigem correção, mas
+ * pedem "Ciente" na janela da análise antes de importar.
  * <p>
- * Regras validadas:
+ * Organização:
  * <ul>
- *   <li>Data de agendamento ausente ou em formato não reconhecido — ERRO bloqueante</li>
- *   <li>Tipo de serviço ausente (exceto nutricionista/psicólogo) ou não reconhecido — ERRO bloqueante</li>
- *   <li>CNS do paciente ausente ou com menos de 15 dígitos: AVISO (não bloqueia)</li>
- *   <li>CNS do paciente com mais de 15 dígitos: AVISO (não bloqueia)</li>
- *   <li>CEP: não pode ser ausente ou vazio — ERRO bloqueante</li>
- *   <li>CPF do paciente: não pode ser ausente ou vazio — ERRO bloqueante</li>
- *   <li>CPF do médico ausente ou com tamanho diferente de 11 dígitos — ERRO bloqueante</li>
- *   <li>CBO do médico ausente ou sem 6 dígitos (máscara aceita) — ERRO bloqueante</li>
- *   <li>Especialidade ausente — ERRO bloqueante</li>
- *   <li>Hora de atendimento preenchida mas não reconhecida: AVISO (não bloqueia)</li>
- *   <li>Médico (grafia) sem CNS em Configurações → CNS de Médicos: AVISO por grafia (não bloqueia)</li>
- *   <li>Raça do paciente ausente ou não reconhecida (grafia incorreta): ERRO bloqueante</li>
- *   <li>Coluna opcional (ex.: COD_LOGRADOURO, SITUACAO_RUA, PACIENTE_SEM_CPF) ausente do cabeçalho: AVISO (não bloqueia)</li>
- *   <li>Situação de rua preenchida mas não reconhecida (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
- *   <li>Paciente sem CPF preenchido mas não reconhecido (não é S/N, Sim/Não ou 1/0): AVISO (não bloqueia)</li>
- *   <li>Estabelecimento preenchido mas sem separador "código - nome" reconhecido: AVISO (não bloqueia)</li>
+ *   <li>estrutura do cabeçalho ({@link #reportarEstrutura}): coluna obrigatória
+ *       ausente ou ambígua, coluna sem cabeçalho, coluna opcional ausente;</li>
+ *   <li>regras por linha ({@link #validarLinha}), numeradas nos comentários
+ *       (0a data, 0b tipo de serviço, 0c nome/nascimento, 1 CNS, 1b município,
+ *       2 CEP, 3 CPF, 4 raça, 5 etnia, 7 colunas S/N, 8 estabelecimento…);</li>
+ *   <li>regras entre linhas, avaliadas depois de ler a planilha toda: linhas
+ *       repetidas ({@link #verificarDuplicidade}), CNS do profissional por
+ *       grafia ({@link #reportarCnsProfissional}) e mesmo documento com nomes
+ *       diferentes ({@link #reportarCpfComNomesDiferentes}).</li>
  * </ul>
+ * A lista completa de tipos, com título e explicação, está em
+ * {@link AgrupamentoValidacao} e no CLAUDE.md.
  *
  * @see ErroValidacao
  * @see ExcelImportService
@@ -124,8 +120,9 @@ public class ValidacaoPlanilhaService {
 	}
 
 	/**
-	 * CPF do paciente (11 dígitos) → nome já gravado no banco, ou {@code null}.
-	 * Padrão: sem banco (só compara os nomes dentro da planilha).
+	 * Chave do paciente no banco (CPF de 11 dígitos, ou a chave interna do
+	 * paciente sem CPF — {@code CpfUtils.chaveSemCpfPorCns}) → nome já gravado,
+	 * ou {@code null}. Padrão: sem banco (só compara os nomes dentro da planilha).
 	 */
 	private Function<String, String> nomePacientePorCpf = cpf -> null;
 
@@ -135,7 +132,7 @@ public class ValidacaoPlanilhaService {
 		return this;
 	}
 
-	/** Ocorrências de um nome de paciente para um CPF. */
+	/** Ocorrências de um nome de paciente para um documento (CPF, ou CNS do paciente sem CPF). */
 	private static final class NomePaciente {
 		final String nome;
 		final List<Integer> linhas = new ArrayList<>();
@@ -171,9 +168,11 @@ public class ValidacaoPlanilhaService {
 	/**
 	 * Lê e valida todas as linhas da planilha Excel informada.
 	 * <p>
-	 * O cabeçalho (linha 0) é ignorado. Para cada linha de dados, as 3 regras
-	 * bloqueantes são verificadas. Linhas que causem exceção durante a leitura
-	 * são logadas e puladas sem interromper o processo.
+	 * Considera a primeira aba. Confere a estrutura do cabeçalho (se houver
+	 * problema estrutural, para aí); depois valida cada linha com dados
+	 * (linhas vazias são ignoradas, como na importação) e, no fim, as regras
+	 * entre linhas. Linha que não pode ser lida vira ERRO {@code LINHA_ILEGIVEL}
+	 * — toda linha com dados precisa ser importada.
 	 *
 	 * @param caminhoArquivo caminho absoluto para o arquivo {@code .xlsx}
 	 * @return lista de erros encontrados; vazia se a planilha estiver válida
@@ -276,8 +275,12 @@ public class ValidacaoPlanilhaService {
 	}
 
 	/**
-	 * Aplica as 3 regras de validação bloqueantes sobre um DTO já lido.
-	 * Cada violação gera um {@link ErroValidacao} adicionado à lista.
+	 * Aplica as regras de uma linha (numeradas nos comentários: 0a data, 0b
+	 * tipo de serviço, 0c nome/nascimento, 1 CNS, 1b município, 2 CEP, 3 CPF,
+	 * sexo, 4 raça, 5 etnia, CBO, especialidade, CPF do médico, hora, CID,
+	 * telefone, endereço, 7 colunas S/N, 7c vigência do layout, 8
+	 * estabelecimento, nome longo/a conferir, data fora do esperado). Cada
+	 * problema vira um {@link ErroValidacao} (ERRO ou AVISO) na lista.
 	 *
 	 * @param dto        dados brutos lidos da linha
 	 * @param linha      número da linha (1-based) para referência no relatório
@@ -876,19 +879,13 @@ public class ValidacaoPlanilhaService {
 		// Regra 7b: colunas opcionais S/N presentes com a célula vazia
 		// (16/10/2026): AVISO, e o campo vai em branco no BPA-I. Coluna ausente
 		// segue a regra de coluna opcional (aviso único em reportarEstrutura).
-		// Paciente sem CPF vazio com o CPF também vazio já é CPF_AUSENTE.
+		// "Paciente sem CPF" com a célula vazia não gera aviso (20/10/2026): com o
+		// CPF preenchido a importação grava "N"; com o CPF vazio já é CPF_AUSENTE.
 		// -------------------------------------------------------
 		if (dto.getSituacaoRua() != null && dto.getSituacaoRua().isBlank()) {
 			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
 					ErroValidacao.SITUACAO_RUA_VAZIA,
 					"Situacao de rua com a celula vazia - sera importada em branco", "célula vazia"));
-		}
-
-		if (dto.getPacienteSemCpf() != null && dto.getPacienteSemCpf().isBlank()
-				&& dto.getCpfPaciente() != null && !dto.getCpfPaciente().isBlank()) {
-			erros.add(new ErroValidacao(linha, ErroValidacao.Severidade.AVISO,
-					ErroValidacao.PACIENTE_SEM_CPF_VAZIO,
-					"Paciente sem CPF com a celula vazia - sera importado em branco", "célula vazia"));
 		}
 
 		// -------------------------------------------------------
@@ -1177,9 +1174,10 @@ public class ValidacaoPlanilhaService {
 	}
 
 	/**
-	 * Regra 11: mesmo CPF de paciente com nomes diferentes — na planilha ou em
-	 * relação ao nome já gravado no banco. AVISO (decisão 12, 16/10/2026): a
-	 * importação grava um só paciente com o nome da última linha.
+	 * Regra 11: mesmo CPF de paciente (ou mesmo CNS do paciente sem CPF —
+	 * recomendação 68) com nomes diferentes, na planilha ou em relação ao nome
+	 * já gravado no banco. AVISO (decisão 12, 16/10/2026): a importação grava
+	 * um só paciente com o nome da última linha.
 	 */
 	private void reportarCpfComNomesDiferentes(Map<String, Map<String, NomePaciente>> nomesPorCpf,
 			List<ErroValidacao> erros) {
@@ -1226,7 +1224,10 @@ public class ValidacaoPlanilhaService {
 		}
 	}
 
-	/** Nome do paciente já gravado no banco para o CPF; falha na consulta não interrompe a análise. */
+	/**
+	 * Nome do paciente já gravado no banco pela chave do cadastro (CPF, ou a
+	 * chave interna do paciente sem CPF); falha na consulta não interrompe a análise.
+	 */
 	private String buscarNomePacienteNoBanco(String cpf) {
 		try {
 			return nomePacientePorCpf.apply(cpf);
@@ -1373,13 +1374,14 @@ public class ValidacaoPlanilhaService {
 	/**
 	 * Gera um relatório TXT formatado a partir da lista de erros de validação.
 	 * <p>
-	 * O relatório exibe cabeçalho, contagem total de erros e uma tabela com
-	 * linha, tipo de erro e detalhe para cada ocorrência encontrada.
-	 * <p>
-	 * Se a lista de erros estiver vazia, o relatório indica que a planilha
-	 * está válida e apta para importação.
+	 * Cabeçalho (arquivo, data/hora, contagem de erros e avisos) e, depois,
+	 * as seções de ERROS e de AVISOS, organizadas como na tela
+	 * ({@link #anexarGrupos}). Sem nenhum problema, diz que a planilha está
+	 * apta para importação. Só é gravado em arquivo pelo botão "Salvar Log
+	 * TXT" da janela da análise.
 	 *
-	 * @param erros lista de erros retornada por {@link #validar(String)}
+	 * @param erros       lista retornada por {@link #validar(String)}
+	 * @param nomeArquivo nome do arquivo da planilha, para o cabeçalho
 	 * @return string com o relatório formatado, pronto para exibição ou gravação em arquivo
 	 */
 	public String gerarLogTxt(List<ErroValidacao> erros, String nomeArquivo) {

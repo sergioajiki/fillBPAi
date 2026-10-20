@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
  * Usado tanto na importação ({@code AtendimentoProcessor}, para persistir o
  * valor já limpo) quanto na geração ({@code GeradorBPAiService}, como
  * proteção para atendimentos já persistidos antes desta normalização
- * existir — mesmo padrão de defesa em duas pontas já usado para raça/"99").
+ * existir — mesmo padrão de defesa em duas pontas usado para raça, CBO, CID etc.).
  */
 public class EspecialidadeUtils {
 

@@ -939,11 +939,12 @@ class AtendimentoImportacaoServiceTest {
 
 		assertThat(resultado.getAvisos())
 				.anySatisfy(a -> assertThat(a).contains("SITUACAO_RUA_VAZIA"))
-				.anySatisfy(a -> assertThat(a).contains("PACIENTE_SEM_CPF_VAZIO"));
+				.noneMatch(a -> a.contains("Paciente sem CPF"));
 		entityManager.clear();
 		assertThat(atendimentoRepository.buscarTodos()).singleElement().satisfies(a -> {
 			assertThat(a.getSituacaoRua()).isEmpty();
-			assertThat(a.getPacienteSemCpf()).isEmpty();
+			// "Paciente sem CPF" vazio com CPF preenchido → "N" (20/10/2026)
+			assertThat(a.getPacienteSemCpf()).isEqualTo("N");
 		});
 	}
 
@@ -1030,7 +1031,8 @@ class AtendimentoImportacaoServiceTest {
 	}
 
 	@Test
-	void importarHerdaFolhaJaAtribuidaParaMesmoMedicoEspecialidade() throws IOException {
+	void importarNaoHerdaFolhaDeAtendimentoAnterior() throws IOException {
+		// 20/10/2026: folha, linha e remessa vêm só da geração do BPA-I
 
 		Medico medico = new Medico();
 		medico.setCpf("98765432100");
@@ -1064,7 +1066,9 @@ class AtendimentoImportacaoServiceTest {
 				.findFirst()
 				.orElseThrow();
 
-		assertThat(novoAtendimento.getFolha()).isEqualTo("7");
+		assertThat(novoAtendimento.getFolha()).isNull();
+		assertThat(novoAtendimento.getLinhaFolha()).isNull();
+		assertThat(novoAtendimento.getRemessaEm()).isNull();
 	}
 
 	@Test

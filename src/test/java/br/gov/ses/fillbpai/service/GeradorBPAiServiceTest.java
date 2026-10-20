@@ -14,8 +14,7 @@ import br.gov.ses.fillbpai.model.Paciente;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Testa {@code gerarConteudoParcial}/{@code gerarConteudoCompleto} — os dois
- * métodos extraídos de {@link GeradorBPAiService} para permitir verificar o
+ * Testa {@code gerarConteudo} e {@code numerarFolhas} — métodos extraídos de {@link GeradorBPAiService} para permitir verificar o
  * layout posicional do BPA-I sem depender de banco de dados nem de
  * {@code javafx.stage.FileChooser}. Nenhum destes testes usa
  * {@code EntityManager}: {@code montarRegistro} nunca acessa
@@ -65,7 +64,6 @@ class GeradorBPAiServiceTest {
 		atendimento.setCnsProfissional("700207960618529");
 		atendimento.setCboMedico("225125");
 		atendimento.setDataAgendamento(LocalDate.of(2024, 12, 25));
-		atendimento.setFolha("5");
 		atendimento.setSigtap("03.01.01.030-7");
 		atendimento.setEspecialidadeMedico("CARDIOLOGIA");
 		atendimento.setCidConsulta("I10");
@@ -89,7 +87,7 @@ class GeradorBPAiServiceTest {
 
 	@Test
 	void gerarConteudoParcialTemHeaderCom130CaracteresERegistroCom351() {
-		String conteudo = service.gerarConteudoParcial(List.of(criarAtendimentoCompleto()), "202412");
+		String conteudo = service.gerarConteudo(List.of(criarAtendimentoCompleto()), "202412");
 
 		String[] linhas = conteudo.split("\r\n", -1);
 		assertThat(linhas[0]).hasSize(130);
@@ -103,7 +101,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.setCboMedico("2251-25");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha).hasSize(351);
 		assertThat(linha.substring(30, 36)).isEqualTo("225125");
@@ -115,7 +113,7 @@ class GeradorBPAiServiceTest {
 		atendimento.setCboMedico("MEDICO CARDIOLOGISTA 2251-25 E OUTROS");
 		atendimento.setCidConsulta("I10.0 HIPERTENSAO ESSENCIAL");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha).hasSize(351);
 	}
@@ -142,7 +140,7 @@ class GeradorBPAiServiceTest {
 
 	@Test
 	void gerarConteudoParcialUsaSempreCrlfSemQuebraDeLinhaSolta() {
-		String conteudo = service.gerarConteudoParcial(List.of(criarAtendimentoCompleto()), "202412");
+		String conteudo = service.gerarConteudo(List.of(criarAtendimentoCompleto()), "202412");
 
 		assertThat(conteudo.replace("\r\n", "")).doesNotContain("\n");
 	}
@@ -151,7 +149,7 @@ class GeradorBPAiServiceTest {
 	void gerarConteudoCompletoUsaSempreCrlfSemQuebraDeLinhaSolta() {
 		AtendimentoBPAi a = criarAtendimentoCompleto();
 		a.setFolha("1");
-		String conteudo = service.gerarConteudoCompleto(List.of(a), "202412", 1);
+		String conteudo = service.gerarConteudo(List.of(a), "202412");
 
 		assertThat(conteudo.replace("\r\n", "")).doesNotContain("\n");
 	}
@@ -162,24 +160,23 @@ class GeradorBPAiServiceTest {
 	void gerarConteudoParcialCalculaChecksumDoHeaderCorretamente() {
 		// sigtap 0301010307 -> soma = 301010307 + 1 = 301010308
 		// 301010308 % 1111 = 412 -> checksum = 412 + 1111 = 1523
-		String conteudo = service.gerarConteudoParcial(List.of(criarAtendimentoCompleto()), "202412");
+		String conteudo = service.gerarConteudo(List.of(criarAtendimentoCompleto()), "202412");
 
 		String header = conteudo.split("\r\n", -1)[0];
 		assertThat(header.substring(25, 29)).isEqualTo("1523"); // seq 6 cbc-smt-vrf
 	}
 
 	@Test
-	void gerarConteudoCompletoUsaTotalFolhasRecebidoPorParametroNoHeaderNaoOTamanhoDaLista() {
+	void gerarConteudoInformaNoHeaderOTotalDeFolhasNaoOTotalDeLinhas() {
+		// Antes a geração parcial informava o número de linhas como número de folhas
 		AtendimentoBPAi a1 = criarAtendimentoCompleto();
-		a1.setFolha("1");
 		AtendimentoBPAi a2 = criarAtendimentoCompleto();
-		a2.setFolha("1");
 
-		String conteudo = service.gerarConteudoCompleto(List.of(a1, a2), "202412", 1);
+		String conteudo = service.gerarConteudo(List.of(a1, a2), "202412");
 
 		String header = conteudo.split("\r\n", -1)[0];
-		assertThat(header.substring(13, 19)).isEqualTo("000002"); // seq 4 cbc-lin = lista.size()
-		assertThat(header.substring(19, 25)).isEqualTo("000001"); // seq 5 cbc-flh = totalFolhas (parâmetro)
+		assertThat(header.substring(13, 19)).isEqualTo("000002"); // seq 4 cbc-lin = 2 linhas
+		assertThat(header.substring(19, 25)).isEqualTo("000001"); // seq 5 cbc-flh = 1 folha
 	}
 
 	// ===== REGISTRO — CAMPO A CAMPO =====
@@ -188,7 +185,7 @@ class GeradorBPAiServiceTest {
 	void gerarConteudoParcialMontaTodosOsCamposDoRegistroNasPosicoesCorretas() {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(0, 2)).isEqualTo("03");             // seq 1 prd-ident
@@ -197,7 +194,7 @@ class GeradorBPAiServiceTest {
 		assertThat(linha.substring(15, 30)).isEqualTo("700207960618529"); // seq 4 prd-cnsmed
 		assertThat(linha.substring(30, 36)).isEqualTo("225125");       // seq 5 prd-cbo
 		assertThat(linha.substring(36, 44)).isEqualTo("20241225");     // seq 6 prd-dtaten
-		assertThat(linha.substring(44, 47)).isEqualTo("005");          // seq 7 prd-flh
+		assertThat(linha.substring(44, 47)).isEqualTo("001");          // seq 7 prd-flh (numeração da geração)
 		assertThat(linha.substring(47, 49)).isEqualTo("01");           // seq 8 prd-seq
 		assertThat(linha.substring(49, 59)).isEqualTo("0301010307");   // seq 9 prd-pa
 		assertThat(linha.substring(59, 74)).isEqualTo(" ".repeat(15)); // seq 10 prd-cnspac — sempre em branco
@@ -241,7 +238,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		// paciente.situacaoRua não definido (planilha sem a coluna, ou coluna em branco)
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(349, 350)).isEqualTo("N");
@@ -252,7 +249,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setSituacaoRua("S");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(349, 350)).isEqualTo("S");
@@ -266,7 +263,7 @@ class GeradorBPAiServiceTest {
 		atendimento.setDataAgendamento(LocalDate.of(2026, 7, 15)); // prd_sem_cpf vigente desde 07/2026
 		// atendimento.pacienteSemCpf não definido (planilha sem a coluna) — paciente tem CPF preenchido
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(350, 351)).isEqualTo("N");
@@ -278,7 +275,7 @@ class GeradorBPAiServiceTest {
 		atendimento.setDataAgendamento(LocalDate.of(2026, 7, 15)); // prd_sem_cpf vigente desde 07/2026
 		atendimento.getPaciente().setCpf(null);
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(350, 351)).isEqualTo("S");
@@ -292,14 +289,14 @@ class GeradorBPAiServiceTest {
 				br.gov.ses.fillbpai.util.CpfUtils.chaveSemCpf("MARIA", LocalDate.of(1990, 1, 1)));
 		atendimento.setPacienteSemCpf("S");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 		String linhaCpfVazio;
 		{
 			AtendimentoBPAi semCpf = criarAtendimentoCompleto();
 			semCpf.getPaciente().setCpf(null);
 			semCpf.setPacienteSemCpf("S");
 			semCpf.setDataAgendamento(LocalDate.of(2026, 7, 15));
-			linhaCpfVazio = registro(service.gerarConteudoParcial(List.of(semCpf), "202412"), 0);
+			linhaCpfVazio = registro(service.gerarConteudo(List.of(semCpf), "202412"), 0);
 		}
 
 		assertThat(linha).hasSize(351);
@@ -316,7 +313,7 @@ class GeradorBPAiServiceTest {
 		atendimento.getPaciente().setCns("700207960618529");
 		atendimento.setPacienteSemCpf("S");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha).hasSize(351);
 		assertThat(linha.substring(59, 74)).isEqualTo("700207960618529"); // seq 10 prd-cnspac
@@ -332,9 +329,9 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi antigo = criarAtendimentoCompleto(); // gravado antes da mudança: sem valor no atendimento
 		antigo.getPaciente().setSituacaoRua("S");
 
-		assertThat(registro(service.gerarConteudoParcial(List.of(doAtendimento), "202412"), 0).substring(349, 350))
+		assertThat(registro(service.gerarConteudo(List.of(doAtendimento), "202412"), 0).substring(349, 350))
 				.isEqualTo("S");
-		assertThat(registro(service.gerarConteudoParcial(List.of(antigo), "202412"), 0).substring(349, 350))
+		assertThat(registro(service.gerarConteudo(List.of(antigo), "202412"), 0).substring(349, 350))
 				.isEqualTo("S");
 	}
 
@@ -343,7 +340,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setSexo("H");
 
-		assertThat(registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0).substring(74, 75))
+		assertThat(registro(service.gerarConteudo(List.of(atendimento), "202412"), 0).substring(74, 75))
 				.isEqualTo("F");
 	}
 
@@ -354,7 +351,7 @@ class GeradorBPAiServiceTest {
 		atendimento.setSituacaoRua("");
 		atendimento.setPacienteSemCpf("");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha).hasSize(351);
 		assertThat(linha.substring(349, 350)).isEqualTo(" ");
@@ -368,7 +365,7 @@ class GeradorBPAiServiceTest {
 		atendimento.getPaciente().setSituacaoRua(null);
 		atendimento.setPacienteSemCpf(null);
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha.substring(349, 350)).isEqualTo("N");
 		assertThat(linha.substring(350, 351)).isEqualTo("N"); // CPF preenchido → N
@@ -381,7 +378,7 @@ class GeradorBPAiServiceTest {
 			AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 			atendimento.getPaciente().getEndereco().setNumero(numero);
 
-			String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+			String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 			assertThat(linha.substring(242, 247)).as(String.valueOf(numero)).isEqualTo("SN   ");
 		}
@@ -392,7 +389,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setCns("700207960618529");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha.substring(59, 74)).isEqualTo(" ".repeat(15));
 		assertThat(linha.substring(338, 349)).isEqualTo("12345678909");
@@ -405,7 +402,7 @@ class GeradorBPAiServiceTest {
 		// paciente TEM CPF preenchido, mas a planilha trouxe explicitamente "S"
 		atendimento.setPacienteSemCpf("S");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(350, 351)).isEqualTo("S");
@@ -419,7 +416,7 @@ class GeradorBPAiServiceTest {
 		antes.setSituacaoRua("S");
 		antes.setPacienteSemCpf("N");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(antes), "202411"), 0);
+		String linha = registro(service.gerarConteudo(List.of(antes), "202411"), 0);
 
 		assertThat(linha).hasSize(351);
 		assertThat(linha.substring(349, 350)).isEqualTo(" ");
@@ -432,7 +429,7 @@ class GeradorBPAiServiceTest {
 		ruaVigente.setDataAgendamento(LocalDate.of(2024, 12, 1));
 		ruaVigente.setSituacaoRua("S");
 		ruaVigente.setPacienteSemCpf("N");
-		String linha = registro(service.gerarConteudoParcial(List.of(ruaVigente), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(ruaVigente), "202412"), 0);
 		assertThat(linha.substring(349, 350)).isEqualTo("S");
 		assertThat(linha.substring(350, 351)).isEqualTo(" "); // sem_cpf ainda não vigente
 
@@ -440,7 +437,7 @@ class GeradorBPAiServiceTest {
 		ambos.setDataAgendamento(LocalDate.of(2026, 7, 1));
 		ambos.setSituacaoRua("S");
 		ambos.setPacienteSemCpf("N");
-		linha = registro(service.gerarConteudoParcial(List.of(ambos), "202607"), 0);
+		linha = registro(service.gerarConteudo(List.of(ambos), "202607"), 0);
 		assertThat(linha.substring(349, 351)).isEqualTo("SN");
 	}
 
@@ -450,7 +447,7 @@ class GeradorBPAiServiceTest {
 		atendimento.setEspecialidadeMedico("NUTRICIONISTA");
 		atendimento.setSigtap("12.34.56.789-0"); // sigtap original, não deve aparecer no registro
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(49, 59)).isEqualTo("0301010315"); // seq 9 prd-pa forçado
@@ -468,7 +465,7 @@ class GeradorBPAiServiceTest {
 		atendimento.setEspecialidadeMedico("Médico Psicólogo");
 		atendimento.setSigtap("12.34.56.789-0");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(49, 59)).isEqualTo("0301010315"); // seq 9 prd-pa forçado
@@ -486,7 +483,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setRaca(null);
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(150, 152)).isEqualTo("  ");
@@ -497,7 +494,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setRaca("Pardo");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(150, 152)).isEqualTo("03");
@@ -511,7 +508,7 @@ class GeradorBPAiServiceTest {
 		atendimento.getPaciente().setRaca("INDIGENA");
 		atendimento.getPaciente().setEtnia("BANIWA");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(152, 156)).isEqualTo("0032");
@@ -524,7 +521,7 @@ class GeradorBPAiServiceTest {
 		atendimento.getPaciente().setRaca("BRANCA");
 		atendimento.getPaciente().setEtnia("TERENA");
 
-		String linha = registro(service.gerarConteudoParcial(List.of(atendimento), "202412"), 0);
+		String linha = registro(service.gerarConteudo(List.of(atendimento), "202412"), 0);
 
 		assertThat(linha.substring(150, 152)).isEqualTo("01");
 		assertThat(linha.substring(152, 156)).isEqualTo(" ".repeat(4));
@@ -536,7 +533,7 @@ class GeradorBPAiServiceTest {
 		atendimento.getPaciente().setRaca("INDIGENA");
 		atendimento.getPaciente().setEtnia("ETNIA QUE NAO EXISTE XYZ");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String linha = registro(conteudo, 0);
 
 		assertThat(linha.substring(152, 156)).isEqualTo(" ".repeat(4));
@@ -544,33 +541,76 @@ class GeradorBPAiServiceTest {
 
 	// ===== SEQUENCIAL E FOLHA =====
 
-	@Test
-	void gerarConteudoParcialReiniciaSequencialParaUmAoPassarDeNoventaENove() {
-		List<AtendimentoBPAi> lista = new ArrayList<>();
-		for (int i = 0; i < 100; i++) {
-			lista.add(criarAtendimentoMinimo(LocalDate.of(2024, 12, 25)));
-		}
-
-		String conteudo = service.gerarConteudoParcial(lista, "202412");
-
-		assertThat(registro(conteudo, 98).substring(47, 49)).isEqualTo("99");  // linha 99
-		assertThat(registro(conteudo, 99).substring(47, 49)).isEqualTo("01");  // linha 100 — reiniciou
+	/** Atendimento mínimo de um médico numa especialidade (para a numeração das folhas). */
+	private AtendimentoBPAi atendimentoDe(String especialidade, String nomeMedico, int dia, String hora) {
+		br.gov.ses.fillbpai.model.Medico medico = new br.gov.ses.fillbpai.model.Medico();
+		medico.setNome(nomeMedico);
+		AtendimentoBPAi a = criarAtendimentoMinimo(LocalDate.of(2026, 9, dia));
+		a.setMedico(medico);
+		a.setEspecialidadeMedico(especialidade);
+		a.setHoraAtendimento(hora != null ? java.time.LocalTime.parse(hora) : null);
+		return a;
 	}
 
 	@Test
-	void gerarConteudoCompletoReiniciaSequencialACadaTrocaDeFolha() {
-		AtendimentoBPAi a1 = criarAtendimentoMinimo(LocalDate.of(2024, 12, 25));
-		a1.setFolha("1");
-		AtendimentoBPAi a2 = criarAtendimentoMinimo(LocalDate.of(2024, 12, 25));
-		a2.setFolha("1");
-		AtendimentoBPAi a3 = criarAtendimentoMinimo(LocalDate.of(2024, 12, 25));
-		a3.setFolha("2");
+	void numerarFolhasUmaFolhaPorEspecialidadeEMedicoNaOrdemAlfabetica() {
+		// Regra única de folha (20/10/2026): por competência, especialidade → médico
+		AtendimentoBPAi nutri = atendimentoDe("NUTRICIONISTA", "ANA SOUZA", 3, "08:00");
+		AtendimentoBPAi beatriz = atendimentoDe("CARDIOLOGIA", "DRA. BEATRIZ LIMA", 2, "09:00");
+		AtendimentoBPAi andre2 = atendimentoDe("CARDIOLOGIA", "DR. ANDRÉ COSTA", 5, "08:00");
+		AtendimentoBPAi andre1 = atendimentoDe("CARDIOLOGIA", "DR. ANDRÉ COSTA", 1, "10:00");
 
-		String conteudo = service.gerarConteudoCompleto(List.of(a1, a2, a3), "202412", 2);
+		java.util.Map<AtendimentoBPAi, GeradorBPAiService.PosicaoFolha> n =
+				GeradorBPAiService.numerarFolhas(List.of(nutri, beatriz, andre2, andre1));
 
-		assertThat(registro(conteudo, 0).substring(47, 49)).isEqualTo("01");
-		assertThat(registro(conteudo, 1).substring(47, 49)).isEqualTo("02");
-		assertThat(registro(conteudo, 2).substring(47, 49)).isEqualTo("01"); // trocou de folha, reiniciou
+		assertThat(n.get(andre1)).isEqualTo(new GeradorBPAiService.PosicaoFolha(1, 1));
+		assertThat(n.get(andre2)).isEqualTo(new GeradorBPAiService.PosicaoFolha(1, 2)); // por data
+		assertThat(n.get(beatriz)).isEqualTo(new GeradorBPAiService.PosicaoFolha(2, 1));
+		assertThat(n.get(nutri)).isEqualTo(new GeradorBPAiService.PosicaoFolha(3, 1));
+	}
+
+	@Test
+	void numerarFolhasAbreFolhaNovaACadaNoventaENoveLinhas() {
+		List<AtendimentoBPAi> lista = new ArrayList<>();
+		for (int i = 0; i < 104; i++) {
+			lista.add(atendimentoDe("ENDOCRINOLOGIA", "DR. CARLOS MOTA", 1 + (i % 28),
+					String.format("%02d:%02d", 8 + (i / 28), i % 60)));
+		}
+
+		java.util.Map<AtendimentoBPAi, GeradorBPAiService.PosicaoFolha> n = GeradorBPAiService.numerarFolhas(lista);
+
+		assertThat(n.values()).filteredOn(p -> p.folha() == 1).hasSize(99);
+		assertThat(n.values()).filteredOn(p -> p.folha() == 2).hasSize(5)
+				.extracting(GeradorBPAiService.PosicaoFolha::linha).containsExactly(1, 2, 3, 4, 5);
+		assertThat(n.values()).allMatch(p -> p.linha() >= 1 && p.linha() <= 99);
+	}
+
+	@Test
+	void gerarConteudoEscreveFolhaELinhaDaNumeracaoNaOrdemDoArquivoComTotalDeFolhasNoHeader() {
+		AtendimentoBPAi beatriz = atendimentoDe("CARDIOLOGIA", "DRA. BEATRIZ LIMA", 2, "09:00");
+		AtendimentoBPAi andre = atendimentoDe("CARDIOLOGIA", "DR. ANDRÉ COSTA", 1, "10:00");
+		AtendimentoBPAi andre2 = atendimentoDe("CARDIOLOGIA", "DR. ANDRÉ COSTA", 3, "10:00");
+
+		String conteudo = service.gerarConteudo(List.of(beatriz, andre2, andre), "202609");
+
+		assertThat(conteudo.split("\r\n", -1)[0].substring(19, 25)).isEqualTo("000002"); // cbc-flh: 2 folhas
+		assertThat(registro(conteudo, 0).substring(44, 49)).isEqualTo("00101");
+		assertThat(registro(conteudo, 1).substring(44, 49)).isEqualTo("00102");
+		assertThat(registro(conteudo, 2).substring(44, 49)).isEqualTo("00201");
+	}
+
+	@Test
+	void parcialUsaAFolhaDaNumeracaoDaCompetenciaInteira() {
+		// O parcial de um médico sai com a mesma folha da geração completa
+		AtendimentoBPAi andre = atendimentoDe("CARDIOLOGIA", "DR. ANDRÉ COSTA", 1, "10:00");
+		AtendimentoBPAi beatriz = atendimentoDe("CARDIOLOGIA", "DRA. BEATRIZ LIMA", 2, "09:00");
+		java.util.Map<AtendimentoBPAi, GeradorBPAiService.PosicaoFolha> competencia =
+				GeradorBPAiService.numerarFolhas(List.of(andre, beatriz));
+
+		String parcial = service.gerarConteudo(List.of(beatriz), "202609", competencia);
+
+		assertThat(registro(parcial, 0).substring(44, 49)).isEqualTo("00201"); // folha 002, como na completa
+		assertThat(parcial.split("\r\n", -1)[0].substring(19, 25)).isEqualTo("000001"); // 1 folha no arquivo
 	}
 
 	// ===== SANITIZAÇÃO DE TEXTO (ISO-8859-1) =====
@@ -580,7 +620,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setNome("Ánderson’s Café – Órgão…");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String nomeNoRegistro = registro(conteudo, 0).substring(112, 142).stripTrailing();
 
 		// Nome em maiúsculas também para dados antigos (recomendação 29)
@@ -592,7 +632,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.getPaciente().setNome("AB★CD");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String nomeNoRegistro = registro(conteudo, 0).substring(112, 142).stripTrailing();
 
 		assertThat(nomeNoRegistro).isEqualTo("AB CD");
@@ -603,7 +643,7 @@ class GeradorBPAiServiceTest {
 		AtendimentoBPAi atendimento = criarAtendimentoCompleto();
 		atendimento.setCidConsulta("i10.9-extra");
 
-		String conteudo = service.gerarConteudoParcial(List.of(atendimento), "202412");
+		String conteudo = service.gerarConteudo(List.of(atendimento), "202412");
 		String cidNoRegistro = registro(conteudo, 0).substring(81, 85).stripTrailing();
 
 		assertThat(cidNoRegistro).isEqualTo("I109");

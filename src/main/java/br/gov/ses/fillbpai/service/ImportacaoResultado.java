@@ -9,15 +9,15 @@ import br.gov.ses.fillbpai.model.AtendimentoBPAi;
  * Representa o resumo final da importação de uma planilha Excel.
  *
  * Armazena:
- * - Contadores: total processados, sucesso, erros, avisos
- * - Lista detalhada de mensagens de erro (linhas que NÃO foram importadas)
- * - Lista detalhada de avisos (linhas importadas com ressalvas)
- * - Lista de registros válidos importados
+ * - Contadores: linhas da planilha, importadas (novas e atualizadas), erros, avisos
+ * - Mensagens de erro — usadas para montar a mensagem de "Importação bloqueada"
+ * - Avisos — vão para o log de importação
+ * - Atendimentos importados
  *
  * Diferença entre erro e aviso:
  * - ERRO: linha com problema — a importação da planilha inteira é cancelada (nada é gravado;
  *   todas as linhas da planilha devem ser importadas, decisão de 09/10/2026)
- * - AVISO: linha importada com sucesso, mas com dados atípicos (ex: CNS formato legado)
+ * - AVISO: linha importada, com um ponto a conferir (ex.: CID vazio, nome longo)
  */
 public class ImportacaoResultado {
 
@@ -26,10 +26,10 @@ public class ImportacaoResultado {
 	private int totalErro;
 	private int totalAvisos;
 
-	/** Mensagens de erro — linhas que NÃO foram importadas. */
+	/** Mensagens de erro por linha — qualquer uma cancela a importação inteira. */
 	private List<String> erros = new ArrayList<>();
 
-	/** Mensagens de aviso — linhas importadas mas com dados atípicos. */
+	/** Mensagens de aviso — linhas importadas com um ponto a conferir. */
 	private List<String> avisos = new ArrayList<>();
 
 	/** Registros válidos importados nesta execução. */
@@ -46,7 +46,8 @@ public class ImportacaoResultado {
 
 	/**
 	 * Incrementa contadores de erro e armazena mensagem detalhada.
-	 * Chamado quando uma linha é rejeitada por erro de validação.
+	 * Chamado quando uma linha tem erro — no fim do loop, qualquer erro
+	 * cancela a importação da planilha inteira.
 	 *
 	 * @param erro mensagem descrevendo o erro e a linha afetada
 	 */
@@ -58,8 +59,8 @@ public class ImportacaoResultado {
 
 	/**
 	 * Adiciona um aviso à lista.
-	 * Avisos são informativos — a linha foi importada com sucesso,
-	 * mas contém dados que merecem atenção do usuário.
+	 * Avisos não impedem a gravação da linha, mas merecem atenção do usuário:
+	 * vão para o log de importação.
 	 *
 	 * @param aviso mensagem descrevendo a situação atípica
 	 */

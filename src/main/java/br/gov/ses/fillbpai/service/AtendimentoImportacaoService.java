@@ -22,13 +22,17 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Serviço responsável por:
- * - Ler arquivo Excel
- * - Converter linhas em DTO
- * - Processar regras de negócio
- * - Criar/encontrar entidades normalizadas (Paciente, Medico, Estabelecimento, Endereco)
- * - Persistir atendimento com relacionamentos
- * - Retornar resumo detalhado da importação
+ * Importação da planilha Excel para o banco:
+ * <ul>
+ *   <li>lê as linhas ({@link ExcelImportService}) pelo mapeamento do cabeçalho
+ *       ({@link PlanilhaColumnMapper});</li>
+ *   <li>aplica as regras de negócio ({@link AtendimentoProcessor});</li>
+ *   <li>cria ou encontra as entidades (Paciente, Endereco, Medico,
+ *       Estabelecimento) e grava o atendimento;</li>
+ *   <li>devolve o resumo para o log de importação ({@link ImportacaoResultado}).</li>
+ * </ul>
+ * Todas as linhas da planilha precisam ser importadas: qualquer erro cancela
+ * a importação inteira (ver {@link #importar}).
  */
 public class AtendimentoImportacaoService {
 
@@ -50,7 +54,21 @@ public class AtendimentoImportacaoService {
 	}
 
 	/**
-	 * Executa a importação completa.
+	 * Importa a planilha inteira numa transação só — tudo ou nada (decisão de
+	 * 09/10/2026):
+	 * <ol>
+	 *   <li>confere a estrutura do cabeçalho e o código IBGE de todas as linhas
+	 *       antes de gravar ({@link #verificarIbgeDeTodasAsLinhas});</li>
+	 *   <li>para cada linha com dados: {@link AtendimentoProcessor} (erros e
+	 *       avisos), linhas repetidas ({@link DetectorDuplicidade}) e gravação
+	 *       ({@link #criarOuAtualizarAtendimento}, com {@code flush} por linha);</li>
+	 *   <li>qualquer linha com erro desfaz tudo; no fim, confere se cada linha
+	 *       virou um atendimento ({@link #conferirLinhasImportadas}) e resolve o
+	 *       CNS do profissional herdado pelo CPF.</li>
+	 * </ol>
+	 *
+	 * @return resumo com os contadores e os avisos para o log de importação
+	 * @throws IllegalStateException quando a importação é bloqueada — nenhuma linha é gravada
 	 */
 	public ImportacaoResultado importar(String caminhoArquivo) {
 
@@ -85,10 +103,6 @@ public class AtendimentoImportacaoService {
 			// ==============================
 
 			IbgeUtils.preCarregarCacheDb(carregarCepIbgeDoBanco());
-
-			// Pré-carrega folhas já atribuídas para propagar a novos atendimentos na importação
-			Map<String, String> mapaFolhas =
-					atendimentoRepository.buscarMapaFolhaPorEspecialidadeMedico();
 
 			// Código IBGE de todas as linhas ANTES de gravar qualquer coisa: se
 			// algum município/IBGE faltar, a importação da planilha inteira é
@@ -151,7 +165,7 @@ public class AtendimentoImportacaoService {
 					// 5. Cria/encontra entidades normalizadas e monta o atendimento
 					// findOrUpdate: se já existe atendimento idêntico, atualiza (evita duplicatas)
 					AtendimentoBPAi atendimento =
-							criarOuAtualizarAtendimento(dto, resultado, linhaExcel, mapaFolhas, pendentesCns);
+							criarOuAtualizarAtendimento(dto, resultado, linhaExcel, pendentesCns);
 
 					// Grava a linha agora: um erro do banco (ex.: valor maior que a
 					// coluna) aparece nesta linha, e não numa linha seguinte ou no commit.
@@ -231,14 +245,13 @@ public class AtendimentoImportacaoService {
 	/**
 	 * Cria ou atualiza um AtendimentoBPAi a partir do DTO processado.
 	 *
-	 * Lógica de deduplicação: busca atendimento existente pela chave natural
-	 * (paciente + médico + data + sigtap). Se encontrado, atualiza os campos
-	 * (inclusive CNS profissional). Se não, cria novo registro.
-	 *
-	 * Isso evita duplicatas quando a mesma planilha é reimportada
-	 * (ex: após configurar o DATASUS para preencher CNS profissional).
+	 * Deduplicação: busca atendimento existente pela chave paciente + médico +
+	 * data + SIGTAP + horário. Se encontrado, atualiza os campos (inclusive o
+	 * CNS do profissional); se não, cria um novo. Assim, reimportar a mesma
+	 * planilha (ex.: depois de cadastrar o CNS de um médico) atualiza em vez
+	 * de duplicar. O resultado conta novos e atualizados para o log.
 	 */
-	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel, Map<String, String> mapaFolhas, List<PendenciaCns> pendentesCns) {
+	private AtendimentoBPAi criarOuAtualizarAtendimento(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel, List<PendenciaCns> pendentesCns) {
 
 		// ==============================
 		// Código IBGE (antes de gravar qualquer coisa): tabela de MS pelo nome,
@@ -331,19 +344,8 @@ public class AtendimentoImportacaoService {
 		// atendimento passa a significar só "gravado antes da mudança".
 		atendimento.setSituacaoRua(dto.getSituacaoRua() != null ? dto.getSituacaoRua() : "N");
 
-		// ==============================
-		// Herança de folha para novos atendimentos
-		// Se o médico já possui folha atribuída para este mês, propaga para o novo registro
-		// ==============================
-
-		if (!atualizacao && (atendimento.getFolha() == null || atendimento.getFolha().isBlank())) {
-			String chave = resolverChaveFolha(
-					dto.getEspecialidadeMedico(), medico.getId());
-			String folhaExistente = mapaFolhas.get(chave);
-			if (folhaExistente != null) {
-				atendimento.setFolha(folhaExistente);
-			}
-		}
+		// Folha, linha e remessa não vêm da importação: são gravadas na geração
+		// do BPA-I (20/10/2026 — antes a folha do médico era herdada aqui)
 
 		// ==============================
 		// CNS do profissional (nome no cadastro, reserva pelo CPF)
@@ -438,8 +440,17 @@ public class AtendimentoImportacaoService {
 	}
 
 	/**
-	 * Busca paciente pelo CPF. Se não existir, cria novo.
-	 * Se existir, atualiza os dados com a importação mais recente.
+	 * Busca o paciente pela chave do cadastro e cria se não existir; se
+	 * existir, atualiza os dados com a linha mais recente.
+	 * <ul>
+	 *   <li>Chave: o CPF; paciente sem CPF usa a chave interna pelo CNS
+	 *       ({@link CpfUtils#chaveSemCpfPorCns}), migrando a chave antiga
+	 *       ({@link #migrarChaveSemCpfAntiga});</li>
+	 *   <li>nome cadastrado diferente do da linha → aviso CPF_COM_NOMES_DIFERENTES
+	 *       (o cadastro fica com o nome da linha);</li>
+	 *   <li>o CNS só é trocado quando a linha traz um CNS melhor ({@link #deveTrocarCns});</li>
+	 *   <li>situação de rua não é atualizada (fica no atendimento).</li>
+	 * </ul>
 	 */
 	private Paciente buscarOuCriarPaciente(LinhaImportacaoDTO dto, ImportacaoResultado resultado, int linhaExcel) {
 
@@ -746,15 +757,6 @@ public class AtendimentoImportacaoService {
 	}
 
 	/**
-	 * Monta a chave de lookup no mapa de folhas existentes.
-	 * Formato idêntico ao usado em buscarMapaFolhaPorEspecialidadeMedico().
-	 */
-	private String resolverChaveFolha(String especialidade, Long medicoId) {
-		String esp = especialidade != null ? especialidade : "";
-		return esp + "|" + medicoId;
-	}
-
-	/**
 	 * Monta uma descrição legível dos problemas de estrutura do cabeçalho
 	 * (colunas obrigatórias ausentes e/ou duplicadas) para uso em mensagens
 	 * de erro voltadas ao usuário.
@@ -788,7 +790,8 @@ public class AtendimentoImportacaoService {
 	/**
 	 * Carrega todos os pares CEP → codigoIbge já persistidos na tabela Endereco.
 	 * Usado para pré-popular o cache do IbgeUtils antes do loop de importação,
-	 * evitando chamadas à API ViaCEP para CEPs já conhecidos.
+	 * evitando consultas às APIs de CEP (ViaCEP, BrasilAPI, OpenCEP) para CEPs
+	 * já conhecidos.
 	 */
 	private Map<String, String> carregarCepIbgeDoBanco() {
 

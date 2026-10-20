@@ -59,7 +59,28 @@ public class AtendimentoBPAiDTO {
 
 	public String getCodIne() { return entity.getCodIne(); }
 
-	public String getFolha() { return entity.getFolha(); }
+	/**
+	 * Folha da última remessa BPA-I, com 3 dígitos ("003"); "—" se ainda não
+	 * enviado. Folha gravada sem remessa (botão "Definir Folha", antes de
+	 * 20/10/2026) não é mostrada: não é a folha de nenhum arquivo gerado.
+	 */
+	public String getFolha() {
+		String digitos = entity.getFolha() == null ? "" : entity.getFolha().replaceAll("\\D", "");
+		return entity.getRemessaEm() == null || digitos.isEmpty() ? "—"
+				: String.format("%03d", Integer.parseInt(digitos));
+	}
+
+	/** Linha dentro da folha na última remessa, com 2 dígitos ("47"); "—" se ainda não enviado. */
+	public String getLinhaFolha() {
+		return entity.getRemessaEm() == null || entity.getLinhaFolha() == null ? "—"
+				: String.format("%02d", entity.getLinhaFolha());
+	}
+
+	/** Data/hora da última remessa BPA-I ("20/10/2026 14:32"), ou "não enviada". */
+	public String getRemessa() {
+		return entity.getRemessaEm() == null ? "não enviada"
+				: entity.getRemessaEm().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+	}
 
 	public String getMedico() {
 		return entity.getMedico() != null ?

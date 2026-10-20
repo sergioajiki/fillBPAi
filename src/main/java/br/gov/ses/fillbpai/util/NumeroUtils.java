@@ -43,9 +43,16 @@ public class NumeroUtils {
 	public record Resultado(String valor, boolean foraDoPadrao) {
 	}
 
+	/** Mensagem do aviso de número fora do padrão — análise e log de importação. */
+	public static String mensagemForaDoPadrao(String celula, Resultado resultado) {
+		return "Número do endereço \"" + celula.trim() + "\" fora do padrão — informe o número (ex.: 100 ou 12A) ou"
+				+ " S/N para sem número; será enviado \"" + resultado.valor() + "\"";
+	}
+
 	/**
+	 * Número do endereço para o BPA-I:
 	 * <ul>
-	 *   <li>vazio ou forma de "sem número" → {@code SN}, sem aviso;</li>
+	 *   <li>vazio, forma de "sem número" ou só traço → {@code SN}, sem aviso;</li>
 	 *   <li>número no padrão ({@code 100}, {@code 12A}) → como veio, sem aviso;</li>
 	 *   <li>outro valor com até 5 caracteres ({@code X}, {@code N/A}) →
 	 *       como veio, com aviso;</li>
@@ -54,12 +61,6 @@ public class NumeroUtils {
 	 *       ("123456", "Lote 10 Quadra 5") — os dois com aviso.</li>
 	 * </ul>
 	 */
-	/** Mensagem do aviso de número fora do padrão — análise e log de importação. */
-	public static String mensagemForaDoPadrao(String celula, Resultado resultado) {
-		return "Número do endereço \"" + celula.trim() + "\" fora do padrão — informe o número (ex.: 100 ou 12A) ou"
-				+ " S/N para sem número; será enviado \"" + resultado.valor() + "\"";
-	}
-
 	public static Resultado normalizar(String celula) {
 
 		if (celula == null || celula.isBlank()) {

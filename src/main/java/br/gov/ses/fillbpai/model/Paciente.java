@@ -6,7 +6,9 @@ import java.time.LocalDate;
 
 /**
  * Entidade que representa um paciente.
- * Chave natural: CPF (único).
+ * Chave natural: CPF (único). Paciente sem CPF usa uma chave interna derivada
+ * do CNS ("SC" + 12 caracteres — {@code CpfUtils.chaveSemCpfPorCns}), que
+ * nunca vai para o BPA-I.
  * Dados atualizados pela última importação.
  */
 @Entity

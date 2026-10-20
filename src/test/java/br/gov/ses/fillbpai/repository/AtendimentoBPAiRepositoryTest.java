@@ -80,32 +80,6 @@ class AtendimentoBPAiRepositoryTest {
 	}
 
 	@Test
-	void buscarMapaFolhaPorEspecialidadeMedicoAgrupaPorEspecialidadeEMedicoIgnorandoFolhaNula() {
-
-		entityManager.getTransaction().begin();
-
-		Paciente paciente1 = criarPaciente("11111111111");
-		Medico medicoA = criarMedico("22222222222", "MEDICO A");
-		criarAtendimento(paciente1, medicoA, "CARDIOLOGIA", LocalDate.of(2024, 12, 1), "03.01.01.030-7", "1");
-
-		Paciente paciente2 = criarPaciente("33333333333");
-		Medico medicoB = criarMedico("44444444444", "MEDICO B");
-		criarAtendimento(paciente2, medicoB, "PEDIATRIA", LocalDate.of(2024, 12, 2), "03.01.01.030-7", "2");
-
-		Paciente paciente3 = criarPaciente("55555555555");
-		criarAtendimento(paciente3, medicoA, "CARDIOLOGIA", LocalDate.of(2024, 12, 3), "03.01.01.030-7", null);
-
-		entityManager.getTransaction().commit();
-		entityManager.clear();
-
-		Map<String, String> mapa = repository.buscarMapaFolhaPorEspecialidadeMedico();
-
-		assertThat(mapa).hasSize(2);
-		assertThat(mapa).containsEntry("CARDIOLOGIA|" + medicoA.getId(), "1");
-		assertThat(mapa).containsEntry("PEDIATRIA|" + medicoB.getId(), "2");
-	}
-
-	@Test
 	void buscarDuplicataEncontraPelaChaveNaturalExata() {
 
 		entityManager.getTransaction().begin();

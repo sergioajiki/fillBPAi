@@ -16,7 +16,8 @@ import java.time.LocalTime;
  * Campos próprios do atendimento:
  * - Tipo de serviço, SIGTAP, data, hora, CID, folha, INE
  * - Especialidade e CBO (podem variar por atendimento para o mesmo médico)
- * - CNS profissional (preenchido manualmente na UI)
+ * - CNS profissional (resolvido pelo nome do médico na importação —
+ *   {@code medicos_cns.csv} — ou editado na tela)
  */
 @Entity
 @Table(name = "atendimento_bpai")
@@ -52,8 +53,21 @@ public class AtendimentoBPAi {
 	@Column(name = "cod_ine")
 	private String codIne;
 
+	/**
+	 * Folha ({@code prd-flh}) com que o atendimento foi para a última remessa
+	 * BPA-I — gravada na geração (20/10/2026), junto com {@link #linhaFolha} e
+	 * {@link #remessaEm}. Nula enquanto o atendimento não foi enviado.
+	 */
 	@Column(name = "folha")
 	private String folha;
+
+	/** Linha dentro da folha ({@code prd-seq}, 1 a 99) na última remessa BPA-I. */
+	@Column(name = "linha_folha")
+	private Integer linhaFolha;
+
+	/** Data/hora da última remessa BPA-I em que o atendimento foi enviado; nula = não enviado. */
+	@Column(name = "remessa_em")
+	private java.time.LocalDateTime remessaEm;
 
 	@Column(name = "cns_profissional")
 	private String cnsProfissional;
@@ -80,9 +94,9 @@ public class AtendimentoBPAi {
 	private String cidConsulta;
 
 	/**
-	 * "S"/"N"/nulo — paciente sem CPF/registro civil (prd_sem_cpf do BPA-I).
-	 * Nulo = não informado na planilha; nesse caso o gerador deriva o valor
-	 * a partir da presença do CPF do paciente.
+	 * "S"/"N"/""/nulo — paciente sem CPF/registro civil (prd_sem_cpf do BPA-I).
+	 * Nulo = planilha sem a coluna (o gerador deriva o valor da presença do CPF
+	 * do paciente); "" = coluna presente com a célula vazia (vai em branco).
 	 */
 	@Column(name = "paciente_sem_cpf", length = 1)
 	private String pacienteSemCpf;
@@ -156,6 +170,22 @@ public class AtendimentoBPAi {
 
 	public void setFolha(String folha) {
 		this.folha = folha;
+	}
+
+	public Integer getLinhaFolha() {
+		return linhaFolha;
+	}
+
+	public void setLinhaFolha(Integer linhaFolha) {
+		this.linhaFolha = linhaFolha;
+	}
+
+	public java.time.LocalDateTime getRemessaEm() {
+		return remessaEm;
+	}
+
+	public void setRemessaEm(java.time.LocalDateTime remessaEm) {
+		this.remessaEm = remessaEm;
 	}
 
 	public String getCnsProfissional() {

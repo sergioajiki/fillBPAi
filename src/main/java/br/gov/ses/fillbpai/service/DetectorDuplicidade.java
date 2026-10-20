@@ -70,7 +70,12 @@ public class DetectorDuplicidade {
 		return ocorrencia;
 	}
 
-	/** Mesma chave do paciente na importação: CPF, ou a chave interna de paciente sem CPF. */
+	/**
+	 * Mesma chave do paciente na importação: CPF, ou a chave interna do
+	 * paciente sem CPF pelo CNS (recomendação 68). CNS inválido já é erro na
+	 * linha; nesse caso usa a chave antiga (nome + nascimento) só para a chave
+	 * não ficar vazia.
+	 */
 	private static String chavePaciente(LinhaImportacaoDTO dto) {
 
 		String cpf = dto.getCpfPaciente();

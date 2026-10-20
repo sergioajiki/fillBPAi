@@ -270,10 +270,6 @@ public final class AgrupamentoValidacao {
 					"Situação de rua vazia",
 					"A coluna \"Situação de Rua\" existe, mas a célula está vazia. Será importada em branco (sem"
 							+ " informação). Preencha com Sim ou Não se souber.", 23)),
-			Map.entry(ErroValidacao.PACIENTE_SEM_CPF_VAZIO, new InfoTipo(
-					"\"Paciente sem CPF\" vazio",
-					"A coluna \"Paciente sem CPF\" existe, mas a célula está vazia. Será importada em branco (sem"
-							+ " informação). Preencha com Não quando o paciente tem CPF.", 23)),
 			Map.entry(ErroValidacao.COMPLEMENTO_CORTADO, new InfoTipo(
 					"Complemento maior que 10 caracteres",
 					"O BPA-I aceita até 10 caracteres no complemento. As palavras comuns são abreviadas (Apartamento"

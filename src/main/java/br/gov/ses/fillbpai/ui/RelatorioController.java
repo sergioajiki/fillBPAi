@@ -109,8 +109,6 @@ public class RelatorioController {
 
 	private Button btnAtualizar = new Button("Atualizar CNS");
 
-	private Button btnFolha = new Button("Definir Folha");
-
 	private Button btnLimpar = new Button("Limpar");
 
 	// BOTÃO DE GERAÇÃO ÚNICO — texto e ação se adaptam à seleção da árvore:
@@ -156,7 +154,7 @@ public class RelatorioController {
 	// BOTÃO ANALISAR PLANILHA — valida a planilha antes de importar
 	private Button btnAnalisarPlanilha = new Button("Analisar Planilha");
 
-	/** Barra de edição (CNS e Folha) — visível apenas quando um médico está selecionado na árvore */
+	/** Barra de edição (CNS) — visível apenas quando um médico está selecionado na árvore */
 	private HBox barraEdicao;
 
 	/** Competência selecionada para geração BPA-I (formato YYYYMM do mês de atendimento) */
@@ -521,7 +519,8 @@ public class RelatorioController {
 	}
 
 	// ======================================================
-	// BARRA DE EDIÇÃO (CNS e Folha) — contextual ao médico selecionado
+	// BARRA DE EDIÇÃO (CNS) — contextual ao médico selecionado. A folha não é
+	// mais definida aqui: é calculada e gravada na geração do BPA-I (20/10/2026)
 	// ======================================================
 
 	private HBox criarBarraEdicao() {
@@ -529,12 +528,10 @@ public class RelatorioController {
 		campoCnsProfissional.setPromptText("Novo CNS");
 
 		btnAtualizar.setOnAction(e -> atualizarCns());
-		btnFolha.setOnAction(e -> definirFolha());
 
 		barraEdicao = new HBox(10,
 				new Label("CNS:"), campoCnsProfissional,
-				btnAtualizar,
-				btnFolha
+				btnAtualizar
 		);
 		barraEdicao.setVisible(false);
 		barraEdicao.setManaged(false);
@@ -810,7 +807,7 @@ public class RelatorioController {
 	}
 
 	/**
-	 * Verifica folha e CNS ausentes para o médico/especialidade selecionados
+	 * Verifica CNS ausente para o médico/especialidade selecionados
 	 * na árvore. Usado pelo chip de aviso da barra inferior quando um médico
 	 * está selecionado (contexto de geração "parcial").
 	 */
@@ -826,14 +823,6 @@ public class RelatorioController {
 
 		try {
 
-			long semFolha = (long) entityManager.createQuery(
-					"SELECT COUNT(a) FROM AtendimentoBPAi a JOIN a.medico m " +
-					"WHERE m.nome = :medico AND a.especialidadeMedico = :esp " +
-					"AND (a.folha IS NULL OR a.folha = '')")
-					.setParameter("medico", medico)
-					.setParameter("esp", especialidade)
-					.getSingleResult();
-
 			long semCns = (long) entityManager.createQuery(
 					"SELECT COUNT(a) FROM AtendimentoBPAi a JOIN a.medico m " +
 					"WHERE m.nome = :medico AND a.especialidadeMedico = :esp " +
@@ -842,7 +831,7 @@ public class RelatorioController {
 					.setParameter("esp", especialidade)
 					.getSingleResult();
 
-			if (semFolha == 0 && semCns == 0) {
+			if (semCns == 0) {
 				avisosParcial = null;
 				return;
 			}
@@ -851,8 +840,6 @@ public class RelatorioController {
 			sb.append("=== PENDÊNCIAS — GERAÇÃO BPA-I PARCIAL ===\n");
 			sb.append("Médico: ").append(medico).append("\n");
 			sb.append("Especialidade: ").append(especialidade).append("\n\n");
-			if (semFolha > 0)
-				sb.append("⚠ Folha ausente: ").append(semFolha).append(" atendimento(s)\n");
 			if (semCns > 0)
 				sb.append("⚠ CNS do profissional ausente: ").append(semCns).append(" atendimento(s)\n");
 
@@ -903,155 +890,6 @@ public class RelatorioController {
 	}
 
 	// ======================================================
-	// DEFINIR FOLHA MANUAL
-	// ======================================================
-
-	/**
-	 * Abre um diálogo para definir o número de folha do médico selecionado.
-	 *
-	 * Regras:
-	 * - Se o médico já tem folha, ela será substituída pelo número informado
-	 * - Se o número já está sendo usado por outro médico (na mesma competência),
-	 *   exibe alerta e não permite a alteração
-	 * - Atualiza todos os atendimentos do médico/especialidade selecionados
-	 */
-	private void definirFolha() {
-
-		String medico = medicoSelecionado;
-		String especialidade = especialidadeSelecionada;
-
-		if (medico == null || especialidade == null) {
-			mostrarMensagem("Selecione um médico na árvore.");
-			return;
-		}
-
-		// Descobre a folha atual do médico (se houver)
-		String folhaAtual = obterFolhaAtual(medico, especialidade);
-
-		TextInputDialog dialog = new TextInputDialog(folhaAtual != null ? folhaAtual : "");
-		dialog.setTitle("Definir Folha");
-		dialog.setHeaderText("Médico: " + medico + "\nEspecialidade: " + especialidade);
-		dialog.setContentText("Número da folha:");
-
-		Optional<String> resultado = dialog.showAndWait();
-
-		if (resultado.isEmpty() || resultado.get().isBlank()) {
-			return;
-		}
-
-		String novaFolha = resultado.get().trim();
-
-		// Valida que é numérico
-		if (!novaFolha.matches("\\d+")) {
-			mostrarAlerta("Número inválido. Informe apenas dígitos.");
-			return;
-		}
-
-		// Verifica se a folha já está em uso por outro médico
-		String medicoUsandoFolha = verificarFolhaEmUso(novaFolha, medico, especialidade);
-
-		if (medicoUsandoFolha != null) {
-			mostrarAlerta("Folha " + novaFolha + " já está em uso pelo médico: "
-					+ medicoUsandoFolha + ". Escolha outro número.");
-			return;
-		}
-
-		// Aplica a folha a todos os atendimentos do médico/especialidade
-		aplicarFolha(novaFolha, medico, especialidade);
-
-		carregarDoBanco();
-
-		mostrarMensagem("Folha " + novaFolha + " atribuída ao médico " + medico + ".");
-	}
-
-	/**
-	 * Obtém a folha atual de um médico/especialidade.
-	 *
-	 * @return número da folha ou null se não definida
-	 */
-	private String obterFolhaAtual(String medico, String especialidade) {
-
-		List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
-						"SELECT a FROM AtendimentoBPAi a " +
-								"JOIN a.medico m " +
-								"WHERE m.nome = :medico " +
-								"AND a.especialidadeMedico = :esp " +
-								"AND a.folha IS NOT NULL",
-						AtendimentoBPAi.class)
-				.setParameter("medico", medico)
-				.setParameter("esp", especialidade)
-				.setMaxResults(1)
-				.getResultList();
-
-		if (atendimentos.isEmpty()) {
-			return null;
-		}
-
-		return atendimentos.get(0).getFolha();
-	}
-
-	/**
-	 * Verifica se o número de folha já está sendo usado por outro médico.
-	 *
-	 * @return nome do médico que usa a folha, ou null se disponível
-	 */
-	private String verificarFolhaEmUso(String folha, String medicoAtual, String especialidadeAtual) {
-
-		List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
-						"SELECT a FROM AtendimentoBPAi a " +
-								"JOIN a.medico m " +
-								"WHERE a.folha = :folha " +
-								"AND (m.nome <> :medico OR a.especialidadeMedico <> :esp)",
-						AtendimentoBPAi.class)
-				.setParameter("folha", folha)
-				.setParameter("medico", medicoAtual)
-				.setParameter("esp", especialidadeAtual)
-				.setMaxResults(1)
-				.getResultList();
-
-		if (atendimentos.isEmpty()) {
-			return null;
-		}
-
-		return atendimentos.get(0).getMedico().getNome();
-	}
-
-	/**
-	 * Aplica o número de folha a todos os atendimentos do médico/especialidade.
-	 */
-	private void aplicarFolha(String folha, String medico, String especialidade) {
-
-		entityManager.getTransaction().begin();
-
-		try {
-
-			List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
-							"SELECT a FROM AtendimentoBPAi a " +
-									"JOIN a.medico m " +
-									"WHERE m.nome = :medico " +
-									"AND a.especialidadeMedico = :esp",
-							AtendimentoBPAi.class)
-					.setParameter("medico", medico)
-					.setParameter("esp", especialidade)
-					.getResultList();
-
-			for (AtendimentoBPAi a : atendimentos) {
-				a.setFolha(folha);
-			}
-
-			entityManager.getTransaction().commit();
-
-		} catch (Exception e) {
-
-			if (entityManager.getTransaction().isActive()) {
-				entityManager.getTransaction().rollback();
-			}
-
-			mostrarAlerta("Erro ao atribuir folha: " + e.getMessage());
-		}
-	}
-
-	// ======================================================
 	// GERAR BPA COM FILECHOOSER
 	// ======================================================
 
@@ -1084,12 +922,19 @@ public class RelatorioController {
 			Window window =
 					tabela.getScene().getWindow();
 
-			service.gerarArquivoComFileChooser(
+			boolean gerado = service.gerarArquivoComFileChooser(
 					window,
 					especialidade,
 					medico,
 					competenciaSelecionada
 			);
+
+			if (!gerado) {
+				return; // escolha do arquivo cancelada
+			}
+
+			// Recarrega a tabela: folha, linha e remessa gravadas na geração
+			carregarDoBanco();
 
 			mostrarMensagem("Arquivo gerado com sucesso.");
 
@@ -1107,16 +952,10 @@ public class RelatorioController {
 	/**
 	 * Gera o arquivo BPA-I completo com todos os médicos.
 	 *
-	 * Regra de folha:
-	 * 1. Especialidades em ordem alfabética
-	 * 2. Médicos dentro de cada especialidade em ordem alfabética
-	 * 3. Cada combinação (especialidade + médico) recebe uma folha sequencial:
-	 *    folha 1 para o primeiro médico, folha 2 para o segundo, etc.
-	 * 4. A sequência de folha é por competência (mês) — ao mudar o mês,
-	 *    a numeração é recalculada automaticamente.
-	 *
-	 * Após a geração, a tabela é recarregada para exibir
-	 * as folhas atribuídas a cada atendimento.
+	 * Folhas e linhas numeradas pelo gerador ({@code GeradorBPAiService.numerarFolhas}:
+	 * por competência, especialidade → médico, folha nova a cada 99 linhas) e
+	 * gravadas nos atendimentos com a data/hora da remessa. Depois da geração
+	 * a tabela é recarregada e mostra Folha, Linha e Remessa.
 	 */
 	private void gerarBPACompleto() {
 
@@ -1133,9 +972,11 @@ public class RelatorioController {
 			Window window =
 					tabela.getScene().getWindow();
 
-			service.gerarArquivoCompletoComFileChooser(window, competenciaSelecionada);
+			if (!service.gerarArquivoCompletoComFileChooser(window, competenciaSelecionada)) {
+				return; // escolha do arquivo cancelada
+			}
 
-			// Recarrega tabela para exibir as folhas atribuídas
+			// Recarrega a tabela: folha, linha e remessa gravadas na geração
 			carregarDoBanco();
 
 			mostrarMensagem("Arquivo BPA-I completo gerado com sucesso.");
@@ -1258,8 +1099,7 @@ public class RelatorioController {
 	/**
 	 * Atualiza o CNS do profissional para todos os atendimentos
 	 * do médico e especialidade selecionados na árvore.
-	 *
-	 * A folha não é mais editável pela UI — é controlada pelo gerador.
+	 * A folha não é editável: é calculada e gravada na geração do BPA-I.
 	 */
 	private void atualizarCns() {
 
@@ -1329,8 +1169,16 @@ public class RelatorioController {
 				criarColuna("INE",
 						AtendimentoBPAiDTO::getCodIne),
 
+				// Folha e linha com que o atendimento foi para a última remessa
+				// BPA-I, e quando (20/10/2026); "—" / "não enviada" antes disso
 				criarColuna("Folha",
 						AtendimentoBPAiDTO::getFolha),
+
+				criarColuna("Linha",
+						AtendimentoBPAiDTO::getLinhaFolha),
+
+				criarColuna("Remessa",
+						AtendimentoBPAiDTO::getRemessa),
 
 				criarColuna("Médico",
 						AtendimentoBPAiDTO::getMedico),

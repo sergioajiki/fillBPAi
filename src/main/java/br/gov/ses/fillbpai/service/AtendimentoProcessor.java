@@ -27,21 +27,29 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Classe responsável por processar e validar os dados importados do Excel.
- *
- * Pipeline de processamento (executado na ordem):
- * 1. Separações — extrai código/nome de campos combinados
- * 2. Definição SIGTAP — mapeia tipo de serviço para código SIGTAP
- * 3. Normalizações — limpa CPF, CEP, limita tamanho de campos
- * 4. Validações — verifica campos obrigatórios e formato do CNS
- * 5. Conversões — transforma strings de data/hora em LocalDate/LocalTime
- *
- * Esta classe NÃO acessa banco de dados.
- * Apenas prepara o DTO para extração de entidades na camada de serviço.
- *
- * @return Lista de avisos (warnings) gerados durante o processamento.
- *         Avisos NÃO impedem a importação — apenas informam situações atípicas.
- *         Erros bloqueantes são lançados como IllegalArgumentException.
+ * Processa e valida uma linha da planilha já lida ({@link LinhaImportacaoDTO})
+ * antes de ela ser gravada por {@code AtendimentoImportacaoService}.
+ * <p>
+ * Etapas (na ordem de {@link #processar}):
+ * <ol>
+ *   <li>Separações — estabelecimento "código - nome", especialidade/médico no
+ *       formato legado, especialidade padronizada;</li>
+ *   <li>SIGTAP — a partir do tipo de serviço (procedimento fixo para
+ *       nutricionista/psicólogo sem tipo);</li>
+ *   <li>Normalizações — CPF, CEP, sexo, tamanho do tipo de zona;</li>
+ *   <li>Validações e normalizações por coluna — nome, campos obrigatórios,
+ *       CEP, CPFs, CBO, especialidade, raça/etnia, CNS, colunas S/N, CID,
+ *       telefone, logradouro, número, bairro/complemento, CEP fora de MS;</li>
+ *   <li>Conversões — datas e hora, com os avisos de data;</li>
+ *   <li>Vigência dos campos novos do layout ({@link VigenciaLayoutUtils}).</li>
+ * </ol>
+ * Mesmas regras da análise ({@code ValidacaoPlanilhaService}): o que lá é
+ * ERRO aqui lança {@link IllegalArgumentException} (a planilha inteira deixa
+ * de ser importada — tudo ou nada); o que lá é AVISO volta como texto na
+ * lista de avisos, com o código do tipo entre parênteses, para o log de
+ * importação.
+ * <p>
+ * Esta classe não acessa o banco de dados.
  */
 public class AtendimentoProcessor {
 
@@ -139,11 +147,14 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Valida e normaliza o CNS do paciente.
-	 *
-	 * CNS com 15 dígitos → padrão atual, aceito sem aviso.
-	 * CNS com mais de 15 dígitos → formato legado (antigo), aceito com aviso.
-	 * CNS ausente ou com menos de 15 dígitos → erro bloqueante.
+	 * Valida e normaliza o CNS do paciente ({@link CnsUtils#processar}):
+	 * <ul>
+	 *   <li>vazio → sem aviso (Decisão 13: com CPF o CNS não vai para o BPA-I);</li>
+	 *   <li>15 dígitos → gravado; dígito verificador errado → aviso CNS_DV_INVALIDO;</li>
+	 *   <li>sem 15 dígitos (a menos ou a mais) → aviso CNS_INVALIDO e o valor
+	 *       não é gravado (recomendação 26).</li>
+	 * </ul>
+	 * Paciente sem CPF já teve o CNS exigido em {@link #validarCamposObrigatorios}.
 	 *
 	 * @return lista de avisos gerados pela validação do CNS
 	 */
@@ -349,10 +360,13 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Valida o tamanho do CPF após normalização.
-	 * CPF presente com tamanho diferente de 11 dígitos é erro bloqueante.
+	 * Valida o CPF do paciente preenchido (vazio é tratado em
+	 * {@link #validarCamposObrigatorios}). Erro bloqueante quando: vem junto
+	 * com "Paciente sem CPF" = Sim (contradição), não tem 11 dígitos (sem
+	 * completar zeros — a mensagem orienta formatar a coluna como texto), tem
+	 * os 11 dígitos iguais ou tem os dígitos verificadores errados.
 	 *
-	 * @throws IllegalArgumentException se o CPF estiver presente mas com tamanho incorreto
+	 * @throws IllegalArgumentException se o CPF preenchido for inválido
 	 */
 	private void validarCpf(LinhaImportacaoDTO dto) {
 
@@ -393,14 +407,6 @@ public class AtendimentoProcessor {
 		}
 	}
 
-	/**
-	 * Valida o CPF do médico — chave do cadastro de {@code Medico}. Ausente ou
-	 * com tamanho diferente de 11 dígitos é erro bloqueante da linha, lançado
-	 * aqui (antes de qualquer gravação) para não chegar ao banco: um CPF
-	 * fora do tamanho da coluna derrubava a transação da planilha inteira.
-	 *
-	 * @throws IllegalArgumentException se o CPF do médico estiver ausente ou inválido
-	 */
 	/**
 	 * CBO do médico — vai para o BPA-I ({@code prd-cbo}, 6 posições). Reduzido
 	 * aos dígitos ({@code 2251-25} → {@code 225125}): com a máscara ele tinha 7
@@ -443,6 +449,16 @@ public class AtendimentoProcessor {
 		}
 	}
 
+	/**
+	 * Valida o CPF do médico — chave do cadastro de {@code Medico}. Ausente,
+	 * com tamanho diferente de 11 dígitos, com dígitos repetidos ou com
+	 * dígitos verificadores errados é erro bloqueante da linha, lançado aqui
+	 * (antes de qualquer gravação): um CPF fora do tamanho da coluna derrubava
+	 * a transação da planilha inteira, e um CPF digitado errado criava um
+	 * segundo cadastro do mesmo médico, com folha própria no BPA-I.
+	 *
+	 * @throws IllegalArgumentException se o CPF do médico estiver ausente ou inválido
+	 */
 	private void validarCpfMedico(LinhaImportacaoDTO dto) {
 
 		String cpf = dto.getCpfMedico();
@@ -524,13 +540,14 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Normaliza a situação de rua do paciente para o código S/N do BPA-I.
-	 * <p>
-	 * Coluna ausente da planilha (valor {@code null}) ou célula em branco:
-	 * sem aviso — {@link br.gov.ses.fillbpai.service.GeradorBPAiService}
-	 * usa o padrão "N" nesse caso. Valor presente mas não reconhecido
-	 * (não é S/N, Sim/Não nem 1/0): aviso, e o campo fica sem valor
-	 * definido (mesmo fallback "N" na geração).
+	 * Normaliza a situação de rua (do atendimento) para o código S/N do BPA-I.
+	 * <ul>
+	 *   <li>coluna ausente ({@code null}): sem aviso aqui — o atendimento é
+	 *       gravado com "N" (regra de coluna opcional ausente);</li>
+	 *   <li>célula vazia: aviso SITUACAO_RUA_VAZIA e {@code ""} (branco no BPA-I);</li>
+	 *   <li>valor não reconhecido (não é S/N, Sim/Não nem 1/0): aviso, e o
+	 *       campo fica sem valor ({@code null} → "N").</li>
+	 * </ul>
 	 *
 	 * @return lista com o aviso aplicável, ou lista vazia
 	 */
@@ -585,11 +602,14 @@ public class AtendimentoProcessor {
 	 * Normaliza a informação de "paciente sem CPF/registro civil" (seq 39
 	 * do BPA-I, <code>prd_sem_cpf</code>) para o código S/N.
 	 * <p>
-	 * Coluna ausente da planilha (valor {@code null}) ou célula em branco:
-	 * sem aviso — {@link br.gov.ses.fillbpai.service.GeradorBPAiService}
-	 * deriva o valor automaticamente a partir da presença do CPF do
-	 * paciente nesse caso. Valor presente mas não reconhecido: aviso, e o
-	 * campo fica sem valor definido (mesma derivação automática se aplica).
+	 * <ul>
+	 *   <li>coluna ausente ({@code null}): sem aviso — o gerador deriva o valor
+	 *       da presença do CPF do paciente;</li>
+	 *   <li>célula vazia com o CPF preenchido: "N", sem aviso (20/10/2026 — o CPF
+	 *       mostra que o paciente tem CPF; CPF vazio com a célula vazia já é erro);</li>
+	 *   <li>valor não reconhecido: aviso, e o campo fica sem valor ({@code null},
+	 *       mesma derivação pelo CPF).</li>
+	 * </ul>
 	 *
 	 * @return lista com o aviso aplicável, ou lista vazia
 	 */
@@ -599,10 +619,12 @@ public class AtendimentoProcessor {
 
 		String bruto = dto.getPacienteSemCpf();
 
-		// Coluna presente com a célula vazia: em branco no BPA-I, com aviso (16/10/2026)
+		// Coluna presente com a célula vazia (20/10/2026): o CPF da linha decide —
+		// CPF preenchido (já validado em validarCpf) → "N", sem aviso. CPF vazio
+		// com a célula vazia já foi recusado em validarCamposObrigatorios; o ""
+		// fica só como proteção (branco no BPA-I).
 		if (bruto != null && bruto.isBlank()) {
-			avisos.add("Paciente sem CPF com a celula vazia (PACIENTE_SEM_CPF_VAZIO) - sera importado em branco");
-			dto.setPacienteSemCpf("");
+			dto.setPacienteSemCpf(isNullOrEmpty(dto.getCpfPaciente()) ? "" : "N");
 			return avisos;
 		}
 
@@ -645,12 +667,15 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Valida campos obrigatórios para a importação.
-	 *
-	 * Campos obrigatórios:
-	 * - Nome do paciente
-	 * - CPF do paciente
-	 * - Data de agendamento
+	 * Valida campos obrigatórios para a importação:
+	 * <ul>
+	 *   <li>nome do paciente;</li>
+	 *   <li>município (sem ele não há a primeira busca do IBGE);</li>
+	 *   <li>CPF do paciente — vazio só com "Paciente sem CPF" = Sim, e então o
+	 *       CNS é obrigatório, com 15 dígitos e dígito verificador válido;</li>
+	 *   <li>data de agendamento (= data do atendimento);</li>
+	 *   <li>data de nascimento (sem ela a idade sairia 000 no BPA-I).</li>
+	 * </ul>
 	 *
 	 * @throws IllegalArgumentException se algum campo obrigatório estiver ausente
 	 */
@@ -697,15 +722,17 @@ public class AtendimentoProcessor {
 	// ===============================
 
 	/**
-	 * Converte strings de data/hora do Excel em tipos Java.
-	 *
-	 * Campos convertidos:
-	 * - dataAgendamentoString → dataAgendamento (LocalDate)
-	 * - horaAtendimentoString → horaAtendimento (LocalTime) — não reconhecida vira aviso, não erro
-	 * - dataNascimentoString  → dataNascimento (LocalDate)
-	 *
-	 * Formatos suportados por DateUtils: dd/MM/yyyy, yyyy-MM-dd, dd-MM-yyyy
-	 * Formatos suportados por TimeUtils: HH:mm, H:mm, HH:mm:ss, HHmm
+	 * Converte as datas e a hora da linha e confere a coerência entre elas.
+	 * <ul>
+	 *   <li>data do atendimento ({@link DateUtils#parse}, modo estrito:
+	 *       d/M/aaaa, aaaa-MM-dd, d-M-aaaa) — inválida é erro; mostrada sem o
+	 *       ano é aviso DATA_ATENDIMENTO_SEM_ANO; futura ou com mais de 2 anos
+	 *       é aviso DATA_FORA_DO_ESPERADO;</li>
+	 *   <li>hora ({@link TimeUtils}) — não reconhecida vira aviso, não erro
+	 *       (ver {@link #converterHora});</li>
+	 *   <li>nascimento — sem o ano, inválido ou incoerente com o atendimento
+	 *       (depois dele, ou idade acima de 130 anos) é erro.</li>
+	 * </ul>
 	 */
 	private void converterDatas(LinhaImportacaoDTO dto, List<String> avisos) {
 
@@ -772,7 +799,8 @@ public class AtendimentoProcessor {
 	 * CID da consulta (BPA-I seq 13): grava só o código CID-10 encontrado na
 	 * célula ({@code "CID I10"}, {@code "I10 - Hipertensão"} → {@code I10};
 	 * {@code "I10.9"} → {@code I109}). Célula sem código ou com mais de um é
-	 * erro da linha; vazia é aceita com aviso (decisão de 14/10/2026).
+	 * erro da linha; vazia (decisão de 14/10/2026) ou só com traço — "-" =
+	 * sem CID (19/10/2026) — é aceita com aviso CID_AUSENTE e CID em branco.
 	 *
 	 * @return lista com o aviso de CID vazio, ou lista vazia
 	 * @throws IllegalArgumentException se a célula não tiver exatamente um código CID-10
@@ -897,14 +925,10 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Limita o tamanho dos campos de endereço conforme restrições do banco
-	 * e do layout BPA-I.
-	 *
-	 * Limites:
-	 * - endereco:    30 caracteres (seq 31 do BPA-I)
-	 * - bairro:      30 caracteres (seq 34 do BPA-I)
-	 * - complemento: 10 caracteres (seq 32 do BPA-I)
-	 * - numero:       5 caracteres (seq 33 do BPA-I)
+	 * Corta no tamanho da coluna os campos que não têm normalização própria —
+	 * hoje só o tipo de zona (50), que não vai para o BPA-I. Endereço, bairro,
+	 * complemento e número são tratados em {@link #normalizarLogradouro},
+	 * {@link #normalizarBairroComplemento} e {@link #normalizarNumero}.
 	 */
 	private void limitarCamposBanco(LinhaImportacaoDTO dto) {
 
@@ -987,9 +1011,10 @@ public class AtendimentoProcessor {
 	}
 
 	/**
-	 * Número do endereço (BPA-I seq 33, 5 posições): vazio ou "sem número" → SN;
-	 * mais de 5 caracteres → número do começo ou SN, com aviso
-	 * ({@link NumeroUtils}, 16/10/2026). Nunca bloqueia a linha.
+	 * Número do endereço (BPA-I seq 33, 5 posições — {@link NumeroUtils}):
+	 * vazio, "sem número" ou só traço → SN, sem aviso; outro valor fora do
+	 * padrão com até 5 caracteres → como veio, com aviso; mais de 5 → número
+	 * do começo ou SN, com aviso. Nunca bloqueia a linha.
 	 *
 	 * @return lista com o aviso de número fora do padrão, ou lista vazia
 	 */

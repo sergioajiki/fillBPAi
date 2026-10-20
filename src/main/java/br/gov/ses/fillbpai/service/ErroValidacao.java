@@ -12,7 +12,7 @@ package br.gov.ses.fillbpai.service;
  *
  * @param linha      número da linha na planilha (1-based, considerando cabeçalho)
  * @param severidade severidade do problema (ERRO ou AVISO)
- * @param tipoErro   tipo do problema (CNS_INVALIDO, CEP_AUSENTE, CPF_AUSENTE, CNS_LEGADO)
+ * @param tipoErro   tipo do problema (uma das constantes abaixo, ex.: CEP_AUSENTE, CID_AUSENTE)
  * @param detalhe    mensagem descritiva do problema (frase completa, usada quando não há {@code valor})
  * @param valor      o que varia de uma ocorrência para outra (ex.: o valor da célula entre aspas, ou o
  *                   nome do paciente), separado da explicação fixa do tipo — permite agrupar
@@ -28,7 +28,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 		this(linha, severidade, tipoErro, detalhe, null);
 	}
 
-	/** CNS do paciente ausente ou com menos de 15 dígitos — AVISO, não bloqueia */
+	/** CNS do paciente preenchido sem 15 dígitos (a menos ou a mais) — o valor não é gravado. CNS vazio não gera aviso (Decisão 13). AVISO, não bloqueia. */
 	public static final String CNS_INVALIDO = "CNS_INVALIDO";
 
 	/** CEP do endereço ausente ou vazio — ERRO bloqueante */
@@ -37,7 +37,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CEP presente mas com tamanho incorreto (diferente de 8 dígitos após normalização) — ERRO bloqueante */
 	public static final String CEP_INVALIDO = "CEP_INVALIDO";
 
-	/** CPF do paciente ausente ou vazio — ERRO bloqueante */
+	/** CPF do paciente vazio sem a coluna "Paciente sem CPF" = Sim — ERRO bloqueante */
 	public static final String CPF_AUSENTE = "CPF_AUSENTE";
 
 	/** CPF presente mas com tamanho incorreto (diferente de 11 dígitos após normalização) — ERRO bloqueante */
@@ -100,7 +100,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Raça do paciente presente mas não reconhecida (grafia incorreta) — ERRO bloqueante */
 	public static final String RACA_INVALIDA = "RACA_INVALIDA";
 
-	/** Estrutura da planilha inválida: coluna ausente, incorreta ou fora de ordem — ERRO bloqueante */
+	/** Estrutura da planilha inválida: coluna obrigatória ausente ou nome de coluna ambíguo (a ordem das colunas não importa) — ERRO bloqueante */
 	public static final String ESTRUTURA_INVALIDA = "ESTRUTURA_INVALIDA";
 
 	/** Coluna "Especialidade/Médico" combinada — formato legado, separado automaticamente na importação. AVISO, não bloqueia. */
@@ -172,7 +172,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CID da consulta sem código CID-10 reconhecível ou com mais de um código na célula. ERRO bloqueante. */
 	public static final String CID_INVALIDO = "CID_INVALIDO";
 
-	/** CID da consulta não informado — o BPA-I sai com o CID em branco (decisão de 14/10/2026). AVISO, não bloqueia. */
+	/** CID da consulta vazio ou só com traço ("-" = sem CID) — o BPA-I sai com o CID em branco (decisão de 14/10/2026). AVISO, não bloqueia. */
 	public static final String CID_AUSENTE = "CID_AUSENTE";
 
 	/** Data de nascimento em célula que mostra só dia e mês — o Excel completou com o ano corrente. ERRO bloqueante (14/10/2026). */
@@ -196,7 +196,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** CEP com os 8 dígitos iguais (00000000, 99999999) — CEP de preenchimento. ERRO bloqueante (16/10/2026). */
 	public static final String CEP_FALSO = "CEP_FALSO";
 
-	/** Número do endereço com mais de 5 caracteres — vai o número do começo ou SN. AVISO, não bloqueia (16/10/2026). */
+	/** Número do endereço fora do padrão (não é número de imóvel nem "sem número"): até 5 caracteres vai como está; mais de 5, o número do começo ou SN. AVISO, não bloqueia (16/10/2026). */
 	public static final String NUMERO_FORA_DO_PADRAO = "NUMERO_FORA_DO_PADRAO";
 
 	/** Complemento maior que 10 caracteres depois de abreviado — cortado na palavra. AVISO, não bloqueia (Decisão 23, 16/10/2026). */
@@ -208,9 +208,6 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Coluna "Situação de Rua" presente com a célula vazia — vai em branco no BPA-I. AVISO, não bloqueia (16/10/2026). */
 	public static final String SITUACAO_RUA_VAZIA = "SITUACAO_RUA_VAZIA";
 
-	/** Coluna "Paciente sem CPF" presente com a célula vazia (CPF preenchido) — vai em branco no BPA-I. AVISO, não bloqueia (16/10/2026). */
-	public static final String PACIENTE_SEM_CPF_VAZIO = "PACIENTE_SEM_CPF_VAZIO";
-
 	/** Sexo do paciente não informado — antes saía como F no BPA-I. ERRO bloqueante (16/10/2026). */
 	public static final String SEXO_AUSENTE = "SEXO_AUSENTE";
 
@@ -220,10 +217,10 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Paciente em situação de rua (= Sim) sem CEP — aceito, o CEP vai em branco. AVISO, não bloqueia (Decisão 25, 16/10/2026). */
 	public static final String CEP_AUSENTE_SITUACAO_RUA = "CEP_AUSENTE_SITUACAO_RUA";
 
-	/** Situação de Rua ou Paciente sem CPF preenchido em atendimento de competência anterior à vigência do campo no layout — vai em branco. AVISO (Decisão 26, 16/10/2026). */
+	/** Situação de Rua ou Paciente sem CPF = Sim em atendimento de competência anterior à vigência do campo no layout — vai em branco. AVISO (Decisão 26, 16/10/2026). */
 	public static final String CAMPO_ANTES_DA_VIGENCIA = "CAMPO_ANTES_DA_VIGENCIA";
 
-	/** Mesmo CPF de paciente com nomes diferentes (na planilha ou em relação ao cadastro) — um só paciente é gravado. AVISO (Decisão 12, 16/10/2026). */
+	/** Mesmo CPF de paciente (ou mesmo CNS do paciente sem CPF) com nomes diferentes, na planilha ou em relação ao cadastro — um só paciente é gravado. AVISO (Decisão 12, 16/10/2026). */
 	public static final String CPF_COM_NOMES_DIFERENTES = "CPF_COM_NOMES_DIFERENTES";
 
 	/** Data do atendimento futura ou com mais de 2 anos — provável erro no ano, que muda a competência. AVISO (recomendação 4, 19/10/2026). */
@@ -232,7 +229,7 @@ public record ErroValidacao(int linha, Severidade severidade, String tipoErro, S
 	/** Nome do paciente com mais de 30 caracteres — cortado no BPA-I. AVISO (recomendação 29, 19/10/2026). */
 	public static final String NOME_PACIENTE_LONGO = "NOME_PACIENTE_LONGO";
 
-	/** Nome do paciente com números, símbolos, uma palavra só ou "RN" (recém-nascido). AVISO (recomendação 30, 19/10/2026). */
+	/** Nome do paciente sem letras, com números, símbolos, uma palavra só ou "RN" (recém-nascido) — título na tela: "Nome do paciente a conferir". AVISO (recomendação 30, 19/10/2026). */
 	public static final String NOME_PACIENTE_SUSPEITO = "NOME_PACIENTE_SUSPEITO";
 
 	/** Retorna true se este registro é bloqueante para a importação. */

@@ -1,7 +1,9 @@
 package br.gov.ses.fillbpai.util;
 
 /**
- * Centraliza regras relacionadas ao CPF.
+ * Regras do CPF (paciente e médico): normalização, tamanho, CPF de
+ * preenchimento e dígitos verificadores. Também gera a chave interna do
+ * paciente sem CPF — o CPF é a chave do cadastro de pacientes no banco.
  */
 public class CpfUtils {
 
@@ -88,7 +90,7 @@ public class CpfUtils {
     /**
      * <b>Chave antiga</b> (até 19/10/2026) — hoje usada só para achar pacientes
      * já gravados e migrá-los para {@link #chaveSemCpfPorCns}, e como reserva
-     * na análise quando o CNS é inválido (a linha já tem erro).
+     * na detecção de linhas repetidas quando o CNS é inválido (a linha já tem erro).
      * <p>
      * Chave interna para paciente sem CPF ("Paciente sem CPF" = Sim): o CPF é a
      * chave do paciente no banco (obrigatória, única, até 14 caracteres), então

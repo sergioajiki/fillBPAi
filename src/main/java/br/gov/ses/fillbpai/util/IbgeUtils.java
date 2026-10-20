@@ -111,7 +111,7 @@ public class IbgeUtils {
 			}
 		}
 
-		// 2. Cache/banco + 3. API ViaCEP: ambos via buscarPorCep (cache primeiro, API se necessário)
+		// 2. Cache/banco + 3. APIs de CEP: ambos via buscarPorCep (cache primeiro, APIs se necessário)
 		if (cep != null && !cep.isBlank() && cep.length() >= 5) {
 
 			String codigoPorCep = buscarPorCep(cep);

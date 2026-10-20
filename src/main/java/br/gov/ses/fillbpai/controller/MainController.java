@@ -7,6 +7,7 @@ import br.gov.ses.fillbpai.repository.PacienteRepository;
 import br.gov.ses.fillbpai.service.AgrupamentoValidacao;
 import br.gov.ses.fillbpai.service.AtendimentoImportacaoService;
 import br.gov.ses.fillbpai.service.ErroValidacao;
+import br.gov.ses.fillbpai.service.HistoricoLogsService;
 import br.gov.ses.fillbpai.service.ImportacaoResultado;
 import br.gov.ses.fillbpai.service.PlanilhaColumnMapper;
 import br.gov.ses.fillbpai.service.ValidacaoPlanilhaService;
@@ -35,18 +36,24 @@ import java.util.List;
 /**
  * Controller principal da aplicação.
  *
- * Gerencia a barra superior (importação, competência)
- * e delega a exibição de dados ao RelatorioController.
+ * Monta a barra superior (Analisar Planilha, Ver Log Importação,
+ * Configurações) e delega a tabela, a árvore e a geração do BPA-I ao
+ * RelatorioController. Conduz a análise da planilha (janelas de erros,
+ * avisos com "Ciente" e estrutura) e a importação a partir dela.
  *
- * O log de importação é persistido em arquivo (database/log_importacao.txt)
- * para consulta a qualquer momento, mesmo após reiniciar a aplicação.
+ * O log de cada importação é salvo em {@code database/}, um arquivo por
+ * importação ({@link HistoricoLogsService}); "Ver Log Importação" mostra o
+ * histórico, inclusive depois de reiniciar o programa.
  */
 public class MainController {
 
 	private static final Logger log = LoggerFactory.getLogger(MainController.class);
 
-	/** Caminho do último log de importação salvo — atualizado a cada importação */
-	private Path caminhoLog = Path.of("database", "log_importacao.txt");
+	/** Pasta dos logs de importação — um arquivo por importação (20/10/2026). */
+	private static final Path PASTA_LOGS = Path.of("database");
+
+	/** Histórico dos logs de importação — lido pelo botão "Ver Log Importação". */
+	private final HistoricoLogsService historicoLogs = new HistoricoLogsService(PASTA_LOGS);
 
 	/** Planilha da análise em andamento — mostrada no cabeçalho das janelas de validação */
 	private String caminhoPlanilhaAnalisada = "";
@@ -105,8 +112,12 @@ public class MainController {
 	}
 
 	/**
-	 * Executa a importação do arquivo já validado, exibe o log e recarrega a tabela.
-	 * Chamado tanto pelo fluxo normal de importação quanto pelo botão da janela de análise.
+	 * Executa a importação do arquivo já analisado, salva e exibe o log e
+	 * recarrega a tabela. Chamado pelo botão "Importar Planilha" das janelas da
+	 * análise; importação bloqueada abre a janela de erro, sem log.
+	 *
+	 * @param registroCiencia seção "CIÊNCIA DOS AVISOS" para o fim do log, ou
+	 *                        {@code null} quando a análise não tinha avisos
 	 */
 	private void processarImportacao(String caminho, Stage stage, String registroCiencia) {
 
@@ -132,8 +143,10 @@ public class MainController {
 			return;
 		}
 
-		String conteudoLog = montarConteudoLog(resultado, caminho, registroCiencia);
-		salvarLogEmArquivo(conteudoLog, nomePlanilhaSemExtensao(caminho));
+		// Mesma data/hora no cabeçalho do log e no nome do arquivo
+		java.time.LocalDateTime quando = java.time.LocalDateTime.now();
+		String conteudoLog = montarConteudoLog(resultado, caminho, registroCiencia, quando);
+		salvarLogEmArquivo(conteudoLog, nomePlanilhaSemExtensao(caminho), quando);
 		mostrarLog(conteudoLog);
 
 		if (resultado.getTotalSucesso() > 0) {
@@ -149,17 +162,20 @@ public class MainController {
 	 * Monta o conteúdo textual completo do log de importação. Começa com a
 	 * identificação da importação (19/10/2026): nome da planilha, local do
 	 * arquivo no computador e data/hora — o arquivo do log fica guardado e
-	 * precisa dizer sozinho de que importação é.
+	 * precisa dizer sozinho de que importação é. Depois: conferência de
+	 * linhas, avisos ("=== AVISOS — importados, confira os pontos abaixo ===")
+	 * e, por último, a ciência dos avisos marcada na análise (20/10/2026).
+	 * Sem seção de erros: com erro não há importação nem log.
 	 */
-	private String montarConteudoLog(ImportacaoResultado resultado, String caminho, String registroCiencia) {
+	private String montarConteudoLog(ImportacaoResultado resultado, String caminho, String registroCiencia,
+			java.time.LocalDateTime quando) {
 
 		StringBuilder sb = new StringBuilder();
 
 		Path arquivo = Path.of(caminho).toAbsolutePath();
 		sb.append("Planilha: ").append(arquivo.getFileName()).append("\n");
 		sb.append("Local: ").append(arquivo.getParent() != null ? arquivo.getParent() : "").append("\n");
-		sb.append("Importada em: ").append(java.time.LocalDateTime.now()
-				.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm"))).append("\n");
+		sb.append("Importada em: ").append(quando.format(HistoricoLogsService.FORMATO_CABECALHO)).append("\n");
 		sb.append("\n");
 
 		// Conferência: toda linha com dados da planilha foi gravada (a importação
@@ -196,18 +212,19 @@ public class MainController {
 	}
 
 	/**
-	 * Salva o log de importação em arquivo nomeado com a planilha de origem.
+	 * Salva o log da importação num arquivo próprio, com a planilha e a data/hora
+	 * no nome ({@link HistoricoLogsService#novoArquivo}) — reimportar a mesma
+	 * planilha não apaga o log anterior (20/10/2026).
 	 */
-	private void salvarLogEmArquivo(String conteudo, String nomePlanilha) {
-
-		caminhoLog = Path.of("database", "log_importacao_" + nomePlanilha + ".txt");
+	private void salvarLogEmArquivo(String conteudo, String nomePlanilha, java.time.LocalDateTime quando) {
 
 		try {
 
-			Files.createDirectories(caminhoLog.getParent());
-			Files.writeString(caminhoLog, conteudo, StandardCharsets.UTF_8);
+			Files.createDirectories(PASTA_LOGS);
+			Path arquivo = historicoLogs.novoArquivo(nomePlanilha, quando);
+			Files.writeString(arquivo, conteudo, StandardCharsets.UTF_8);
 
-			log.info("Log de importação salvo em: {}", caminhoLog.toAbsolutePath());
+			log.info("Log de importação salvo em: {}", arquivo.toAbsolutePath());
 
 		} catch (IOException e) {
 			log.error("Erro ao salvar log de importação: {}", e.getMessage());
@@ -215,34 +232,184 @@ public class MainController {
 	}
 
 	/**
-	 * Lê o log salvo em arquivo e exibe na tela.
-	 * Chamado pelo botão "Ver Log Importação".
+	 * Botão "Ver Log Importação": janela com o histórico de importações
+	 * (20/10/2026). À esquerda a lista, da mais recente para a mais antiga
+	 * (data/hora, planilha, linhas, avisos), com busca pelo nome da planilha;
+	 * à direita o log selecionado, com "Copiar log". A mais recente já vem
+	 * selecionada. Lê os arquivos da pasta, então funciona depois de reiniciar.
 	 */
 	private void exibirLogSalvo() {
 
-		if (!Files.exists(caminhoLog)) {
+		List<HistoricoLogsService.EntradaLog> entradas = historicoLogs.listar();
 
+		if (entradas.isEmpty()) {
 			Alert alert = new Alert(Alert.AlertType.INFORMATION);
+			alert.setTitle("Log de Importação");
+			alert.setHeaderText(null);
 			alert.setContentText("Nenhum log de importação encontrado.");
 			alert.showAndWait();
 			return;
 		}
 
-		try {
-
-			String conteudo = Files.readString(caminhoLog, StandardCharsets.UTF_8);
-			mostrarLog(conteudo);
-
-		} catch (IOException e) {
-
-			Alert alert = new Alert(Alert.AlertType.ERROR);
-			alert.setContentText("Erro ao ler log: " + e.getMessage());
-			alert.showAndWait();
+		Alert alert = new Alert(Alert.AlertType.INFORMATION);
+		alert.setTitle("Log de Importação — Histórico");
+		alert.setHeaderText(null);
+		alert.setGraphic(null);
+		// "Copiar log" e "Fechar" ficam na mesma linha, abaixo do log (20/10/2026).
+		// A barra de botões padrão do Alert é escondida; o tipo CANCEL_CLOSE
+		// continua registrado para o "X" da janela e o Esc fecharem.
+		alert.getButtonTypes().setAll(new ButtonType("Fechar", ButtonBar.ButtonData.CANCEL_CLOSE));
+		javafx.scene.Node barraPadrao = alert.getDialogPane().lookup(".button-bar");
+		if (barraPadrao != null) {
+			barraPadrao.setVisible(false);
+			barraPadrao.setManaged(false);
+			barraPadrao.setStyle("-fx-pref-height: 0; -fx-padding: 0;");
 		}
+
+		javafx.geometry.Rectangle2D tela = javafx.stage.Screen.getPrimary().getVisualBounds();
+		double largura = Math.min(1250, tela.getWidth() * 0.9);
+		double altura = Math.min(620, tela.getHeight() * 0.65);
+
+		// ---- Lado direito: cabeçalho do log selecionado + texto + "Copiar log" ----
+		Label lblPlanilha = new Label();
+		lblPlanilha.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
+		Label lblLocal = new Label();
+		lblLocal.setStyle("-fx-text-fill: #57645C;");
+		Label lblArquivo = new Label();
+		lblArquivo.setStyle("-fx-text-fill: #57645C;");
+		VBox cabecalhoLog = new VBox(2, lblPlanilha, lblLocal, lblArquivo);
+
+		TextArea areaLog = new TextArea();
+		areaLog.setEditable(false);
+		areaLog.setWrapText(true);
+		areaLog.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+		VBox.setVgrow(areaLog, javafx.scene.layout.Priority.ALWAYS);
+
+		Button btnCopiar = new Button("Copiar log");
+		btnCopiar.setOnAction(e -> {
+			javafx.scene.input.ClipboardContent conteudo = new javafx.scene.input.ClipboardContent();
+			conteudo.putString(areaLog.getText());
+			javafx.scene.input.Clipboard.getSystemClipboard().setContent(conteudo);
+			btnCopiar.setText("Copiado");
+		});
+
+		Button btnFechar = new Button("Fechar");
+		btnFechar.setCancelButton(true);
+		btnFechar.setOnAction(e -> alert.close());
+
+		javafx.scene.layout.Region espacoBotoes = new javafx.scene.layout.Region();
+		HBox.setHgrow(espacoBotoes, javafx.scene.layout.Priority.ALWAYS);
+		HBox linhaBotoes = new HBox(10, btnCopiar, espacoBotoes, btnFechar);
+		linhaBotoes.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+		VBox ladoDireito = new VBox(8, cabecalhoLog, areaLog, linhaBotoes);
+		HBox.setHgrow(ladoDireito, javafx.scene.layout.Priority.ALWAYS);
+
+		// ---- Lado esquerdo: busca + contagem + lista ----
+		TextField campoBusca = new TextField();
+		campoBusca.setPromptText("Buscar pelo nome da planilha");
+
+		Label contagem = new Label();
+		contagem.setStyle("-fx-text-fill: #57645C;");
+
+		javafx.collections.ObservableList<HistoricoLogsService.EntradaLog> todas =
+				javafx.collections.FXCollections.observableArrayList(entradas);
+		javafx.collections.transformation.FilteredList<HistoricoLogsService.EntradaLog> filtradas =
+				new javafx.collections.transformation.FilteredList<>(todas, e -> true);
+
+		ListView<HistoricoLogsService.EntradaLog> lista = new ListView<>(filtradas);
+		lista.setCellFactory(lv -> new ListCell<>() {
+			@Override
+			protected void updateItem(HistoricoLogsService.EntradaLog item, boolean vazio) {
+				super.updateItem(item, vazio);
+				if (vazio || item == null) {
+					setText(null);
+					setGraphic(null);
+					return;
+				}
+				Label quando = new Label(item.quandoFormatado());
+				quando.setStyle("-fx-font-weight: bold;");
+				Label planilha = new Label(item.planilha());
+				planilha.setWrapText(true);
+				planilha.setMaxWidth(250);
+				Label info = new Label(descreverEntrada(item));
+				info.setStyle(item.avisos() != null && item.avisos() > 0
+						? "-fx-text-fill: #93630F;" : "-fx-text-fill: #2F6F5E;");
+				setText(null);
+				setGraphic(new VBox(2, quando, planilha, info));
+			}
+		});
+		VBox.setVgrow(lista, javafx.scene.layout.Priority.ALWAYS);
+
+		Runnable atualizarContagem = () -> contagem.setText(filtradas.size()
+				+ (filtradas.size() == 1 ? " importação" : " importações")
+				+ (campoBusca.getText().isBlank() ? " no histórico" : " encontrada(s)"));
+
+		campoBusca.textProperty().addListener((obs, antes, termo) -> {
+			String t = termo == null ? "" : termo.trim().toLowerCase();
+			filtradas.setPredicate(e -> t.isEmpty() || e.planilha().toLowerCase().contains(t));
+			atualizarContagem.run();
+			if (lista.getSelectionModel().getSelectedItem() == null && !filtradas.isEmpty()) {
+				lista.getSelectionModel().selectFirst();
+			}
+		});
+
+		lista.getSelectionModel().selectedItemProperty().addListener((obs, antes, sel) -> {
+			if (sel == null) {
+				lblPlanilha.setText("");
+				lblLocal.setText("");
+				lblArquivo.setText("");
+				areaLog.clear();
+				return;
+			}
+			lblPlanilha.setText("📄 " + sel.planilha());
+			lblLocal.setText(sel.local() != null ? "Local: " + sel.local() : "Local: (não registrado — log antigo)");
+			lblArquivo.setText("Arquivo: " + sel.arquivo().toAbsolutePath());
+			areaLog.setText(historicoLogs.conteudo(sel));
+			areaLog.positionCaret(0);
+			areaLog.setScrollTop(0);
+			btnCopiar.setText("Copiar log");
+		});
+
+		VBox ladoEsquerdo = new VBox(8, campoBusca, contagem, lista);
+		ladoEsquerdo.setPrefWidth(320);
+		ladoEsquerdo.setMinWidth(260);
+
+		HBox corpo = new HBox(12, ladoEsquerdo, new Separator(javafx.geometry.Orientation.VERTICAL), ladoDireito);
+		corpo.setPadding(new Insets(10));
+		corpo.setPrefSize(largura, altura);
+
+		alert.getDialogPane().setContent(corpo);
+		alert.getDialogPane().setPrefWidth(largura + 40);
+		alert.getDialogPane().setMaxHeight(tela.getHeight() * 0.85);
+		alert.setResizable(true);
+
+		atualizarContagem.run();
+		lista.getSelectionModel().selectFirst();
+
+		alert.setOnShown(e -> Platform.runLater(lista::requestFocus));
+		alert.showAndWait();
+	}
+
+	/** "312 linhas · 11 avisos", "287 linhas · sem avisos" ou "log antigo · data do arquivo". */
+	private static String descreverEntrada(HistoricoLogsService.EntradaLog entrada) {
+
+		if (entrada.antigo() && entrada.linhas() == null) {
+			return "log antigo · data do arquivo";
+		}
+
+		String linhas = entrada.linhas() != null ? entrada.linhas() + " linhas" : "";
+		String avisos = entrada.avisos() == null ? ""
+				: entrada.avisos() == 0 ? "sem avisos"
+						: entrada.avisos() + (entrada.avisos() == 1 ? " aviso" : " avisos");
+		String texto = linhas + (!linhas.isEmpty() && !avisos.isEmpty() ? " · " : "") + avisos;
+
+		return entrada.antigo() ? texto + " · log antigo" : texto;
 	}
 
 	/**
-	 * Exibe o conteúdo do log em um diálogo.
+	 * Exibe o log de importação num diálogo largo (até 1200 px), redimensionável,
+	 * com a área de texto rolando por dentro e aberta no começo.
 	 */
 	private void mostrarLog(String conteudo) {
 
@@ -540,6 +707,9 @@ public class MainController {
 	 * aberto por item (título → texto em itálico). Usado pelos blocos de
 	 * formato legado e de colunas opcionais não encontradas. Verde para não se
 	 * confundir com erro (vermelho) nem aviso (âmbar).
+	 * <p>
+	 * Com {@code ciencia}, cada item ganha um "Ciente" (descrição no log =
+	 * título + {@code sufixoCiencia}); {@code null} na janela com erros.
 	 */
 	private VBox criarBlocoInformativo(String cabecalho, List<java.util.Map.Entry<String, String>> itens,
 			CienciaAvisos ciencia, String sufixoCiencia) {
@@ -617,7 +787,9 @@ public class MainController {
 	}
 
 	/**
-	 * Exibe resultado positivo da análise com botão para importar diretamente.
+	 * Análise sem erros nem avisos de linha, com botão para importar. Se houver
+	 * blocos verdes (formato legado, colunas opcionais ausentes), eles pedem
+	 * "Ciente" antes de liberar a importação; sem eles, importa direto.
 	 */
 	private void mostrarDialogoAnaliseOk(String caminho, Stage stage, ErroValidacao avisoLegado,
 			List<ErroValidacao> avisosColunaOpcional) {
@@ -669,14 +841,10 @@ public class MainController {
 	}
 
 	/**
-	 * Exibe avisos de validação (não bloqueantes) com botão para importar diretamente.
-	 * Usado apenas no fluxo de análise — no fluxo de importação os avisos são exibidos
-	 * sem botão, pois a importação prossegue automaticamente.
-	 * <p>
-	 * Mesmo bloco âmbar (chips de filtro + grupos por tipo) de {@link #criarBlocoSeveridade} usado em
-	 * {@link #mostrarDialogoErrosValidacao} para os avisos não bloqueantes —
-	 * antes esta tela usava um {@code TextArea} plano, inconsistente com o
-	 * restante da apresentação de erros/avisos.
+	 * Análise só com avisos: bloco âmbar ({@link #criarBlocoSeveridade}, chips +
+	 * grupos por tipo) e blocos verdes, todos com "Ciente" ({@link CienciaAvisos});
+	 * o botão "Importar Planilha" só é liberado com a ciência de todos. "Salvar
+	 * Log TXT" grava o relatório da análise onde o usuário escolher.
 	 */
 	private void mostrarDialogoAvisosAnalise(List<ErroValidacao> avisos, String logAvisos, String nomePlanilha,
 			String caminho, Stage stage, ErroValidacao avisoLegado, List<ErroValidacao> avisosColunaOpcional) {
@@ -908,10 +1076,10 @@ public class MainController {
 	 * <p>
 	 * É o único diálogo de análise onde erros bloqueantes e avisos podem
 	 * aparecer juntos — por isso {@code demaisErros} é separado em dois
-	 * blocos coloridos (vermelho para ERRO, âmbar para AVISO), em vez de uma
-	 * única lista corrida. O log salvo em disco/exportado continua o TXT
-	 * completo de {@code logErros}, sem essa separação — só a apresentação
-	 * na tela muda.
+	 * blocos coloridos (vermelho para ERRO, âmbar para AVISO). Ordem: erros →
+	 * colunas opcionais → avisos. Sem "Ciente" nem botão de importar: com erros
+	 * não há importação. O TXT de {@code logErros} só é gravado pelo botão
+	 * "Salvar Log TXT".
 	 */
 	private void mostrarDialogoErrosValidacao(List<ErroValidacao> demaisErros, String logErros,
 			String nomePlanilha, Stage stage, List<ErroValidacao> avisosColunaOpcional) {
@@ -999,6 +1167,10 @@ public class MainController {
 	 * Mesmas cores usadas nos runbooks do projeto para ERRO
 	 * (<code>#B3261E</code>/<code>#F6E1DF</code>) e AVISO
 	 * (<code>#93630F</code>/<code>#F3E6D2</code>).
+	 * <p>
+	 * Com {@code ciencia} (janela de avisos com botão de importar), cada grupo
+	 * ganha um "Ciente" no cabeçalho e o chip do grupo ganha ✓ quando marcado;
+	 * {@code null} nas janelas sem importação.
 	 */
 	private VBox criarBlocoSeveridade(String titulo, List<ErroValidacao> erros, String corForte, String corSuave,
 			CienciaAvisos ciencia) {

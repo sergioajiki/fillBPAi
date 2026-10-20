@@ -1575,6 +1575,7 @@ class ValidacaoPlanilhaServiceTest {
 
 	@Test
 	void validarColunasOpcionaisPresentesComCelulaVaziaGeramAviso() throws IOException {
+		// "Paciente sem CPF" vazio com CPF preenchido não gera aviso: vira "N" (20/10/2026)
 		String[] linha = linhaValida();
 		linha[COL_SITUACAO_RUA] = null;
 		linha[COL_PACIENTE_SEM_CPF] = null;
@@ -1582,7 +1583,7 @@ class ValidacaoPlanilhaServiceTest {
 		List<ErroValidacao> erros = service.validar(salvarPlanilha(CABECALHO_COMPLETO, linha));
 
 		assertThat(erros).extracting(ErroValidacao::tipoErro)
-				.containsExactly(ErroValidacao.SITUACAO_RUA_VAZIA, ErroValidacao.PACIENTE_SEM_CPF_VAZIO);
+				.containsExactly(ErroValidacao.SITUACAO_RUA_VAZIA);
 		assertThat(erros).allSatisfy(e -> {
 			assertThat(e.severidade()).isEqualTo(ErroValidacao.Severidade.AVISO);
 			assertThat(e.detalhe()).contains("em branco");

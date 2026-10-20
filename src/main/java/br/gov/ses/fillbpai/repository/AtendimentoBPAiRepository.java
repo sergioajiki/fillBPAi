@@ -34,41 +34,8 @@ public class AtendimentoBPAiRepository {
     }
 
     /**
-     * Pré-carrega um mapa de folhas já atribuídas, agrupadas por
-     * (especialidade | médico). A folha é vínculo permanente do par
-     * especialidade+médico — independente do mês — e deve ser reutilizada
-     * em todas as importações seguintes.
-     *
-     * Chave: "especialidade|medicoId"
-     * Valor: número da folha já atribuída
-     */
-    public Map<String, String> buscarMapaFolhaPorEspecialidadeMedico() {
-
-        List<AtendimentoBPAi> atendimentos = entityManager.createQuery(
-                "SELECT a FROM AtendimentoBPAi a JOIN FETCH a.medico " +
-                "WHERE a.folha IS NOT NULL",
-                AtendimentoBPAi.class
-        ).getResultList();
-
-        Map<String, String> mapa = new HashMap<>();
-
-        for (AtendimentoBPAi a : atendimentos) {
-            String esp    = a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico() : "";
-            Long medicoId = a.getMedico().getId();
-            String folha  = a.getFolha();
-
-            if (folha == null || folha.isBlank()) continue;
-
-            String chave = esp + "|" + medicoId;
-            mapa.putIfAbsent(chave, folha);
-        }
-
-        return mapa;
-    }
-
-    /**
      * Busca atendimento existente pela chave natural de negócio:
-     * paciente + médico + data de agendamento + código SIGTAP.
+     * paciente + médico + data de agendamento + código SIGTAP + horário.
      *
      * Utilizado para evitar duplicatas na reimportação de planilhas.
      *
@@ -76,6 +43,7 @@ public class AtendimentoBPAiRepository {
      * @param medico          médico do atendimento
      * @param dataAgendamento data do atendimento
      * @param sigtap          código SIGTAP do procedimento
+     * @param hora            horário do atendimento ({@code null} casa só com registro sem horário)
      * @return Optional com o atendimento existente, ou vazio se não encontrado
      */
     public Optional<AtendimentoBPAi> buscarDuplicata(

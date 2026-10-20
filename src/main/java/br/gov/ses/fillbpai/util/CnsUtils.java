@@ -4,19 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * ============================================================
- * UTILITÁRIO DE VALIDAÇÃO DE CNS
- * ============================================================
- *
- * Centraliza validações relacionadas ao CNS (Cartão Nacional de Saúde).
- *
- * Regras:
- * - CNS padrão atual: exatamente 15 dígitos numéricos
- * - CNS legado (antigo): pode ter mais de 15 dígitos — aceito com aviso
- * - CNS ausente: erro (campo obrigatório)
- *
- * Novas regras podem ser adicionadas aqui futuramente
- * sem alterar código de importação ou processamento.
+ * Validações do CNS (Cartão Nacional de Saúde) do paciente, usadas pela
+ * análise e pela importação.
+ * <ul>
+ *   <li>O CNS tem sempre 15 dígitos; o dígito verificador segue o algoritmo do
+ *       Ministério da Saúde ({@link #isDvValido}).</li>
+ *   <li>Paciente com CPF: o CNS é opcional (não vai para o BPA-I); vazio não
+ *       gera aviso, inválido gera aviso e não é gravado ({@link #processar}).</li>
+ *   <li>Paciente sem CPF: o CNS é obrigatório e válido — é o documento do
+ *       paciente no BPA-I e a chave do cadastro ({@link #isCnsSemCpfValido}).</li>
+ * </ul>
  */
 public class CnsUtils {
 
@@ -85,25 +82,26 @@ public class CnsUtils {
 		return "CNS com dígito verificador inválido";
 	}
 
-	/**
-	 * Processa o CNS: normaliza e valida.
-	 * Retorna o resultado contendo o CNS limpo e eventuais avisos.
-	 *
-	 * Regras de validação:
-	 * - CNS null/vazio → AVISO, retorna CNS vazio (não lança exceção)
-	 * - CNS com 15 dígitos → válido, sem avisos
-	 * - CNS com mais de 15 dígitos → válido (formato legado), emite aviso
-	 * - CNS com menos de 15 dígitos → AVISO, retorna CNS parcial (não lança exceção)
-	 *
-	 * @param cns valor bruto do CNS
-	 * @return resultado com CNS normalizado e lista de avisos
-	 */
 	/** Mensagem do CNS com tamanho diferente de 15 dígitos (análise e importação). */
 	public static String mensagemTamanhoInvalido(String cnsNormalizado) {
 		return "CNS do paciente com " + cnsNormalizado.length() + " dígitos (" + cnsNormalizado
 				+ ") — o CNS tem 15 dígitos; não será gravado";
 	}
 
+	/**
+	 * Processa o CNS do paciente: normaliza (só dígitos) e valida. Nunca lança
+	 * exceção — paciente sem CPF, que exige o CNS, é conferido antes
+	 * ({@link #isCnsSemCpfValido}).
+	 * <ul>
+	 *   <li>vazio → CNS vazio, sem aviso (Decisão 13: com CPF o CNS não vai para o BPA-I);</li>
+	 *   <li>15 dígitos → gravado; dígito verificador errado → aviso CNS_DV_INVALIDO;</li>
+	 *   <li>sem 15 dígitos (a menos ou a mais) → aviso CNS_INVALIDO e CNS vazio:
+	 *       o valor errado não é gravado (recomendação 26, 19/10/2026).</li>
+	 * </ul>
+	 *
+	 * @param cns valor bruto do CNS
+	 * @return resultado com o CNS a gravar e a lista de avisos
+	 */
 	public static CnsResultado processar(String cns) {
 
 		List<String> avisos = new ArrayList<>();

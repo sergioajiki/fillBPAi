@@ -1,19 +1,10 @@
 package br.gov.ses.fillbpai.util;
 
 /**
- * ============================================================
- * UTILITÁRIO DE CEP
- * ============================================================
- *
- * Centraliza regras relacionadas ao CEP.
- *
- * Possibilidades futuras:
- * - Validação de CEP (8 dígitos obrigatórios)
- * - Consulta via API (Correios / IBGE)
- * - Formatação (00000-000)
- *
- * Regra atual:
- * - Normalizar CEP removendo caracteres não numéricos
+ * Regras do CEP do paciente (BPA-I seq 29), usadas pela análise e pela
+ * importação: normalização (só dígitos), tamanho (8 dígitos, sem completar
+ * zeros), CEP de preenchimento (dígitos iguais) e CEP de outro estado para
+ * município de MS. A busca do IBGE pelo CEP fica em {@link IbgeUtils}.
  */
 public class CepUtils {
 

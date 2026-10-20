@@ -18,7 +18,8 @@ public class PacienteRepository {
 	}
 
 	/**
-	 * Busca paciente pelo CPF normalizado.
+	 * Busca paciente pela chave do cadastro: CPF normalizado (11 dígitos) ou a
+	 * chave interna do paciente sem CPF.
 	 */
 	public Optional<Paciente> buscarPorCpf(String cpf) {
 		return entityManager

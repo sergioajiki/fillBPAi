@@ -90,19 +90,6 @@ public class StringUtils {
             java.util.regex.Pattern.compile("^\\s*(\\d{1,10})\\s*(?:" + SEPARADOR_REGEX + "\\s*(.*?))?\\s*$",
                     java.util.regex.Pattern.DOTALL);
 
-    /**
-     * Separa a célula de estabelecimento {@code "CÓDIGO - NOME"} em
-     * {@code {codigo, nome}}. O código é sempre numérico (decisão de
-     * 08/10/2026): só vale como código o que vem antes do primeiro separador
-     * se for <b>só dígitos</b> (até 10).
-     * <ul>
-     *   <li>{@code "12345 - HOSPITAL"} → {@code {"12345", "HOSPITAL"}} (hífens no nome são mantidos)</li>
-     *   <li>{@code "1234567"} ou {@code "12345 -"} → {@code {"1234567", null}} (só o código)</li>
-     *   <li>{@code "HOSPITAL SAO JOSE - UNIDADE 2"}, {@code "UBS - CENTRO"} →
-     *       {@code {null, célula inteira}} — texto antes do hífen é parte do nome. Antes virava
-     *       "código": estourava a coluna (importação cancelada) ou criava estabelecimento falso.</li>
-     * </ul>
-     */
     /** Só separadores ou código zero (com ou sem separador): marcadores de "sem informação". */
     private static final java.util.regex.Pattern ESTABELECIMENTO_NAO_INFORMADO =
             java.util.regex.Pattern.compile("^\\s*(0+\\s*)?(" + SEPARADOR_REGEX + "\\s*)*$");
@@ -118,6 +105,19 @@ public class StringUtils {
         return valor == null || ESTABELECIMENTO_NAO_INFORMADO.matcher(valor).matches();
     }
 
+    /**
+     * Separa a célula de estabelecimento {@code "CÓDIGO - NOME"} em
+     * {@code {codigo, nome}}. O código é sempre numérico (decisão de
+     * 08/10/2026): só vale como código o que vem antes do primeiro separador
+     * se for <b>só dígitos</b> (até 10).
+     * <ul>
+     *   <li>{@code "12345 - HOSPITAL"} → {@code {"12345", "HOSPITAL"}} (hífens no nome são mantidos)</li>
+     *   <li>{@code "1234567"} ou {@code "12345 -"} → {@code {"1234567", null}} (só o código)</li>
+     *   <li>{@code "HOSPITAL SAO JOSE - UNIDADE 2"}, {@code "UBS - CENTRO"} →
+     *       {@code {null, célula inteira}} — texto antes do hífen é parte do nome. Antes virava
+     *       "código": estourava a coluna (importação cancelada) ou criava estabelecimento falso.</li>
+     * </ul>
+     */
     public static String[] separarCodigoENome(String valor) {
 
         if (valor == null) {

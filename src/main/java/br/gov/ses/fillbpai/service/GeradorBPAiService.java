@@ -35,19 +35,17 @@ import java.util.stream.Collectors;
 import java.nio.charset.StandardCharsets;
 
 /**
- * ============================================================
- * GERADOR DE ARQUIVO BPA-I MAGNÉTICO
- * ============================================================
- * <p>
- * HEADER:
- * 132 caracteres (MANTIDO INALTERADO)
- * <p>
- * REGISTRO:
- * 353 caracteres
- * <p>
- * Layout oficial do Ministério da Saúde
- * <p>
- * ============================================================
+ * Gerador do arquivo magnético BPA-I, no layout oficial do Ministério da
+ * Saúde ({@code data/Layout_Exportacao_BPA_2026.pdf}).
+ * <ul>
+ *   <li>Header: 132 caracteres + CRLF;</li>
+ *   <li>registro: 351 caracteres + CRLF = 353 ({@link #montarRegistro}, seq 1 a 40);</li>
+ *   <li>arquivo em ISO-8859-1 (caracteres fora dele são trocados — {@link #sanitizarLatin1}).</li>
+ * </ul>
+ * Campos NUM opcionais: brancos quando vazios, zeros à esquerda quando
+ * preenchidos; campos ALFA: espaços à direita e corte no tamanho do campo.
+ * Dados gravados antes das normalizações da importação passam pelas mesmas
+ * regras aqui (CBO, CID, sexo, nome, endereço, telefone…).
  */
 public class GeradorBPAiService {
 
@@ -64,11 +62,23 @@ public class GeradorBPAiService {
 			DateTimeFormatter.ofPattern("yyyyMMdd");
 
 	/**
-	 * ============================================================
-	 * MÉTODO PRINCIPAL
-	 * ============================================================
+	 * Geração parcial: arquivo BPA-I só com os atendimentos de um médico numa
+	 * especialidade, na competência informada (botão "Gerar BPA-I" com um
+	 * médico selecionado na árvore). Bloqueia se algum atendimento estiver sem
+	 * CNS do profissional ou sem código IBGE, como a geração completa.
+	 * <p>
+	 * A folha e a linha vêm da numeração da competência inteira
+	 * ({@link #numerarFolhas}) — as mesmas da geração completa. Depois de
+	 * gravar o arquivo, folha, linha e data/hora da remessa ficam gravadas nos
+	 * atendimentos do médico ({@link #registrarRemessa}).
+	 *
+	 * @param parentWindow           janela dona do diálogo de salvar
+	 * @param especialidade          especialidade selecionada
+	 * @param medico                 nome do médico selecionado
+	 * @param competenciaAtendimento competência no formato AAAAMM do mês de atendimento
+	 * @return {@code false} se o usuário cancelou a escolha do arquivo
 	 */
-	public void gerarArquivoComFileChooser(
+	public boolean gerarArquivoComFileChooser(
 			Window parentWindow,
 			String especialidade,
 			String medico,
@@ -79,23 +89,12 @@ public class GeradorBPAiService {
 			int atenAno = Integer.parseInt(competenciaAtendimento.substring(0, 4));
 			int atenMes = Integer.parseInt(competenciaAtendimento.substring(4, 6));
 
-			List<AtendimentoBPAi> lista =
-					entityManager.createQuery(
-									"SELECT a FROM AtendimentoBPAi a " +
-											"JOIN FETCH a.paciente p " +
-											"LEFT JOIN FETCH p.endereco " +
-											"JOIN FETCH a.medico " +
-											"LEFT JOIN FETCH a.estabelecimento " +
-											"WHERE a.especialidadeMedico = :esp " +
-											"AND a.medico.nome = :med " +
-											"AND YEAR(a.dataAgendamento) = :ano " +
-											"AND MONTH(a.dataAgendamento) = :mes",
-									AtendimentoBPAi.class)
-							.setParameter("esp", especialidade)
-							.setParameter("med", medico)
-							.setParameter("ano", atenAno)
-							.setParameter("mes", atenMes)
-							.getResultList();
+			List<AtendimentoBPAi> competenciaInteira = carregarCompetencia(atenAno, atenMes);
+
+			List<AtendimentoBPAi> lista = competenciaInteira.stream()
+					.filter(a -> especialidade.equals(a.getEspecialidadeMedico())
+							&& a.getMedico() != null && medico.equals(a.getMedico().getNome()))
+					.collect(Collectors.toList());
 
 			if (lista.isEmpty())
 				throw new RuntimeException(
@@ -106,6 +105,9 @@ public class GeradorBPAiService {
 			validarIbge(lista);
 
 			String competencia = calcularCompetencia(LocalDate.of(atenAno, atenMes, 1));
+
+			// Mesma numeração da geração completa: calculada sobre a competência inteira
+			Map<AtendimentoBPAi, PosicaoFolha> numeracao = numerarFolhas(competenciaInteira);
 
 			FileChooser chooser = new FileChooser();
 
@@ -121,13 +123,17 @@ public class GeradorBPAiService {
 			File file = chooser.showSaveDialog(parentWindow);
 
 			if (file == null)
-				return;
+				return false;
 
 			file = garantirExtensaoTxt(file);
 
-			String conteudo = gerarConteudoParcial(lista, competencia);
+			String conteudo = gerarConteudo(lista, competencia, numeracao);
 
 			Files.writeString(file.toPath(), conteudo, StandardCharsets.ISO_8859_1);
+
+			registrarRemessa(lista, numeracao, java.time.LocalDateTime.now());
+
+			return true;
 
 		} catch (Exception ex) {
 
@@ -136,86 +142,30 @@ public class GeradorBPAiService {
 	}
 
 	/**
-	 * Monta o conteúdo completo do arquivo BPA-I (header + registros) para a
-	 * geração parcial — filtrada por especialidade/médico. Não acessa banco,
-	 * arquivo nem JavaFX: recebe a lista já consultada e validada, devolve a
-	 * String pronta para gravação. Extraído de {@link #gerarArquivoComFileChooser}
-	 * para permitir testar o layout do BPA-I sem depender de FileChooser.
-	 */
-	String gerarConteudoParcial(List<AtendimentoBPAi> lista, String competencia) {
-
-		StringBuilder sb = new StringBuilder();
-
-		sb.append(montarHeader(lista, competencia));
-		sb.append("\r\n"); // seq 13 cbc-fim: CR+LF obrigatório conforme layout BPA
-
-		int sequencial = 1;
-
-		for (AtendimentoBPAi a : lista) {
-
-			sb.append(montarRegistro(a, competencia, sequencial));
-			sb.append("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
-
-			sequencial++;
-
-			if (sequencial > 99)
-				sequencial = 1;
-		}
-
-		return sb.toString();
-	}
-
-	/**
-	 * ============================================================
-	 * GERAÇÃO COMPLETA — TODOS OS MÉDICOS
-	 * ============================================================
+	 * Geração completa: um único arquivo BPA-I com todos os atendimentos da
+	 * competência, de todos os médicos e especialidades. Antes de gravar,
+	 * bloqueia se algum atendimento estiver sem CNS do profissional
+	 * ({@link #validarCnsProfissional}) ou sem código IBGE ({@link #validarIbge}).
+	 * <p>
+	 * Folhas e linhas por {@link #numerarFolhas}; depois de gravar o arquivo,
+	 * ficam gravadas nos atendimentos com a data/hora da remessa
+	 * ({@link #registrarRemessa}) — a tabela mostra o que foi enviado.
 	 *
-	 * Gera um único arquivo BPA-I contendo todos os atendimentos
-	 * de todos os médicos e especialidades.
-	 *
-	 * Regra de atribuição de folha:
-	 * 1. Especialidades são ordenadas alfabeticamente
-	 * 2. Dentro de cada especialidade, médicos são ordenados alfabeticamente
-	 * 3. Cada combinação (especialidade + médico) recebe uma folha sequencial:
-	 *    folha 1 para o primeiro médico, folha 2 para o segundo, etc.
-	 * 4. A sequência de folha é válida apenas para a competência do mês.
-	 *    Na próxima competência, a numeração recomeça.
-	 *
-	 * O sequencial (prd-seq) reinicia a cada troca de folha,
-	 * e também reinicia ao atingir 99 (regra do layout BPA-I).
+	 * @param parentWindow           janela dona do diálogo de salvar
+	 * @param competenciaAtendimento competência no formato AAAAMM do mês de atendimento
+	 *                               (ex.: "202503" para atendimentos de março de 2025)
+	 * @return {@code false} se o usuário cancelou a escolha do arquivo
 	 */
-	/**
-	 * @param competenciaAtendimento competência no formato YYYYMM referente ao mês de atendimento
-	 *                               (ex: "202503" para atendimentos de março de 2025)
-	 */
-	public void gerarArquivoCompletoComFileChooser(Window parentWindow, String competenciaAtendimento) {
+	public boolean gerarArquivoCompletoComFileChooser(Window parentWindow, String competenciaAtendimento) {
 
 		try {
 
-			int atenAno  = Integer.parseInt(competenciaAtendimento.substring(0, 4));
-			int atenMes  = Integer.parseInt(competenciaAtendimento.substring(4, 6));
+			int atenAno = Integer.parseInt(competenciaAtendimento.substring(0, 4));
+			int atenMes = Integer.parseInt(competenciaAtendimento.substring(4, 6));
 
-			// 1. Calcula a competência alvo a partir do mês selecionado
 			String competencia = calcularCompetencia(LocalDate.of(atenAno, atenMes, 1));
 
-			// 2. Carrega todos os atendimentos do ano e filtra pelos que pertencem
-			//    à competência alvo — inclui múltiplos meses quando a competência
-			//    é a mesma para todos (ex: exceção em que todos os meses → 202505)
-			List<AtendimentoBPAi> lista =
-					entityManager.createQuery(
-									"SELECT a FROM AtendimentoBPAi a " +
-											"JOIN FETCH a.paciente p " +
-											"LEFT JOIN FETCH p.endereco " +
-											"JOIN FETCH a.medico " +
-											"LEFT JOIN FETCH a.estabelecimento " +
-											"WHERE YEAR(a.dataAgendamento) = :ano",
-									AtendimentoBPAi.class)
-							.setParameter("ano", atenAno)
-							.getResultList()
-							.stream()
-							.filter(a -> competencia.equals(
-									calcularCompetencia(a.getDataAgendamento())))
-							.collect(Collectors.toList());
+			List<AtendimentoBPAi> lista = carregarCompetencia(atenAno, atenMes);
 
 			if (lista.isEmpty())
 				throw new RuntimeException(
@@ -224,22 +174,8 @@ public class GeradorBPAiService {
 			validarCnsProfissional(lista);
 			validarIbge(lista);
 
-			// 3. Ordena por especialidade (alfabética) → médico (alfabético) → mês
-			lista.sort(Comparator
-					.comparing((AtendimentoBPAi a) ->
-							a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico() : "")
-					.thenComparing(a ->
-							a.getMedico() != null && a.getMedico().getNome() != null
-									? a.getMedico().getNome() : "")
-					.thenComparingInt(a ->
-							a.getDataAgendamento() != null
-									? a.getDataAgendamento().getMonthValue() : 0)
-			);
+			Map<AtendimentoBPAi, PosicaoFolha> numeracao = numerarFolhas(lista);
 
-			// 4. Atribui folhas sequenciais em memória (sem persistir no banco)
-			int totalFolhas = atribuirFolhas(lista, atenAno);
-
-			// 5. FileChooser para o usuário escolher onde salvar
 			FileChooser chooser = new FileChooser();
 			chooser.setTitle("Salvar BPA-I Completo");
 
@@ -251,14 +187,17 @@ public class GeradorBPAiService {
 			File file = chooser.showSaveDialog(parentWindow);
 
 			if (file == null)
-				return;
+				return false;
 
 			file = garantirExtensaoTxt(file);
 
-			// 6. Escreve o arquivo no formato BPA-I (ISO-8859-1)
-			String conteudo = gerarConteudoCompleto(lista, competencia, totalFolhas);
+			String conteudo = gerarConteudo(lista, competencia, numeracao);
 
 			Files.writeString(file.toPath(), conteudo, StandardCharsets.ISO_8859_1);
+
+			registrarRemessa(lista, numeracao, java.time.LocalDateTime.now());
+
+			return true;
 
 		} catch (Exception ex) {
 
@@ -266,95 +205,151 @@ public class GeradorBPAiService {
 		}
 	}
 
+	/** Todos os atendimentos da competência (mês da data do atendimento), com as entidades do registro. */
+	private List<AtendimentoBPAi> carregarCompetencia(int ano, int mes) {
+
+		return entityManager.createQuery(
+						"SELECT a FROM AtendimentoBPAi a " +
+								"JOIN FETCH a.paciente p " +
+								"LEFT JOIN FETCH p.endereco " +
+								"JOIN FETCH a.medico " +
+								"LEFT JOIN FETCH a.estabelecimento " +
+								"WHERE YEAR(a.dataAgendamento) = :ano " +
+								"AND MONTH(a.dataAgendamento) = :mes",
+						AtendimentoBPAi.class)
+				.setParameter("ano", ano)
+				.setParameter("mes", mes)
+				.getResultList();
+	}
+
+	/** Folha ({@code prd-flh}, 1 a 999) e linha dentro dela ({@code prd-seq}, 1 a 99) de um registro. */
+	public record PosicaoFolha(int folha, int linha) {
+	}
+
+	/** Linhas por folha no BPA-I ({@code prd-seq}: domínio 01..99). */
+	static final int LINHAS_POR_FOLHA = 99;
+
+	/** Maior número de folha do layout ({@code prd-flh}: domínio 001..999). */
+	static final int MAXIMO_FOLHAS = 999;
+
 	/**
-	 * Monta o conteúdo completo do arquivo BPA-I (header + registros) para a
-	 * geração completa — todos os médicos da competência. Não acessa banco,
-	 * arquivo nem JavaFX: recebe a lista já consultada, validada, ordenada e
-	 * com folha atribuída, devolve a String pronta para gravação. Extraído de
-	 * {@link #gerarArquivoCompletoComFileChooser} para permitir testar o
-	 * layout do BPA-I sem depender de FileChooser.
+	 * Numeração das folhas de uma competência (regra única, 20/10/2026 — antes
+	 * a geração completa numerava o ano inteiro e a parcial usava a folha
+	 * definida à mão):
+	 * <ol>
+	 *   <li>atendimentos em ordem especialidade → médico → data → hora;</li>
+	 *   <li>cada especialidade + médico começa uma folha nova (001, 002…);</li>
+	 *   <li>folha nova também a cada 99 linhas (a linha nunca volta para 01
+	 *       dentro da mesma folha).</li>
+	 * </ol>
+	 * Não altera os atendimentos — o resultado só é gravado depois que o
+	 * arquivo é salvo ({@link #registrarRemessa}).
+	 *
+	 * @param competencia todos os atendimentos da competência
+	 * @return posição de cada atendimento, na ordem do arquivo
+	 * @throws IllegalStateException se a competência passar de 999 folhas
 	 */
-	String gerarConteudoCompleto(List<AtendimentoBPAi> lista, String competencia, int totalFolhas) {
+	static Map<AtendimentoBPAi, PosicaoFolha> numerarFolhas(List<AtendimentoBPAi> competencia) {
 
-		StringBuilder sb = new StringBuilder();
+		List<AtendimentoBPAi> ordenados = new java.util.ArrayList<>(competencia);
+		ordenados.sort(Comparator
+				.comparing((AtendimentoBPAi a) -> a.getEspecialidadeMedico() != null ? a.getEspecialidadeMedico() : "")
+				.thenComparing(a -> a.getMedico() != null && a.getMedico().getNome() != null ? a.getMedico().getNome() : "")
+				.thenComparing(AtendimentoBPAi::getDataAgendamento, Comparator.nullsLast(Comparator.naturalOrder()))
+				.thenComparing(AtendimentoBPAi::getHoraAtendimento, Comparator.nullsFirst(Comparator.naturalOrder()))
+				.thenComparing(AtendimentoBPAi::getId, Comparator.nullsLast(Comparator.naturalOrder())));
 
-		// HEADER com totalFolhas correto (quantidade de médicos distintos)
-		sb.append(montarHeaderCompleto(lista, competencia, totalFolhas));
-		sb.append("\r\n");
+		Map<AtendimentoBPAi, PosicaoFolha> numeracao = new LinkedHashMap<>();
+		int folha = 0;
+		int linha = 0;
+		String chaveAnterior = null;
 
-		// REGISTROS — sequencial reinicia a cada troca de folha
-		int sequencial = 1;
-		String folhaAtual = null;
+		for (AtendimentoBPAi a : ordenados) {
 
-		for (AtendimentoBPAi a : lista) {
+			String chave = montarChaveMedico(a);
 
-			// Detecta troca de folha → reinicia sequencial
-			if (!a.getFolha().equals(folhaAtual)) {
-				folhaAtual = a.getFolha();
-				sequencial = 1;
+			if (!chave.equals(chaveAnterior) || linha == LINHAS_POR_FOLHA) {
+				folha++;
+				linha = 0;
+				chaveAnterior = chave;
 			}
 
-			sb.append(montarRegistro(a, competencia, sequencial));
-			sb.append("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
-
-			sequencial++;
-
-			if (sequencial > 99)
-				sequencial = 1;
+			linha++;
+			numeracao.put(a, new PosicaoFolha(folha, linha));
 		}
 
-		return sb.toString();
+		if (folha > MAXIMO_FOLHAS) {
+			throw new IllegalStateException("A competência precisaria de " + folha
+					+ " folhas, e o BPA-I aceita no máximo " + MAXIMO_FOLHAS + ".");
+		}
+
+		return numeracao;
 	}
 
 	/**
-	 * Atribui folhas aos atendimentos do mês atual em memória, sem persistir no banco.
-	 *
-	 * Lógica:
-	 * 1. Consulta todas as combinações (especialidade + médico + mês) do ano inteiro
-	 * 2. Atribui folhas sequenciais em ordem: especialidade → médico → mês
-	 * 3. Aplica ao mês atual apenas em memória — sem gravar no banco
-	 *
-	 * Sem persistência não há dados desatualizados causando conflito entre meses.
-	 * A continuidade entre meses é garantida pela ordenação determinística.
-	 *
-	 * @param lista atendimentos do mês atual, já ordenados por especialidade → médico
-	 * @param atenAno ano de atendimento, usado para limitar a consulta ao ano corrente
-	 * @return total de folhas distintas no mês atual (para o header do arquivo)
+	 * Grava nos atendimentos enviados a folha, a linha e a data/hora da
+	 * remessa, numa transação — chamado só depois que o arquivo foi salvo.
 	 */
-	private int atribuirFolhas(List<AtendimentoBPAi> lista, int atenAno) {
+	void registrarRemessa(List<AtendimentoBPAi> enviados, Map<AtendimentoBPAi, PosicaoFolha> numeracao,
+			java.time.LocalDateTime quando) {
 
-		// 1. Consulta todas as combinações do ano ordenadas deterministicamente
-		List<Object[]> todasCombinacoes = entityManager.createQuery(
-				"SELECT DISTINCT a.especialidadeMedico, a.medico.nome, MONTH(a.dataAgendamento) " +
-				"FROM AtendimentoBPAi a " +
-				"WHERE YEAR(a.dataAgendamento) = :ano " +
-				"ORDER BY a.especialidadeMedico, a.medico.nome, MONTH(a.dataAgendamento)",
-				Object[].class)
-				.setParameter("ano", atenAno)
-				.getResultList();
+		jakarta.persistence.EntityTransaction tx = entityManager.getTransaction();
 
-		// 2. Atribui folha sequencial a cada combinação (esp + médico + mês)
-		Map<String, String> chaveParaFolha = new LinkedHashMap<>();
-		int proximaFolha = 1;
-
-		for (Object[] row : todasCombinacoes) {
-			String chave = (row[0] != null ? (String) row[0] : "") + "|"
-					+ (row[1] != null ? (String) row[1] : "") + "|"
-					+ row[2];
-			if (!chaveParaFolha.containsKey(chave)) {
-				chaveParaFolha.put(chave, String.valueOf(proximaFolha++));
+		try {
+			tx.begin();
+			for (AtendimentoBPAi a : enviados) {
+				PosicaoFolha posicao = numeracao.get(a);
+				a.setFolha(String.valueOf(posicao.folha()));
+				a.setLinhaFolha(posicao.linha());
+				a.setRemessaEm(quando);
 			}
+			tx.commit();
+		} catch (RuntimeException e) {
+			if (tx.isActive()) {
+				tx.rollback();
+			}
+			throw new IllegalStateException("O arquivo foi gerado, mas não foi possível registrar a remessa no banco: "
+					+ e.getMessage(), e);
+		}
+	}
+
+	/** Conteúdo do arquivo numerando as folhas da própria lista (testes). */
+	String gerarConteudo(List<AtendimentoBPAi> lista, String competencia) {
+		return gerarConteudo(lista, competencia, numerarFolhas(lista));
+	}
+
+	/**
+	 * Monta o conteúdo do arquivo BPA-I (header + registros) — geração parcial
+	 * e completa. Não acessa banco, arquivo nem JavaFX. Os registros saem na
+	 * ordem de folha e linha; o header leva o total de linhas e de folhas
+	 * distintas do arquivo.
+	 *
+	 * @param lista      atendimentos que vão para o arquivo
+	 * @param competencia competência AAAAMM do header
+	 * @param numeracao  folha e linha de cada atendimento ({@link #numerarFolhas})
+	 */
+	String gerarConteudo(List<AtendimentoBPAi> lista, String competencia,
+			Map<AtendimentoBPAi, PosicaoFolha> numeracao) {
+
+		List<AtendimentoBPAi> ordenados = new java.util.ArrayList<>(lista);
+		ordenados.sort(Comparator
+				.comparingInt((AtendimentoBPAi a) -> numeracao.get(a).folha())
+				.thenComparingInt(a -> numeracao.get(a).linha()));
+
+		int totalFolhas = (int) ordenados.stream().map(a -> numeracao.get(a).folha()).distinct().count();
+
+		StringBuilder sb = new StringBuilder();
+
+		sb.append(montarHeader(ordenados, competencia, totalFolhas));
+		sb.append("\r\n"); // seq 13 cbc-fim: CR+LF obrigatório conforme layout BPA
+
+		for (AtendimentoBPAi a : ordenados) {
+			PosicaoFolha posicao = numeracao.get(a);
+			sb.append(montarRegistro(a, competencia, posicao.folha(), posicao.linha()));
+			sb.append("\r\n"); // seq 40 prd-fim: CR+LF obrigatório conforme layout BPA-I
 		}
 
-		// 3. Aplica folhas ao mês atual em memória (sem persistir)
-		for (AtendimentoBPAi a : lista) {
-			a.setFolha(chaveParaFolha.get(montarChaveMedicoMes(a)));
-		}
-
-		return (int) lista.stream()
-				.map(this::montarChaveMedico)
-				.distinct()
-				.count();
+		return sb.toString();
 	}
 
 	/**
@@ -374,7 +369,7 @@ public class GeradorBPAiService {
 	/**
 	 * Monta a chave única para identificar uma combinação especialidade + médico.
 	 */
-	private String montarChaveMedico(AtendimentoBPAi a) {
+	private static String montarChaveMedico(AtendimentoBPAi a) {
 
 		String esp = a.getEspecialidadeMedico() != null
 				? a.getEspecialidadeMedico() : "";
@@ -383,23 +378,6 @@ public class GeradorBPAiService {
 				? a.getMedico().getNome() : "";
 
 		return esp + "|" + med;
-	}
-
-	/**
-	 * Monta a chave única para identificar uma combinação especialidade + médico + mês.
-	 */
-	private String montarChaveMedicoMes(AtendimentoBPAi a) {
-
-		String esp = a.getEspecialidadeMedico() != null
-				? a.getEspecialidadeMedico() : "";
-
-		String med = a.getMedico() != null && a.getMedico().getNome() != null
-				? a.getMedico().getNome() : "";
-
-		int mes = a.getDataAgendamento() != null
-				? a.getDataAgendamento().getMonthValue() : 0;
-
-		return esp + "|" + med + "|" + mes;
 	}
 
 	/**
@@ -491,45 +469,13 @@ public class GeradorBPAiService {
 	}
 
 	/**
-	 * Header para o arquivo completo.
-	 * Usa o totalFolhas calculado (quantidade de médicos distintos)
-	 * ao invés de lista.size().
+	 * Header do arquivo (132 caracteres): competência, total de linhas, total
+	 * de folhas distintas do arquivo e campo de controle. Antes a geração
+	 * parcial informava o número de linhas como número de folhas.
 	 */
-	private String montarHeaderCompleto(
-			List<AtendimentoBPAi> lista,
-			String competencia,
-			int totalFolhas) {
+	private String montarHeader(List<AtendimentoBPAi> lista, String competencia, int totalFolhas) {
 
 		int totalLinhas = lista.size();
-		int somaControle = calcularSomaVerificacao(lista);
-
-		StringBuilder sb = new StringBuilder();
-
-		sb.append("01"); // seq 1 cbc-hdr
-		sb.append("#BPA#"); // seq 2 cbc-hdr
-		sb.append(padLeftZeros(competencia, 6)); // seq 3 cbc-mvm
-		sb.append(padLeftZeros(String.valueOf(totalLinhas), 6)); // seq 4 cbc-lin
-		sb.append(padLeftZeros(String.valueOf(totalFolhas), 6)); // seq 5 cbc-flh
-		sb.append(padLeftZeros(String.valueOf(somaControle), 4)); // seq 6 cbc-smt-vrf
-		sb.append(padRightSpaces("NUCLEO DE TELESSAUDE DE MS", 30)); // seq 7
-		sb.append(padRightSpaces("NTMS", 6)); // seq 8
-		sb.append(padLeftZeros("02955271000126", 14)); // seq 9
-		sb.append(padRightSpaces("SECRETARIA ESTADUAL DE SAUDE", 40)); // seq 10
-		sb.append("E"); // seq 11
-		sb.append(padRightSpaces("ED04.10", 10)); // seq 12
-
-		return sb.toString();
-	}
-
-	/**
-	 * ============================================================
-	 * HEADER
-	 * ============================================================
-	 */
-	private String montarHeader(List<AtendimentoBPAi> lista, String competencia) {
-
-		int totalLinhas = lista.size();
-		int totalFolhas = lista.size();
 		int somaControle = calcularSomaVerificacao(lista);
 
 		StringBuilder sb = new StringBuilder();
@@ -560,7 +506,8 @@ public class GeradorBPAiService {
 	private String montarRegistro(
 			AtendimentoBPAi a,
 			String competencia,
-			int sequencial) {
+			int folha,
+			int linha) {
 
 		StringBuilder sb = new StringBuilder();
 
@@ -624,12 +571,12 @@ public class GeradorBPAiService {
 		/**
 		 * seq 7 - prd-flh
 		 */
-		sb.append(padLeftZeros(a.getFolha(), 3));
+		sb.append(padLeftZeros(String.valueOf(folha), 3));
 
 		/**
 		 * seq 8 - prd-seq
 		 */
-		sb.append(padLeftZeros(String.valueOf(sequencial), 2));
+		sb.append(padLeftZeros(String.valueOf(linha), 2));
 
 		/**
 		 * seq 9 - prd-pa
@@ -673,8 +620,11 @@ public class GeradorBPAiService {
 		 * O código IBGE padrão tem 7 dígitos. O BPA-I usa 6 posições
 		 * (sem o dígito verificador), então truncamos o último dígito.
 		 *
-		 * Resolvido durante a importação via ViaCEP (CEP) ou CSV (nome).
-		 * Se não resolvido, preenchido com brancos (default do layout).
+		 * Resolvido na importação ({@link br.gov.ses.fillbpai.util.IbgeUtils}:
+		 * tabela de MS pelo nome do município, CEPs já conhecidos, APIs de CEP).
+		 * A importação não grava linha sem IBGE e {@link #validarIbge} bloqueia
+		 * a geração de dados antigos sem ele; os brancos abaixo ficam só como
+		 * proteção.
 		 */
 		String codigoIbge = endereco != null ? endereco.getCodigoIbge() : null;
 		// Trunca para 6 dígitos (remove dígito verificador do IBGE)
@@ -753,8 +703,6 @@ public class GeradorBPAiService {
 		 * seq 24 - prd-srv
 		 */
 		sb.append(formatarServico(prdPa));
-
-		/** sb.append(padRightSpaces("", 3)); */  // serviço
 
 		/**
 		 * seq 25 - prd-clf
@@ -851,9 +799,10 @@ public class GeradorBPAiService {
 		 * seq "38" duplicado no PDF oficial - prd_situacao_rua
 		 * (ver docs/runbook-layout-bpa-2026.html)
 		 * ALFA, 1 char, valores: N ou S.
-		 * Usa o valor informado na planilha (paciente.situacaoRua) quando
-		 * disponível; sem essa informação, mantém o padrão "N" — mesmo
-		 * comportamento de antes de a planilha trazer esta coluna.
+		 * Usa a situação de rua do atendimento (reserva: o valor legado do
+		 * paciente, para atendimentos gravados antes de 16/10/2026). Sem
+		 * informação → "N"; célula vazia → branco; atendimento de competência
+		 * anterior a 12/2024 → branco (o campo não existia — Decisão 26).
 		 */
 		// Situação de rua do próprio atendimento (16/10/2026); nulo só em
 		// atendimentos gravados antes da mudança → valor legado do paciente.
@@ -871,11 +820,11 @@ public class GeradorBPAiService {
 		 * seq 39 - prd_sem_cpf (novo no layout 2026 — ver
 		 * docs/runbook-layout-bpa-2026.html)
 		 * ALFA, 1 char, valores: N ou S.
-		 * Usa o valor informado na planilha (atendimento.pacienteSemCpf)
-		 * quando disponível; sem essa informação, deriva automaticamente da
-		 * presença do CPF do paciente — CPF preenchido -> "N", CPF vazio ->
-		 * "S". Hoje sempre resulta em "N" na prática, já que CPF vazio já
-		 * bloqueia a importação (CPF_AUSENTE) antes de chegar aqui.
+		 * Usa o valor informado na planilha (atendimento.pacienteSemCpf);
+		 * planilha sem a coluna → deriva do CPF do paciente (CPF preenchido →
+		 * "N"; vazio ou chave interna de paciente sem CPF → "S"); célula
+		 * vazia → branco; atendimento de competência anterior a 07/2026 →
+		 * branco (o campo não existia — Decisão 26).
 		 */
 		// null = planilha sem a coluna → deriva do CPF (regra de coluna opcional
 		// ausente); "" = coluna presente com a célula vazia → branco (16/10/2026)
@@ -893,17 +842,16 @@ public class GeradorBPAiService {
 
 		/**
 		 * seq 40 - prd-fim
-		 * CRLF controlado pelo writer.newLine()
+		 * CRLF acrescentado por quem monta o arquivo (gerarConteudo), depois
+		 * de cada registro
 		 */
 
 		return sb.toString();
 	}
 
 	/**
-	 * cálculo idade
-	 */
-	/**
-	 * cálculo campo controle header
+	 * Campo de controle do header: soma dos códigos de procedimento (SIGTAP,
+	 * só dígitos) e das quantidades (1 por registro), em módulo 1111, mais 1111.
 	 */
 	private int calcularSomaVerificacao(List<AtendimentoBPAi> lista) {
 
@@ -1089,7 +1037,8 @@ public class GeradorBPAiService {
 	}
 
 	/**
-	 * Formata o telefone do paciente conforme layout BPA-I.
+	 * Telefone do paciente (seq 35, 11 posições): DDD + número por
+	 * {@link TelefoneUtils}, com espaços à direita; sem DDD ou inválido → brancos.
 	 */
 	private String formatarTelefone(String telefone) {
 
@@ -1164,10 +1113,9 @@ public class GeradorBPAiService {
 	}
 
 	/**
-	 * Campo NUM obrigatório
-	 * - Apenas números
-	 * - Preenchimento com zeros à esquerda
-	 * - Default = 000
+	 * Campo NUM obrigatório: só dígitos, com zeros à esquerda. Hoje usado só
+	 * pelo código de logradouro (seq 30): valor nulo vira {@code 081} (Rua —
+	 * decisão de negócio de 11/09/2026); valor sem nenhum dígito vira zeros.
 	 */
 	private String padNumObrigatorio(String valor, int tamanho) {
 

@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 683 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 690 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>16/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -229,6 +229,10 @@
           <tr><td class="caso">Ajustes de regras (19/10/2026)</td><td>CID só com traço (<code>-</code>, <code>--</code>, <code>–</code>, <code>—</code>) = sem CID → aviso CID_AUSENTE e CID em branco (antes CID_INVALIDO, bloqueava). Número do endereço só com traço → <code>SN</code>, sem aviso. Tipo de logradouro 023 (Campo) desativado na tabela DNE (linha comentada com <code>#</code>; o leitor da tabela passou a aceitar comentários) — "Campo …" fica no endereço. Estabelecimento sem código continua aviso (Decisão 27). Textos: CNS_INVALIDO "O CNS deve ter 15 dígitos, com menos ou mais, o valor não é gravado"; CNS_DV_INVALIDO sem o trecho sobre CPF; NOME_PACIENTE_SUSPEITO com título "Nome do paciente a conferir" e explicação sem citar teste/erro.</td></tr>
           <tr><td class="caso">Janelas e logs (19/10/2026)</td><td>Janelas de validação com o nome da planilha e a pasta do arquivo no topo (pasta selecionável para copiar). Blocos verdes "Colunas opcionais não encontradas" e "Formato de planilha legado" no mesmo formato dos blocos de erros/avisos (faixa de título + painéis), via <code>criarBlocoInformativo</code>. Ordem na janela com erros: erros → colunas opcionais → avisos. Log da análise só é salvo pelo botão "Salvar Log TXT" (antes ia sempre para <code>database/</code>, sem uso). Log de importação começa com planilha, local e data/hora; título "=== AVISOS — importados, confira os pontos abaixo ==="; seção de erros retirada (tudo ou nada: com erro não há log de importação).</td></tr>
           <tr><td class="caso">Ciência dos avisos (20/10/2026)</td><td>Para o usuário não importar sem ler os avisos: "Ciente" por grupo de aviso e por item dos blocos verdes, só habilitado depois de abrir o painel; "Importar Planilha" liberado só com todos marcados; chip com ✓; sem "marcar todos". Títulos: "marque Ciente para liberar a importação" (janela com erros: "não exigem correção", sem "Ciente"). Log de importação termina com "=== CIÊNCIA DOS AVISOS ===" (grupos, data/hora, "a marcação indica que os avisos foram lidos; não indica que os dados foram verificados"). Escolha de "Ciente" em vez de "Conferi": registra leitura, não verificação. Simulação aprovada antes da implementação.</td></tr>
+          <tr><td class="caso">Documentação dos métodos (20/10/2026)</td><td>Revisão de toda a documentação (Javadoc) frente ao comportamento atual: processador, análise, gerador, importação, controller, utilitários, entidades, repositórios e tela. Corrigidos 4 blocos soltos (documentação separada do método: <code>validarCpfMedico</code>, <code>CnsUtils.processar</code>, <code>NumeroUtils.normalizar</code>, <code>StringUtils.separarCodigoENome</code>) e descrições desatualizadas (CNS com mais de 15 dígitos, chave do paciente sem CPF, colunas S/N vazias, vigência do layout, folhas, log de importação, ciência dos avisos).</td></tr>
+          <tr><td class="caso">"Paciente sem CPF" vazio com CPF (20/10/2026)</td><td>Coluna "Paciente sem CPF" presente com a célula vazia e o CPF do paciente preenchido e válido: a importação grava "N", sem aviso (antes: aviso PACIENTE_SEM_CPF_VAZIO e branco no BPA-I — tipo removido). CPF vazio com a célula vazia continua erro (CPF_AUSENTE); CPF inválido continua erro de CPF.</td></tr>
+          <tr><td class="caso">Histórico de logs de importação (20/10/2026)</td><td>Depois de reiniciar, "Ver Log Importação" dizia "Nenhum log de importação encontrado" (procurava um arquivo que não era mais gravado), e reimportar a mesma planilha apagava o log anterior. Agora: um arquivo por importação, com data e hora no nome; o botão abre o histórico (lista mais recente primeiro, com data/hora, planilha, linhas e avisos; busca; log selecionado com "Copiar log"). Logs antigos sem cabeçalho aparecem com a data do arquivo. <code>HistoricoLogsService</code>, com testes. Simulação aprovada antes.</td></tr>
+          <tr><td class="caso">Folha e remessa (20/10/2026)</td><td>Regra única de folha, calculada na geração e válida por competência: especialidade → médico, folha nova a cada 99 linhas (<code>numerarFolhas</code>); parcial e completa com a mesma numeração. Depois de salvar o arquivo, folha, linha e data/hora da remessa são gravadas nos atendimentos e a tabela mostra as colunas Folha, Linha e Remessa. Corrigidos: folha 000 no parcial sem folha definida, linha voltando a 01 na mesma folha após 99, folha com 4 dígitos na completa (numeração do ano inteiro), header do parcial com nº de linhas no lugar de nº de folhas, "gerado com sucesso" ao cancelar. Removidos o botão "Definir Folha" e a herança de folha na importação. Simulação aprovada antes (colunas Folha e Linha separadas).</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -250,7 +254,7 @@
         <p>
           31 (aviso de competência com mais de 3 meses), 3, 5 e 6 (formatos
           extras de data, grafia do tipo de serviço, atendimentos já gravados sem SIGTAP), 45 (CID ×
-          sexo/idade, adiada). Decisões em aberto: 3, 14.
+          sexo/idade, adiada). Decisões em aberto: 3, 14, 30 (INE).
         </p>
       </li>
       <li>
@@ -1880,15 +1884,17 @@
     <h3>Caminho do dado (regras já implementadas em etapas anteriores)</h3>
     <ul class="plain">
       <li>Coluna opcional; aceita S/N, Sim/Não, 1/0 (<code>SimNaoUtils</code>). Valor não reconhecido → aviso
-        <code>PACIENTE_SEM_CPF_INVALIDO</code>; coluna presente com célula vazia → aviso <code>PACIENTE_SEM_CPF_VAZIO</code> e
-        branco no BPA-I (Decisão 24).</li>
+        <code>PACIENTE_SEM_CPF_INVALIDO</code>; coluna presente com célula vazia → "N" quando o CPF está preenchido, sem aviso (20/10/2026; até então aviso
+        <code>PACIENTE_SEM_CPF_VAZIO</code> e branco no BPA-I — Decisão 24, revista).</li>
       <li>CPF vazio só é aceito com "Sim" (<code>CPF_AUSENTE</code>); "Sim" com CPF preenchido é
         <code>CPF_CONFLITO_SEM_CPF</code>; com "Sim", o CNS é obrigatório, com 15 dígitos e DV válido
         (<code>CNS_OBRIGATORIO_SEM_CPF</code>) e vai no seq 10 do BPA-I, com o CPF (seq 38) em branco.</li>
-      <li>O paciente sem CPF recebe uma chave interna <code>SC</code> + 12 caracteres derivada do <strong>nome +
-        nascimento</strong> (<code>CpfUtils.chaveSemCpf</code>), porque o CPF é a chave do paciente no banco.</li>
+      <li>O paciente sem CPF recebe uma chave interna <code>SC</code> + 12 caracteres, porque o CPF é a chave do paciente
+        no banco. Era derivada do <strong>nome + nascimento</strong> (<code>CpfUtils.chaveSemCpf</code>); desde 19/10/2026
+        é derivada do <strong>CNS</strong> (<code>CpfUtils.chaveSemCpfPorCns</code>, recomendação 68), com migração da
+        chave antiga.</li>
       <li>BPA-I seq 39 (<code>prd_sem_cpf</code>): valor da planilha; coluna ausente → derivado do CPF; célula vazia →
-        branco.</li>
+        "N" pelo CPF preenchido (20/10/2026); competência anterior a 07/2026 → branco (Decisão 26).</li>
     </ul>
 
     <h3>O que acontece (teste de sondagem)</h3>
@@ -2782,8 +2788,9 @@
         <p>
           Regra das colunas opcionais (<a href="#abertas">Decisão 24</a>), aplicada a "Situação de Rua" e "Paciente sem CPF":
           coluna ausente → continua a regra de coluna opcional (aviso único e o padrão: "N" / derivado do CPF); coluna
-          presente com a célula vazia → <code>AVISO</code> por linha (<code>SITUACAO_RUA_VAZIA</code>,
-          <code>PACIENTE_SEM_CPF_VAZIO</code>) "será importada em branco" e o campo vai em branco no BPA-I.
+          presente com a célula vazia → <code>AVISO</code> por linha (<code>SITUACAO_RUA_VAZIA</code>) "será importada em branco"
+          e o campo vai em branco no BPA-I. "Paciente sem CPF" vazio passou a virar "N" pelo CPF preenchido, sem aviso
+          (20/10/2026).
         </p>
       </li>
       <li>
@@ -3020,6 +3027,9 @@
         padrão de cada campo — situação de rua "N", paciente sem CPF derivado do CPF). Se a coluna existe e a célula está
         vazia, aviso informando que a célula está vazia e será importada em branco; no BPA-I o campo vai em branco. Valor
         não reconhecido continua com a regra anterior (aviso e "N" / derivado do CPF).
+        Revisto em 20/10/2026 para "Paciente sem CPF": com a célula vazia e o CPF do paciente preenchido, grava "N" sem
+        aviso (o CPF já responde à pergunta; CPF vazio ou inválido continua erro). Para "Situação de Rua" a regra fica como
+        decidida.
       </p>
     </div>
     <div class="callout recomendado">
@@ -3059,6 +3069,29 @@
         marcados. Títulos dos blocos: "marque Ciente para liberar a importação". O log de importação termina com a seção
         "=== CIÊNCIA DOS AVISOS ===" (grupos, data/hora e a frase "a marcação indica que os avisos foram lidos; não indica
         que os dados foram verificados"). Sem registro de quem marcou: o programa não tem login.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 29 · Folha e remessa: regra única e registro na tabela</span>
+      <p>
+        Decidido (20/10/2026), a partir de uma simulação aprovada (colunas Folha e Linha separadas, para não ler "003 / 47"
+        como fração): a folha (<code>prd-flh</code>) e a linha (<code>prd-seq</code>) são calculadas na geração, por
+        competência — especialidade → médico → data → hora, folha nova por especialidade + médico e a cada 99 linhas
+        (<code>GeradorBPAiService.numerarFolhas</code>). Geração parcial e completa usam a mesma numeração. Depois de salvo
+        o arquivo, folha, linha e data/hora da remessa ficam gravadas no atendimento e aparecem na tabela (colunas Folha,
+        Linha, Remessa); guarda-se só a remessa mais recente. O botão "Definir Folha" e a herança de folha na importação
+        foram removidos. Antes havia duas numerações que não conversavam (a completa numerava o ano inteiro em memória e não
+        gravava; a parcial usava a folha definida à mão), com folha 000, linha repetida depois da 99 e risco de folha com 4
+        dígitos.
+      </p>
+    </div>
+    <div class="callout aberto">
+      <span class="pill aberto">30 · INE (campo 37, <code>prd_ine</code>)</span>
+      <p>
+        O layout marca o INE como obrigatório ("X"), com padrão "brancos", a partir da competência 08/2015. Hoje a planilha
+        não tem coluna de INE, o campo fica sempre vazio no banco e o BPA-I sai com 10 brancos; a coluna "INE" da tabela
+        aparece sempre vazia. O INE identifica uma equipe de saúde (Atenção Primária). Pendente: confirmar se o núcleo tem
+        INE ou se o SIA já criticou INE em branco. Se não, manter os brancos e considerar tirar a coluna vazia da tabela.
       </p>
     </div>
   </section>
