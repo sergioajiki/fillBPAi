@@ -41,7 +41,7 @@ import java.util.List;
  * RelatorioController. Conduz a análise da planilha (janelas de erros,
  * avisos com "Ciente" e estrutura) e a importação a partir dela.
  *
- * O log de cada importação é salvo em {@code database/}, um arquivo por
+ * O log de cada importação é salvo em {@code logs/} (separada do banco), um arquivo por
  * importação ({@link HistoricoLogsService}); "Ver Log Importação" mostra o
  * histórico, inclusive depois de reiniciar o programa.
  */

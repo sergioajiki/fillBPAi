@@ -35,6 +35,14 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Tela principal de dados: barra "Exibir tabela" (Competência, Período,
+ * Completo — só o que a tabela mostra), árvore de especialidades → médicos
+ * com busca, tabela de atendimentos (com Folha, Linha e Remessa), barra de
+ * edição do CNS do médico selecionado e barra fixa inferior de geração do
+ * BPA-I (competência, pendências e o botão que gera parcial ou completo
+ * conforme a seleção da árvore).
+ */
 public class RelatorioController {
 
 	// ======================================================

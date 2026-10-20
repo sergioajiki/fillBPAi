@@ -1,23 +1,16 @@
 package br.gov.ses.fillbpai.util;
 
+/**
+ * Funções de texto usadas na importação e na geração do BPA-I: corte no
+ * tamanho do campo (no caractere ou na última palavra inteira) e separação
+ * das células combinadas "código - nome" (Estabelecimento) e
+ * "ESPECIALIDADE - NOME" (Especialidade/Médico, formato legado).
+ */
 public class StringUtils {
     /**
-     * ============================================================
-     * LIMITAR TAMANHO DE STRING
-     * ============================================================
-     *
-     * Regra:
-     * - Se null → retorna null
-     * - Se menor que o tamanho → retorna normal
-     * - Se maior → corta no limite
-     *
-     * Uso:
-     * - Banco de dados (VARCHAR limitado)
-     * - Layouts fixos (BPA, arquivos, etc)
-     *
-     * Exemplo:
-     * limitarTamanho("Rua ABC", 30) -> "Rua ABC"
-     * limitarTamanho("Texto muito grande...", 10) -> "Texto muit"
+     * Tira os espaços das pontas e corta no tamanho máximo, no caractere
+     * ({@code "Texto muito grande"} em 10 → {@code "Texto muit"}); {@code null}
+     * continua {@code null}. Para não partir palavra, ver {@link #limitarNaPalavra}.
      */
     public static String limitarTamanho(String valor, int tamanhoMaximo) {
 
@@ -56,13 +49,7 @@ public class StringUtils {
         return (corte > 0 ? valor.substring(0, corte) : valor.substring(0, tamanhoMaximo)).trim();
     }
 
-    /**
-     * ============================================================
-     * LIMITAR TAMANHO + DEFAULT VAZIO
-     * ============================================================
-     *
-     * Variante segura para evitar null em campos de banco.
-     */
+    /** Como {@link #limitarTamanho}, mas devolve vazio no lugar de {@code null}. */
     public static String limitarTamanhoOuVazio(String valor, int tamanhoMaximo) {
 
         if (valor == null) {

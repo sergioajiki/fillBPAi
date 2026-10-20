@@ -27,7 +27,7 @@ O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de a
 - Usuário autoriza commit e push direto para main neste projeto (sempre mostrar o que vai ser commitado antes de executar)
 
 ## Estrutura do Projeto
-Arquitetura em camadas: `controller → service → repository → model`, com `util`, `dto` e `ui`.
+Arquitetura em camadas: `controller → service → repository → model`, com `util`, `dto` e `ui`. Referência de classes e métodos: `docs/DOCUMENTACAO_TECNICA.md`, gerada a partir dos javadocs por `node docs/gerar-documentacao.js` (regenerar quando a documentação dos métodos mudar; introdução e tabela de pastas ficam em `docs/documentacao-tecnica-cabecalho.md`, editado à mão).
 
 ### Modelo de Dados (normalizado)
 - `Paciente` — chave natural: CPF (único). Paciente sem CPF ("Paciente sem CPF" = Sim, CPF vazio) recebe uma chave interna `SC` + 12 caracteres derivada do **CNS** (`CpfUtils.chaveSemCpfPorCns`: CNS em base 36 — recomendação 68, 19/10/2026; o CNS é obrigatório e válido nesse caso), estável entre reimportações. A chave antiga, por nome + nascimento (`CpfUtils.chaveSemCpf`), juntava homônimos nascidos no mesmo dia e separava grafias diferentes da mesma pessoa; pacientes gravados com ela são migrados na importação (`AtendimentoImportacaoService.migrarChaveSemCpfAntiga`), só se o CNS gravado for vazio ou igual ao da linha (CNS diferente = homônimo, ganha cadastro próprio); a chave nunca vai para o BPA-I (gerador e tela tratam como CPF vazio — `CpfUtils.isChaveSemCpf`). @OneToOne com Endereco. Campo `situacaoRua` é **legado** desde 16/10/2026 (não é mais atualizado): a situação de rua passou para o atendimento; o valor do paciente só serve de reserva para atendimentos gravados antes da mudança.

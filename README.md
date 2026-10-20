@@ -194,6 +194,7 @@ O banco H2 fica em `database/` e os logs de importação em `logs/`, criados na 
 ## Documentação
 
 - `CLAUDE.md` — referência completa das regras, tipos de erro/aviso e decisões de implementação.
+- `docs/DOCUMENTACAO_TECNICA.md` — referência de todas as classes e métodos, pacote por pacote, e das pastas e arquivos criados em execução. Gerada a partir dos javadocs: `node docs/gerar-documentacao.js`.
 - `docs/runbook-verificacao-colunas.html` — revisão coluna por coluna, decisões e pendências (ponto de retomada do trabalho).
 - `docs/runbook-*.html` — runbooks de temas específicos (layout 2026, médico sem CNS, etnia, logradouro…).
 
