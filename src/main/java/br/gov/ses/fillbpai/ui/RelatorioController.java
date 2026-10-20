@@ -148,7 +148,7 @@ public class RelatorioController {
 	/** Mensagem de pendências do BPA-I completo (null = sem pendências) */
 	private String avisosGeracao = null;
 
-	// BOTÃO VER LOG — exibe o log da última importação
+	// BOTÃO VER LOG — abre o histórico de logs de importação (MainController.exibirLogSalvo)
 	private Button btnVerLog = new Button("Ver Log Importação");
 
 	// BOTÃO ANALISAR PLANILHA — valida a planilha antes de importar
@@ -893,6 +893,13 @@ public class RelatorioController {
 	// GERAR BPA COM FILECHOOSER
 	// ======================================================
 
+	/**
+	 * Gera o arquivo BPA-I parcial do médico + especialidade selecionados na
+	 * árvore, na competência do badge. A folha e a linha seguem a numeração da
+	 * competência inteira (as mesmas da geração completa) e, com o arquivo
+	 * salvo, ficam gravadas com a data/hora da remessa — a tabela é
+	 * recarregada para mostrá-las. Cancelar a escolha do arquivo não grava nada.
+	 */
 	private void gerarBPA() {
 
 		String especialidade = especialidadeSelecionada;

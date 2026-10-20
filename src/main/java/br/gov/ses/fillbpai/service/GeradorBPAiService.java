@@ -497,11 +497,13 @@ public class GeradorBPAiService {
 	}
 
 	/**
-	 * ============================================================
-	 * REGISTRO BPA-I COMPLETO
-	 * 353 caracteres
-	 * seq 1 até seq 40
-	 * ============================================================
+	 * Um registro BPA-I (seq 1 a 39, 351 caracteres; o CRLF da seq 40 é
+	 * acrescentado por {@link #gerarConteudo}).
+	 *
+	 * @param a           atendimento do registro
+	 * @param competencia competência AAAAMM do arquivo
+	 * @param folha       folha do registro ({@code prd-flh}), de {@link #numerarFolhas}
+	 * @param linha       linha dentro da folha ({@code prd-seq}), de {@link #numerarFolhas}
 	 */
 	private String montarRegistro(
 			AtendimentoBPAi a,
