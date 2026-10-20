@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 676 testes passando · última atualização 19/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 683 testes passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>16/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -195,12 +195,13 @@
             Excel ou "tabela de terceiros"); quando a correção é só na planilha, dizer isso.</li>
           <li><strong>Tabela de etnias</strong> (<code>dados/etnias_indigenas.csv</code>) não deve ser alterada.</li>
           <li>O padrão <strong>081 (Rua)</strong> para logradouro não identificado é decisão de negócio (11/09/2026).</li>
+          <li><strong>Avisos exigem ciência antes de importar</strong> (20/10/2026): "Ciente" em cada grupo de aviso libera o botão "Importar Planilha"; a ciência fica registrada no fim do log de importação. Novo aviso entra automaticamente nessa regra (é um grupo a mais).</li>
           <li>Commits e push são feitos pelo usuário.</li>
         </ul>
       </li>
     </ol>
 
-    <h3>O que foi feito (08/10 a 19/10/2026)</h3>
+    <h3>O que foi feito (08/10 a 20/10/2026)</h3>
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>Tema</th><th>Resumo</th></tr></thead>
@@ -225,6 +226,9 @@
           <tr><td class="caso">Paciente sem CPF pelo CNS</td><td>Recomendação 68 (19/10/2026): chave interna pelo CNS (<code>chaveSemCpfPorCns</code>), migração da chave antiga (nome + nascimento) sem duplicar, homônimos com CNS diferentes ficam separados; aviso de nomes diferentes também pelo CNS.</td></tr>
           <tr><td class="caso">Data fora do esperado</td><td>Recomendação 4 (19/10/2026): aviso DATA_FORA_DO_ESPERADO para data do atendimento futura ou com mais de 2 anos (provável ano digitado errado), na análise e no log de importação.</td></tr>
           <tr><td class="caso">CNS e nome do paciente</td><td>Recomendações 26, 27, 29 e 30 (19/10/2026): CNS sem 15 dígitos (a menos ou a mais) é CNS_INVALIDO e não é gravado (CNS_INCOMUM removido); linha sem CNS válido não apaga o CNS do cadastro (DV errado não substitui CNS válido); nome gravado em maiúsculas com espaços reduzidos (acentos mantidos), também no gerador; avisos NOME_PACIENTE_LONGO (mostra como sai no BPA-I) e NOME_PACIENTE_SUSPEITO (sem letras, números, símbolos, uma palavra só, RN).</td></tr>
+          <tr><td class="caso">Ajustes de regras (19/10/2026)</td><td>CID só com traço (<code>-</code>, <code>--</code>, <code>–</code>, <code>—</code>) = sem CID → aviso CID_AUSENTE e CID em branco (antes CID_INVALIDO, bloqueava). Número do endereço só com traço → <code>SN</code>, sem aviso. Tipo de logradouro 023 (Campo) desativado na tabela DNE (linha comentada com <code>#</code>; o leitor da tabela passou a aceitar comentários) — "Campo …" fica no endereço. Estabelecimento sem código continua aviso (Decisão 27). Textos: CNS_INVALIDO "O CNS deve ter 15 dígitos, com menos ou mais, o valor não é gravado"; CNS_DV_INVALIDO sem o trecho sobre CPF; NOME_PACIENTE_SUSPEITO com título "Nome do paciente a conferir" e explicação sem citar teste/erro.</td></tr>
+          <tr><td class="caso">Janelas e logs (19/10/2026)</td><td>Janelas de validação com o nome da planilha e a pasta do arquivo no topo (pasta selecionável para copiar). Blocos verdes "Colunas opcionais não encontradas" e "Formato de planilha legado" no mesmo formato dos blocos de erros/avisos (faixa de título + painéis), via <code>criarBlocoInformativo</code>. Ordem na janela com erros: erros → colunas opcionais → avisos. Log da análise só é salvo pelo botão "Salvar Log TXT" (antes ia sempre para <code>database/</code>, sem uso). Log de importação começa com planilha, local e data/hora; título "=== AVISOS — importados, confira os pontos abaixo ==="; seção de erros retirada (tudo ou nada: com erro não há log de importação).</td></tr>
+          <tr><td class="caso">Ciência dos avisos (20/10/2026)</td><td>Para o usuário não importar sem ler os avisos: "Ciente" por grupo de aviso e por item dos blocos verdes, só habilitado depois de abrir o painel; "Importar Planilha" liberado só com todos marcados; chip com ✓; sem "marcar todos". Títulos: "marque Ciente para liberar a importação" (janela com erros: "não exigem correção", sem "Ciente"). Log de importação termina com "=== CIÊNCIA DOS AVISOS ===" (grupos, data/hora, "a marcação indica que os avisos foram lidos; não indica que os dados foram verificados"). Escolha de "Ciente" em vez de "Conferi": registra leitura, não verificação. Simulação aprovada antes da implementação.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -237,7 +241,7 @@
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
           junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
-          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
@@ -3033,6 +3037,28 @@
         planilha traz "Sim" nesses casos, o <code>AVISO</code> <code>CAMPO_ANTES_DA_VIGENCIA</code> informa que o campo será
         gerado em branco (análise e log de importação, agrupado por campo + competência). "Não" não gera aviso: o branco
         equivale ao campo inexistente.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 27 · Estabelecimento sem código: continua aviso</span>
+      <p>
+        Decidido (19/10/2026): não vira erro. O estabelecimento da planilha não vai para o BPA-I (o <code>prd-cnes</code> é o
+        CNES do núcleo, <code>cnesNts</code>) nem entra na regra de duplicidade — só aparece na tabela. Como erro, barraria a
+        planilha inteira por um dado que não afeta a remessa. Rever se o núcleo passar a usar o estabelecimento em
+        relatórios ou prestação de contas por unidade.
+      </p>
+    </div>
+    <div class="callout recomendado">
+      <span class="pill ok">✓ 28 · Ciência dos avisos antes de importar</span>
+      <p>
+        Decidido (20/10/2026), a partir de uma simulação interativa aprovada antes da implementação: para o usuário não
+        importar sem ler os avisos, cada grupo de aviso e cada item dos blocos verdes (colunas opcionais, formato legado)
+        tem um <strong>"Ciente"</strong> — e não "Conferi", porque a marcação registra leitura, não verificação do dado. O
+        "Ciente" é <strong>por grupo</strong> (uma planilha pode ter centenas de linhas com aviso), só fica disponível
+        <strong>depois de abrir o painel</strong> e não há "marcar todos". "Importar Planilha" só é liberado com todos
+        marcados. Títulos dos blocos: "marque Ciente para liberar a importação". O log de importação termina com a seção
+        "=== CIÊNCIA DOS AVISOS ===" (grupos, data/hora e a frase "a marcação indica que os avisos foram lidos; não indica
+        que os dados foram verificados"). Sem registro de quem marcou: o programa não tem login.
       </p>
     </div>
   </section>

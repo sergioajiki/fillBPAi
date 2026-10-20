@@ -249,12 +249,12 @@ public final class AgrupamentoValidacao {
 			Map.entry(ErroValidacao.NOME_PACIENTE_SUSPEITO, new InfoTipo(
 					"Nome do paciente a conferir",
 					"Nome sem letras, com números, símbolos, uma palavra só ou de recém-nascido sem nome (\"RN DE …\")."
-							+ " Confira se o nome está completo e correto na planilha. Não impede a importação.", 27)),
+							+ " Confira se o nome está completo e correto na planilha.", 27)),
 			Map.entry(ErroValidacao.DATA_FORA_DO_ESPERADO, new InfoTipo(
 					"Data do atendimento futura ou muito antiga",
 					"A data do atendimento é depois de hoje ou tem mais de 2 anos. Em geral é o ano digitado"
 							+ " errado (ex.: 2062 em vez de 2026), e o atendimento cairia numa competência errada."
-							+ " Se a data estiver certa, pode importar.", 9)),
+							+ " Se a data estiver certa, basta marcar Ciente.", 9)),
 			Map.entry(ErroValidacao.CPF_COM_NOMES_DIFERENTES, new InfoTipo(
 					"Mesmo CPF (ou CNS) com nomes diferentes",
 					"O CPF identifica o paciente (sem CPF, o CNS): linhas com o mesmo documento e nomes diferentes"

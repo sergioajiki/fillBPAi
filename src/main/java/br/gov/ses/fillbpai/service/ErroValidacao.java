@@ -6,7 +6,8 @@ package br.gov.ses.fillbpai.service;
  * Pode ser bloqueante (ERRO) ou informativo (AVISO):
  * <ul>
  *   <li>ERRO — impede a importação da planilha; deve ser corrigido antes de importar</li>
- *   <li>AVISO — registrado no log de análise mas não impede a importação</li>
+ *   <li>AVISO — não exige correção; antes de importar, o usuário marca "Ciente" em cada
+ *       grupo de aviso na janela da análise (20/10/2026)</li>
  * </ul>
  *
  * @param linha      número da linha na planilha (1-based, considerando cabeçalho)

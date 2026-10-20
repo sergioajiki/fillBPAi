@@ -108,7 +108,7 @@ public class MainController {
 	 * Executa a importação do arquivo já validado, exibe o log e recarrega a tabela.
 	 * Chamado tanto pelo fluxo normal de importação quanto pelo botão da janela de análise.
 	 */
-	private void processarImportacao(String caminho, Stage stage) {
+	private void processarImportacao(String caminho, Stage stage, String registroCiencia) {
 
 		AtendimentoImportacaoService service =
 				new AtendimentoImportacaoService(entityManager);
@@ -132,7 +132,7 @@ public class MainController {
 			return;
 		}
 
-		String conteudoLog = montarConteudoLog(resultado, caminho);
+		String conteudoLog = montarConteudoLog(resultado, caminho, registroCiencia);
 		salvarLogEmArquivo(conteudoLog, nomePlanilhaSemExtensao(caminho));
 		mostrarLog(conteudoLog);
 
@@ -151,7 +151,7 @@ public class MainController {
 	 * arquivo no computador e data/hora — o arquivo do log fica guardado e
 	 * precisa dizer sozinho de que importação é.
 	 */
-	private String montarConteudoLog(ImportacaoResultado resultado, String caminho) {
+	private String montarConteudoLog(ImportacaoResultado resultado, String caminho, String registroCiencia) {
 
 		StringBuilder sb = new StringBuilder();
 
@@ -184,7 +184,12 @@ public class MainController {
 		}
 
 		if (resultado.getAvisos().isEmpty()) {
-			sb.append("Importação concluída sem avisos.");
+			sb.append("Importação concluída sem avisos.\n");
+		}
+
+		// Ciência dos avisos marcada na análise antes de importar (20/10/2026)
+		if (registroCiencia != null) {
+			sb.append("\n").append(registroCiencia);
 		}
 
 		return sb.toString();
@@ -403,12 +408,130 @@ public class MainController {
 	 * Monta o bloco de "formato de planilha legado" (coluna
 	 * "Especialidade/Médico" combinada), no formato de {@link #criarBlocoInformativo}.
 	 */
-	private VBox criarBannerFormatoLegado(ErroValidacao aviso) {
+	private VBox criarBannerFormatoLegado(ErroValidacao aviso, CienciaAvisos ciencia) {
 
 		// Mesmo formato dos blocos de erros/avisos e do de colunas opcionais (19/10/2026)
 		return criarBlocoInformativo(
-				"ℹ FORMATO DE PLANILHA LEGADO DETECTADO — não impede a importação",
-				List.of(java.util.Map.entry("Coluna \"Especialidade/Médico\" combinada", aviso.detalhe())));
+				"ℹ FORMATO DE PLANILHA LEGADO DETECTADO — "
+						+ (ciencia != null ? "marque Ciente para liberar a importação" : "não exige correção"),
+				List.of(java.util.Map.entry("Coluna \"Especialidade/Médico\" combinada", aviso.detalhe())),
+				ciencia, " (formato de planilha legado)");
+	}
+
+	/**
+	 * Ciência dos avisos antes de importar (20/10/2026): um "Ciente" por grupo
+	 * de aviso (e por item dos blocos verdes), no cabeçalho do painel. O
+	 * "Ciente" só fica disponível depois que o painel é aberto, e o botão
+	 * "Importar Planilha" só é liberado com todos marcados. Sem "marcar
+	 * todos": a ideia é que o usuário leia cada aviso antes de importar.
+	 * "Ciente" registra leitura, não que o dado foi verificado. A ciência vai
+	 * para o final do log de importação ({@link #registroNoLog}).
+	 */
+	private static final class CienciaAvisos {
+
+		private final List<String> descricoes = new java.util.ArrayList<>();
+		private final List<CheckBox> marcacoes = new java.util.ArrayList<>();
+
+		/** {@code true} quando não falta nenhum "Ciente" (também quando não há o que marcar). */
+		final javafx.beans.property.BooleanProperty completa = new javafx.beans.property.SimpleBooleanProperty(true);
+
+		/** Texto ao lado do botão de importar. */
+		final javafx.beans.property.StringProperty situacao = new javafx.beans.property.SimpleStringProperty("");
+
+		/**
+		 * Põe o "Ciente" no cabeçalho do painel, à direita do título, e o
+		 * registra. Desabilitado até o painel ser aberto pela primeira vez.
+		 */
+		CheckBox registrar(TitledPane painel, String descricao) {
+
+			CheckBox ciente = new CheckBox("Ciente");
+			ciente.setDisable(!painel.isExpanded());
+			painel.expandedProperty().addListener((obs, antes, aberto) -> {
+				if (aberto) {
+					ciente.setDisable(false);
+				}
+			});
+
+			// O clique no "Ciente" não abre nem fecha o painel
+			ciente.addEventHandler(javafx.scene.input.MouseEvent.ANY, javafx.event.Event::consume);
+
+			ciente.selectedProperty().addListener((obs, antes, marcado) -> {
+				ciente.setStyle(marcado ? "-fx-text-fill: #2F6F5E; -fx-font-weight: bold;" : "");
+				atualizar();
+			});
+
+			// Título à esquerda e "Ciente" à direita: o texto do painel passa para
+			// um Label dentro do graphic, que ocupa a largura do cabeçalho
+			Label titulo = new Label(painel.getText());
+			javafx.scene.layout.Region espaco = new javafx.scene.layout.Region();
+			HBox.setHgrow(espaco, javafx.scene.layout.Priority.ALWAYS);
+			HBox cabecalho = new HBox(8, titulo, espaco, ciente);
+			cabecalho.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+			cabecalho.prefWidthProperty().bind(painel.widthProperty().subtract(45));
+			painel.setText(null);
+			painel.setGraphic(cabecalho);
+			painel.setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+
+			descricoes.add(descricao);
+			marcacoes.add(ciente);
+			atualizar();
+
+			return ciente;
+		}
+
+		private void atualizar() {
+
+			long marcados = marcacoes.stream().filter(CheckBox::isSelected).count();
+
+			completa.set(marcados == marcacoes.size());
+			situacao.set(marcacoes.isEmpty() ? ""
+					: completa.get() ? "✓ Ciência de todos os avisos"
+							: "Marque Ciente em todos os avisos para liberar a importação — "
+									+ marcados + " de " + marcacoes.size());
+		}
+
+		/** Seção do final do log de importação, ou {@code null} quando não havia o que marcar. */
+		String registroNoLog() {
+
+			if (marcacoes.isEmpty()) {
+				return null;
+			}
+
+			StringBuilder sb = new StringBuilder("=== CIÊNCIA DOS AVISOS ===\n");
+			sb.append("Antes da importação, foi marcado \"Ciente\" em ")
+					.append(descricoes.size() == 1 ? "1 grupo" : "todos os " + descricoes.size() + " grupos")
+					.append(" de avisos da análise (")
+					.append(java.time.LocalDateTime.now()
+							.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy 'às' HH:mm")))
+					.append("):\n");
+			for (String descricao : descricoes) {
+				sb.append("  ✓ ").append(descricao).append("\n");
+			}
+			sb.append("A marcação indica que os avisos foram lidos; não indica que os dados foram verificados.\n");
+
+			return sb.toString();
+		}
+	}
+
+	/**
+	 * Rodapé das janelas com botão de importar: texto da situação da ciência
+	 * (âmbar enquanto falta "Ciente", verde quando completa) e o botão, que só
+	 * fica habilitado com a ciência completa.
+	 */
+	private Label vincularCiencia(CienciaAvisos ciencia, Button btnImportar) {
+
+		Label situacao = new Label();
+		situacao.textProperty().bind(ciencia.situacao);
+		situacao.setStyle("-fx-text-fill: #93630F;");
+		ciencia.completa.addListener((obs, antes, completa) -> situacao.setStyle(completa
+				? "-fx-text-fill: #2F6F5E; -fx-font-weight: bold;" : "-fx-text-fill: #93630F;"));
+		if (ciencia.completa.get() && !ciencia.situacao.get().isEmpty()) {
+			situacao.setStyle("-fx-text-fill: #2F6F5E; -fx-font-weight: bold;");
+		}
+
+		btnImportar.disableProperty().bind(ciencia.completa.not());
+
+		return situacao;
 	}
 
 	/**
@@ -418,7 +541,8 @@ public class MainController {
 	 * formato legado e de colunas opcionais não encontradas. Verde para não se
 	 * confundir com erro (vermelho) nem aviso (âmbar).
 	 */
-	private VBox criarBlocoInformativo(String cabecalho, List<java.util.Map.Entry<String, String>> itens) {
+	private VBox criarBlocoInformativo(String cabecalho, List<java.util.Map.Entry<String, String>> itens,
+			CienciaAvisos ciencia, String sufixoCiencia) {
 
 		String corForte = "#2F6F5E";
 		String corSuave = "#DCEAE4";
@@ -443,6 +567,10 @@ public class MainController {
 			painel.setAnimated(false);
 			painel.setExpanded(true);
 			lista.getChildren().add(painel);
+
+			if (ciencia != null) {
+				ciencia.registrar(painel, item.getKey() + sufixoCiencia);
+			}
 		}
 
 		VBox corpo = new VBox(8, lista);
@@ -462,7 +590,7 @@ public class MainController {
 	 * = o que o sistema faz sem ela). Cor verde, para não se confundir com erro
 	 * (vermelho) nem aviso (âmbar). Todos abertos: são poucos e curtos.
 	 */
-	private VBox criarBannerColunasOpcionaisAusentes(List<ErroValidacao> avisos) {
+	private VBox criarBannerColunasOpcionaisAusentes(List<ErroValidacao> avisos, CienciaAvisos ciencia) {
 
 		List<java.util.Map.Entry<String, String>> itens = new java.util.ArrayList<>();
 
@@ -482,7 +610,10 @@ public class MainController {
 		}
 
 		return criarBlocoInformativo(
-				"ℹ COLUNAS OPCIONAIS NÃO ENCONTRADAS — não impedem a importação (" + avisos.size() + ")", itens);
+				"ℹ COLUNAS OPCIONAIS NÃO ENCONTRADAS — "
+						+ (ciencia != null ? "marque Ciente para liberar a importação" : "não exigem correção")
+						+ " (" + avisos.size() + ")",
+				itens, ciencia, " (coluna opcional não encontrada)");
 	}
 
 	/**
@@ -495,29 +626,40 @@ public class MainController {
 		alert.setTitle("Validação da Planilha");
 		alert.setHeaderText("Nenhum erro encontrado");
 
+		// Blocos verdes (formato legado, colunas opcionais) também exigem
+		// "Ciente" antes de importar (20/10/2026); sem eles, importa direto
+		CienciaAvisos ciencia = new CienciaAvisos();
+
 		VBox layout = new VBox(10);
 		layout.getChildren().add(criarCabecalhoPlanilha());
 
 		if (avisoLegado != null) {
-			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
+			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado, ciencia));
 		}
 
 		if (!avisosColunaOpcional.isEmpty()) {
-			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
+			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional, ciencia));
 		}
 
 		Label msg = new Label("A planilha está pronta para importação.");
 
 		Button btnImportar = new Button("Importar Planilha");
 		btnImportar.setOnAction(e -> {
+			String registroCiencia = ciencia.registroNoLog();
 			alert.close();
 			// Abre o log só depois de o loop modal deste Alert encerrar: aberto no
 			// mesmo handler, o log renderizava mas não recebia rolagem nem cliques
 			// (mesmo caso do botão "Abrir Configurações").
-			Platform.runLater(() -> processarImportacao(caminho, stage));
+			Platform.runLater(() -> processarImportacao(caminho, stage, registroCiencia));
 		});
 
-		layout.getChildren().addAll(msg, btnImportar);
+		Label situacao = vincularCiencia(ciencia, btnImportar);
+		javafx.scene.layout.Region espaco = new javafx.scene.layout.Region();
+		HBox.setHgrow(espaco, javafx.scene.layout.Priority.ALWAYS);
+		HBox rodape = new HBox(10, msg, espaco, situacao, btnImportar);
+		rodape.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+		layout.getChildren().add(rodape);
 		layout.setPadding(new Insets(10));
 
 		alert.getDialogPane().setContent(layout);
@@ -541,15 +683,19 @@ public class MainController {
 
 		Alert alert = new Alert(Alert.AlertType.WARNING);
 		alert.setTitle("Avisos de Validação");
-		// Sem cabeçalho nem ícone: o bloco "AVISOS — não impedem a importação"
-		// e o botão "Importar Planilha" já dizem que a planilha pode ser importada
+		// Sem cabeçalho nem ícone: o bloco "AVISOS — marque Ciente…" e o botão
+		// "Importar Planilha" já dizem o que fazer
 		alert.setHeaderText(null);
 		alert.setGraphic(null);
 
+		// Ciência dos avisos (20/10/2026): "Importar Planilha" só é liberado com
+		// "Ciente" em todos os grupos de aviso e nos blocos verdes
+		CienciaAvisos ciencia = new CienciaAvisos();
+
 		VBox blocoAvisos = criarBlocoSeveridade(
-				"⚠ AVISOS — não impedem a importação (" + avisos.size() + ")",
+				"⚠ AVISOS — marque Ciente para liberar a importação (" + avisos.size() + ")",
 				avisos,
-				"#93630F", "#F3E6D2");
+				"#93630F", "#F3E6D2", ciencia);
 
 		Button btnSalvarLog = new Button("Salvar Log TXT");
 		btnSalvarLog.setOnAction(e -> {
@@ -570,25 +716,32 @@ public class MainController {
 
 		Button btnImportar = new Button("Importar Planilha");
 		btnImportar.setOnAction(e -> {
+			String registroCiencia = ciencia.registroNoLog();
 			alert.close();
 			// Abre o log só depois de o loop modal deste Alert encerrar: aberto no
 			// mesmo handler, o log renderizava mas não recebia rolagem nem cliques
 			// (mesmo caso do botão "Abrir Configurações").
-			Platform.runLater(() -> processarImportacao(caminho, stage));
+			Platform.runLater(() -> processarImportacao(caminho, stage, registroCiencia));
 		});
 
 		VBox layout = new VBox(10);
 		layout.getChildren().add(criarCabecalhoPlanilha());
 
 		if (avisoLegado != null) {
-			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado));
+			layout.getChildren().add(criarBannerFormatoLegado(avisoLegado, ciencia));
 		}
 
 		if (!avisosColunaOpcional.isEmpty()) {
-			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
+			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional, ciencia));
 		}
 
-		layout.getChildren().addAll(blocoAvisos, new javafx.scene.layout.HBox(10, btnSalvarLog, btnImportar));
+		Label situacao = vincularCiencia(ciencia, btnImportar);
+		javafx.scene.layout.Region espaco = new javafx.scene.layout.Region();
+		HBox.setHgrow(espaco, javafx.scene.layout.Priority.ALWAYS);
+		HBox rodape = new HBox(10, btnSalvarLog, espaco, situacao, btnImportar);
+		rodape.setAlignment(javafx.geometry.Pos.CENTER_LEFT);
+
+		layout.getChildren().addAll(blocoAvisos, rodape);
 		layout.setPadding(new Insets(10));
 
 		exibirComRolagem(alert, layout);
@@ -781,7 +934,7 @@ public class MainController {
 		VBox blocoErros = criarBlocoSeveridade(
 				"🛑 ERROS — necessário corrigir na planilha para gerar a remessa BPA-I (" + bloqueantes.size() + ")",
 				bloqueantes,
-				"#B3261E", "#F6E1DF");
+				"#B3261E", "#F6E1DF", null);
 
 		Button btnSalvarLog = new Button("Salvar Log TXT");
 		btnSalvarLog.setOnAction(e -> {
@@ -813,14 +966,16 @@ public class MainController {
 		layout.getChildren().add(blocoErros);
 
 		if (!avisosColunaOpcional.isEmpty()) {
-			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional));
+			layout.getChildren().add(criarBannerColunasOpcionaisAusentes(avisosColunaOpcional, null));
 		}
 
+		// Sem "Ciente" aqui: com erros não há importação. Depois de corrigir os
+		// erros, a nova análise pede a ciência dos avisos (20/10/2026)
 		if (!naoBloqueantes.isEmpty()) {
 			VBox blocoAvisos = criarBlocoSeveridade(
-					"⚠ AVISOS — não impedem a importação (" + naoBloqueantes.size() + ")",
+					"⚠ AVISOS — não exigem correção (" + naoBloqueantes.size() + ")",
 					naoBloqueantes,
-					"#93630F", "#F3E6D2");
+					"#93630F", "#F3E6D2", null);
 			layout.getChildren().add(blocoAvisos);
 		}
 
@@ -845,7 +1000,8 @@ public class MainController {
 	 * (<code>#B3261E</code>/<code>#F6E1DF</code>) e AVISO
 	 * (<code>#93630F</code>/<code>#F3E6D2</code>).
 	 */
-	private VBox criarBlocoSeveridade(String titulo, List<ErroValidacao> erros, String corForte, String corSuave) {
+	private VBox criarBlocoSeveridade(String titulo, List<ErroValidacao> erros, String corForte, String corSuave,
+			CienciaAvisos ciencia) {
 
 		Label header = new Label(titulo);
 		header.setMaxWidth(Double.MAX_VALUE);
@@ -859,6 +1015,7 @@ public class MainController {
 		// ---- Grupos recolhíveis ----
 		VBox listaGrupos = new VBox(6);
 		List<TitledPane> paineis = new java.util.ArrayList<>();
+		List<CheckBox> cientes = new java.util.ArrayList<>();
 
 		for (AgrupamentoValidacao.Grupo grupo : grupos) {
 
@@ -884,6 +1041,11 @@ public class MainController {
 					grupo.titulo() + "  (" + grupo.ocorrencias() + ")", conteudo);
 			painel.setAnimated(false);
 			painel.setExpanded(paineis.isEmpty());
+
+			// "Ciente" no cabeçalho do grupo (janelas com botão de importar)
+			if (ciencia != null) {
+				cientes.add(ciencia.registrar(painel, grupo.titulo() + " (" + grupo.ocorrencias() + ")"));
+			}
 
 			paineis.add(painel);
 			listaGrupos.getChildren().add(painel);
@@ -911,10 +1073,16 @@ public class MainController {
 
 			for (int i = 0; i < grupos.size(); i++) {
 				AgrupamentoValidacao.Grupo grupo = grupos.get(i);
-				ToggleButton chip = criarChipFiltro(
-						grupo.titulo() + "  " + grupo.ocorrencias(), filtro, corForte, corSuave);
+				String textoChip = grupo.titulo() + "  " + grupo.ocorrencias();
+				ToggleButton chip = criarChipFiltro(textoChip, filtro, corForte, corSuave);
 				chip.setUserData(i);
 				chips.getChildren().add(chip);
+
+				// Chip com ✓ quando o grupo tem "Ciente"
+				if (!cientes.isEmpty()) {
+					cientes.get(i).selectedProperty().addListener((obs, antes, marcado) ->
+							chip.setText((marcado ? "✓ " : "") + textoChip));
+				}
 			}
 
 			filtro.selectedToggleProperty().addListener((obs, anterior, atual) -> {

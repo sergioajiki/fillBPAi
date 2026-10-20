@@ -1261,7 +1261,7 @@ class ValidacaoPlanilhaServiceTest {
 		assertThat(log).contains("Erros: 1");
 		assertThat(log).contains("Avisos: 1");
 		assertThat(log).contains("--- ERROS (necessário corrigir na planilha para gerar a remessa BPA-I) ---");
-		assertThat(log).contains("--- AVISOS (não impedem a importação) ---");
+		assertThat(log).contains("--- AVISOS (não exigem correção; marque Ciente para importar) ---");
 		assertThat(log).contains(ErroValidacao.CEP_AUSENTE);
 		assertThat(log).contains(ErroValidacao.CNS_INVALIDO);
 	}

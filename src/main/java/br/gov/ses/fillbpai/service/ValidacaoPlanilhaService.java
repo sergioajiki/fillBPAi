@@ -1413,7 +1413,7 @@ public class ValidacaoPlanilhaService {
 		}
 
 		if (!avisos.isEmpty()) {
-			sb.append("\n--- AVISOS (não impedem a importação) ---\n");
+			sb.append("\n--- AVISOS (não exigem correção; marque Ciente para importar) ---\n");
 			anexarGrupos(sb, avisos);
 		}
 
