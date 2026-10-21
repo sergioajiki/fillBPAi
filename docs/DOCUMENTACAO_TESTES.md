@@ -47,51 +47,51 @@ Os testes também rodam sozinhos depois de cada edição feita pelo Claude Code 
 
 ## Resultado da última execução
 
-Execução de 21/10/2026 às 15:03: **710 execuções** de 558 testes em 40 classes — **todas passaram** ✓ (16.3 s somando as classes).
+Execução de 21/10/2026 às 15:14: **710 execuções** de 558 testes em 40 classes — **todas passaram** ✓ (16.9 s somando as classes).
 
 | Classe | Pacote | Testes | Execuções | Resultado | Tempo |
 |---|---|---:|---:|:---:|---:|
 | [CboUtilsTest](#cboutilstest) | util | 3 | 3 | ✓ | 0.00 s |
-| [CepUtilsTest](#ceputilstest) | util | 5 | 10 | ✓ | 0.06 s |
+| [CepUtilsTest](#ceputilstest) | util | 5 | 10 | ✓ | 0.07 s |
 | [CidUtilsTest](#cidutilstest) | util | 6 | 6 | ✓ | 0.00 s |
-| [CnsProfissionalUtilsTest](#cnsprofissionalutilstest) | util | 17 | 17 | ✓ | 0.06 s |
-| [CnsUtilsTest](#cnsutilstest) | util | 11 | 11 | ✓ | 0.01 s |
+| [CnsProfissionalUtilsTest](#cnsprofissionalutilstest) | util | 17 | 17 | ✓ | 0.07 s |
+| [CnsUtilsTest](#cnsutilstest) | util | 11 | 11 | ✓ | 0.00 s |
 | [ColunaAliasUtilsTest](#colunaaliasutilstest) | util | 10 | 10 | ✓ | 0.02 s |
 | [CpfUtilsTest](#cpfutilstest) | util | 13 | 27 | ✓ | 0.01 s |
 | [DateUtilsTest](#dateutilstest) | util | 11 | 20 | ✓ | 0.01 s |
-| [EnderecoUtilsTest](#enderecoutilstest) | util | 7 | 36 | ✓ | 0.03 s |
+| [EnderecoUtilsTest](#enderecoutilstest) | util | 7 | 36 | ✓ | 0.02 s |
 | [EspecialidadeUtilsTest](#especialidadeutilstest) | util | 10 | 10 | ✓ | 0.00 s |
 | [EtniaUtilsTest](#etniautilstest) | util | 12 | 12 | ✓ | 0.01 s |
-| [IbgeUtilsTest](#ibgeutilstest) | util | 19 | 19 | ✓ | 0.00 s |
-| [LogradouroUtilsTest](#logradouroutilstest) | util | 10 | 39 | ✓ | 0.03 s |
+| [IbgeUtilsTest](#ibgeutilstest) | util | 19 | 19 | ✓ | 0.01 s |
+| [LogradouroUtilsTest](#logradouroutilstest) | util | 10 | 39 | ✓ | 0.02 s |
 | [NomePacienteUtilsTest](#nomepacienteutilstest) | util | 4 | 14 | ✓ | 0.01 s |
-| [NumeroUtilsTest](#numeroutilstest) | util | 4 | 38 | ✓ | 0.01 s |
-| [RacaUtilsTest](#racautilstest) | util | 11 | 11 | ✓ | 0.01 s |
+| [NumeroUtilsTest](#numeroutilstest) | util | 4 | 38 | ✓ | 0.03 s |
+| [RacaUtilsTest](#racautilstest) | util | 11 | 11 | ✓ | 0.00 s |
 | [StringUtilsTest](#stringutilstest) | util | 18 | 18 | ✓ | 0.00 s |
 | [TelefoneUtilsTest](#telefoneutilstest) | util | 4 | 19 | ✓ | 0.01 s |
 | [TextoUtilsTest](#textoutilstest) | util | 3 | 5 | ✓ | 0.00 s |
 | [TimeUtilsTest](#timeutilstest) | util | 6 | 11 | ✓ | 0.01 s |
 | [AgrupamentoValidacaoTest](#agrupamentovalidacaotest) | service | 6 | 6 | ✓ | 0.04 s |
-| [AtendimentoImportacaoServiceTest](#atendimentoimportacaoservicetest) | service | 56 | 56 | ✓ | 6.41 s |
-| [AtendimentoProcessorTest](#atendimentoprocessortest) | service | 88 | 88 | ✓ | 0.11 s |
-| [DataSemAnoTest](#datasemanotest) | service | 3 | 3 | ✓ | 0.24 s |
+| [AtendimentoImportacaoServiceTest](#atendimentoimportacaoservicetest) | service | 56 | 56 | ✓ | 6.38 s |
+| [AtendimentoProcessorTest](#atendimentoprocessortest) | service | 88 | 88 | ✓ | 0.09 s |
+| [DataSemAnoTest](#datasemanotest) | service | 3 | 3 | ✓ | 0.25 s |
 | [ExcelImportServiceTest](#excelimportservicetest) | service | 14 | 14 | ✓ | 0.05 s |
-| [GeradorBPAiServiceTest](#geradorbpaiservicetest) | service | 41 | 41 | ✓ | 0.03 s |
-| [HistoricoLogsServiceTest](#historicologsservicetest) | service | 7 | 7 | ✓ | 0.02 s |
-| [PlanilhaColumnMapperTest](#planilhacolumnmappertest) | service | 14 | 14 | ✓ | 0.03 s |
+| [GeradorBPAiServiceTest](#geradorbpaiservicetest) | service | 41 | 41 | ✓ | 0.04 s |
+| [HistoricoLogsServiceTest](#historicologsservicetest) | service | 7 | 7 | ✓ | 0.03 s |
+| [PlanilhaColumnMapperTest](#planilhacolumnmappertest) | service | 14 | 14 | ✓ | 0.02 s |
 | [RegistroRemessaTest](#registroremessatest) | service | 1 | 1 | ✓ | 0.05 s |
 | [SobreServiceTest](#sobreservicetest) | service | 5 | 5 | ✓ | 0.01 s |
-| [ValidacaoPlanilhaServiceTest](#validacaoplanilhaservicetest) | service | 103 | 103 | ✓ | 1.28 s |
-| [AtendimentoBPAiRepositoryTest](#atendimentobpairepositorytest) | repository | 4 | 4 | ✓ | 2.63 s |
-| [EstabelecimentoRepositoryTest](#estabelecimentorepositorytest) | repository | 5 | 5 | ✓ | 0.55 s |
+| [ValidacaoPlanilhaServiceTest](#validacaoplanilhaservicetest) | service | 103 | 103 | ✓ | 1.45 s |
+| [AtendimentoBPAiRepositoryTest](#atendimentobpairepositorytest) | repository | 4 | 4 | ✓ | 2.39 s |
+| [EstabelecimentoRepositoryTest](#estabelecimentorepositorytest) | repository | 5 | 5 | ✓ | 0.54 s |
 | [MedicoRepositoryTest](#medicorepositorytest) | repository | 2 | 2 | ✓ | 0.18 s |
-| [PacienteRepositoryTest](#pacienterepositorytest) | repository | 2 | 2 | ✓ | 0.20 s |
-| [DatabaseInitializerTest](#databaseinitializertest) | config | 2 | 2 | ✓ | 0.00 s |
+| [PacienteRepositoryTest](#pacienterepositorytest) | repository | 2 | 2 | ✓ | 0.19 s |
+| [DatabaseInitializerTest](#databaseinitializertest) | config | 2 | 2 | ✓ | 0.01 s |
 | [PastaRemessasTest](#pastaremessastest) | config | 5 | 5 | ✓ | 0.13 s |
 | [PastasAppTest](#pastasapptest) | config | 6 | 6 | ✓ | 0.04 s |
-| [SenhaBancoTest](#senhabancotest) | config | 7 | 7 | ✓ | 3.84 s |
+| [SenhaBancoTest](#senhabancotest) | config | 7 | 7 | ✓ | 4.50 s |
 | [RegistroErrosTest](#registroerrostest) | app | 3 | 3 | ✓ | 0.17 s |
-| **Total** | | **558** | **710** | ✓ | 16.3 s |
+| **Total** | | **558** | **710** | ✓ | 16.9 s |
 
 "Testes" = métodos de teste; "Execuções" conta cada caso dos testes parametrizados.
 

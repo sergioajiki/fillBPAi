@@ -119,8 +119,8 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 558 testes (710 execuções) passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
-      <span>Atualizado: <strong>20/10/2026</strong> (iniciado em 08/10/2026)</span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 558 testes (710 execuções) passando · última atualização 21/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: instalação do pacote definitivo 1.0.0 no computador novo (fase 4); depois, as pendências listadas em Continuidade</strong></span>
+      <span>Atualizado: <strong>21/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
       <a href="#continuidade">Continuidade (ler primeiro)</a>
@@ -246,6 +246,7 @@
           <tr><td class="caso">Documentação no pacote (21/10/2026)</td><td>O <code>gerar-pacote.ps1</code> passa a atualizar a documentação técnica e a dos testes (com o resultado dos testes recém-rodados) e confere o Git <strong>antes</strong> de compilar: o pacote é definitivo se o projeto estava sem pendências naquele momento (conferir no fim acusava pendência sempre, porque a própria geração atualiza a documentação dos testes). A documentação regenerada é commitada depois, como registro do pacote; README revisado à mão. O Git é procurado também fora do PATH do PowerShell; se não conseguir ler o projeto, o script avisa em vez de dizer "sem pendências".</td></tr>
           <tr><td class="caso">Teste de atualização de versão (21/10/2026)</td><td>Seguindo o item 7 do LEIA-ME: pasta do programa apagada e substituída pelo pacote novo, pasta de dados mantida. Banco (577 atendimentos), senha e remessa anterior preservados; versão nova abriu em 9 s; "Salvar BPA-I Completo" abrindo em <code>Documentos\PonteBPA\Remessas</code>. A remessa gerada antes, na versão sem pasta padrão, tinha sido salva em <code>E:\BPai exports</code> (pendrive) — no uso oficial, o LEIA-ME orienta não guardar remessas (com dados de pacientes) em pendrive pessoal.</td></tr>
           <tr><td class="caso">Instalação — fase 3 (21/10/2026)</td><td>Teste do pacote concluído no computador de desenvolvimento: instalação do zero, importação, atualização de versão, pasta das remessas, aviso de programa aberto duas vezes, Configurações, Sobre e remessa <strong>idêntica byte a byte</strong> à do desenvolvimento. Corrigidos no caminho: botões "Abrir pasta" encolhidos na janela Sobre; registro de erros do programa (<code>logs\erros_programa.log</code>), já que o programa instalado não tem console. A Área Restrita do Windows não pôde ser ativada: a confirmação do Visual C++ fica para o passo 3 da instalação no computador novo.</td></tr>
+          <tr><td class="caso">Pacote definitivo 1.0.0 (21/10/2026)</td><td>Gerado às 15:15 a partir do commit <code>8614578</code>, sem pendências; 558 testes / 710 execuções sem falha; <code>PonteBPA-1.0.0.zip</code> 96,3 MB, SHA-256 <code>51549DB9…098F53</code> (completo em Próximos passos). O script passou a conferir o Git antes de compilar — conferir no fim acusava pendência sempre, porque a geração atualiza a documentação dos testes.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -258,7 +259,7 @@
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
           junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
-          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). Em 21/10/2026: cronograma da primeira instalação (núcleo, outro computador) com decisões I1–I4 e fase 1 concluída; orientações de instalação para o usuário (<code>pacote/LEIA-ME - Instalação.txt</code>) e verificação do Visual C++ (já incluído no pacote); fase 2 (pacote <code>.zip</code>) concluída, pasta padrão das remessas, documentação atualizada pelo próprio script do pacote e teste de atualização de versão aprovado; fase 3 concluída (Área Restrita do Windows não pôde ser ativada — Visual C++ confirmado na instalação), com remessa idêntica byte a byte e registro de erros do programa. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). Em 21/10/2026: cronograma da primeira instalação (núcleo, outro computador) com decisões I1–I4 e fase 1 concluída; orientações de instalação para o usuário (<code>pacote/LEIA-ME - Instalação.txt</code>) e verificação do Visual C++ (já incluído no pacote); fase 2 (pacote <code>.zip</code>) concluída, pasta padrão das remessas, documentação atualizada pelo próprio script do pacote e teste de atualização de versão aprovado; fase 3 concluída (Área Restrita do Windows não pôde ser ativada — Visual C++ confirmado na instalação), com remessa idêntica byte a byte e registro de erros do programa; pacote definitivo 1.0.0 gerado (commit 8614578). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
@@ -383,7 +384,10 @@
           extensões ou plugins. Não é preciso ser administrador: tudo fica na pasta do usuário.
         </p>
         <ol>
-          <li>Copiar o <code>PonteBPA-1.0.0.zip</code> por meio institucional e extrair numa pasta do usuário, por exemplo
+          <li>Copiar o <code>PonteBPA-1.0.0.zip</code> por meio institucional e <strong>conferir o código</strong> antes de extrair:
+            no PowerShell, <code>Get-FileHash PonteBPA-1.0.0.zip</code> deve mostrar o SHA-256 do pacote definitivo
+            (<code>51549DB9…098F53</code>, completo abaixo); se for diferente, o arquivo veio corrompido ou alterado — não usar.
+            Depois, extrair numa pasta do usuário, por exemplo
             <code>C:\Users\&lt;usuário&gt;\PonteBPA</code> (não em <code>Arquivos de Programas</code>).</li>
           <li>Criar um atalho de <code>PonteBPA.exe</code> na área de trabalho.</li>
           <li>Abrir o programa — cria o banco vazio, a senha e as pastas em <code>%LOCALAPPDATA%\PonteBPA</code>. Se o Windows
@@ -408,8 +412,14 @@
           continuam sem senha e com dados pessoais — apagar se não forem mais usados.
         </p>
         <p>
-          Trabalho restante: commitar e gerar o <strong>pacote definitivo</strong> (sem pendências no Git) e a instalação
-          (½ dia, com a confirmação do Visual C++ no passo 3), antes do fechamento da competência 11/2026. Para outra unidade, depois:
+          <strong>Pacote definitivo gerado em 21/10/2026 às 15:15</strong>: <code>PonteBPA-1.0.0.zip</code> (96,3 MB), commit
+          <code>8614578</code>, 558 testes / 710 execuções sem falha, SHA-256
+          <code>51549DB9E98678DE418B6DEEF65209CD4AED2B0331C3DBC8ABA46F850B098F53</code> — conferir esse código no computador novo
+          antes de extrair (PowerShell: <code>Get-FileHash PonteBPA-1.0.0.zip</code>). O pacote fica em
+          <code>target\pacote</code>, que é apagado na próxima compilação com <code>clean</code>: guardar uma cópia do
+          <code>.zip</code> e do <code>.sha256</code> em pasta de rede da SES.<br>
+          Trabalho restante: a instalação (fase 4, ½ dia, com a confirmação do Visual C++ no passo 3), antes do fechamento da
+          competência 11/2026. Para outra unidade, depois:
           aba Unidade (CNES, órgão, sigla, CNPJ, INE), <code>medicos_cns.csv</code> vazio no pacote e, se houver várias
           equipes, INE por atendimento.
         </p>
