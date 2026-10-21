@@ -55,6 +55,34 @@ $saida = Join-Path $pastaPacote 'saida'
 $pastaApp = Join-Path $saida 'PonteBPA'
 $zip = Join-Path $pastaPacote "PonteBPA-$versao.zip"
 
+# ---- 0. Situação do projeto no Git, antes de qualquer arquivo mudar ----
+# (a compilação regenera a documentação: conferir depois acusaria pendência sempre)
+$git = $null
+$comando = Get-Command git.exe -ErrorAction SilentlyContinue
+if ($comando) { $git = $comando.Source }
+if (-not $git) {
+    # Git for Windows instalado só para o usuário ou fora do PATH do PowerShell
+    $git = @("$env:LOCALAPPDATA\Programs\Git\cmd\git.exe", "$env:LOCALAPPDATA\Programs\Git\mingw64\bin\git.exe",
+        "$env:ProgramFiles\Git\cmd\git.exe", "$env:USERPROFILE\AppData\Local\Programs\Git\cmd\git.exe",
+        (Join-Path (Split-Path $raiz -Qualifier) '\Users\*\AppData\Local\Programs\Git\cmd\git.exe')) |
+        ForEach-Object { Get-Item $_ -ErrorAction SilentlyContinue } | Select-Object -First 1 -ExpandProperty FullName
+}
+$situacaoGit = 'sem-git'
+$commitInicio = $null
+$pendentesInicio = @()
+if ($git) {
+    $commitInicio = (& $git -C $raiz rev-parse --short HEAD 2>$null)
+    $pendentesInicio = @(& $git -C $raiz status --porcelain 2>$null)
+    $situacaoGit = if (($LASTEXITCODE -eq 0) -and $commitInicio) { 'ok' } else { 'ilegivel' }
+}
+if ($situacaoGit -eq 'ok') {
+    if ($pendentesInicio.Count -gt 0) {
+        Write-Warning "Há $($pendentesInicio.Count) alteração(ões) não commitada(s): este pacote não será o definitivo."
+    } else {
+        Write-Host "Commit $commitInicio, sem alterações pendentes."
+    }
+}
+
 # ---- 1. Compilar (com testes) ----
 Passo 'Compilando o projeto'
 $argsMaven = @('-q', 'clean', 'package')
@@ -177,31 +205,22 @@ $destinoSandbox = 'C:\Users\WDAGUtilityAccount\PonteBPA'
 "@ | Out-File $wsb -Encoding utf8
 Write-Host "  Teste na Área Restrita do Windows: $wsb"
 
-# ---- 7. Projeto em dia com o Git (pacote definitivo = último commit, documentação incluída) ----
-$git = $null
-$comando = Get-Command git.exe -ErrorAction SilentlyContinue
-if ($comando) { $git = $comando.Source }
-if (-not $git) {
-    # Git for Windows instalado só para o usuário ou fora do PATH do PowerShell
-    $git = @("$env:LOCALAPPDATA\Programs\Git\cmd\git.exe", "$env:LOCALAPPDATA\Programs\Git\mingw64\bin\git.exe",
-        "$env:ProgramFiles\Git\cmd\git.exe", "$env:USERPROFILE\AppData\Local\Programs\Git\cmd\git.exe",
-        (Join-Path (Split-Path $raiz -Qualifier) '\Users\*\AppData\Local\Programs\Git\cmd\git.exe')) |
-        ForEach-Object { Get-Item $_ -ErrorAction SilentlyContinue } | Select-Object -First 1 -ExpandProperty FullName
-}
-if ($git) {
-    $commit = (& $git -C $raiz rev-parse --short HEAD 2>$null)
-    $pendentes = @(& $git -C $raiz status --porcelain 2>$null)
-    $statusOk = ($LASTEXITCODE -eq 0) -and $commit
-    if (-not $statusOk) {
-        Write-Warning ('O Git não conseguiu ler o projeto (ex.: pasta de outro usuário do Windows - "dubious ownership"); ' +
-            'não foi possível conferir se o pacote corresponde ao último commit.')
-    } elseif ($pendentes.Count -gt 0) {
-        Write-Warning ("Há $($pendentes.Count) alteração(ões) não commitada(s) - este pacote NÃO corresponde ao commit $commit. " +
-            'Para o pacote definitivo: revise o README.md, commite (inclusive a documentação gerada agora) e gere de novo.')
-        $pendentes | Select-Object -First 20 | ForEach-Object { Write-Host "    $_" }
-    } else {
-        Write-Host "  Gerado a partir do commit $commit, sem alterações pendentes (documentação em dia)." -ForegroundColor Green
-    }
+# ---- 7. Pacote x Git: situação conferida ANTES da compilação (passo 0) ----
+if ($situacaoGit -eq 'sem-git') {
+    Write-Warning 'Git não encontrado: não foi possível conferir se o pacote corresponde ao último commit.'
+} elseif ($situacaoGit -eq 'ilegivel') {
+    Write-Warning ('O Git não conseguiu ler o projeto (ex.: pasta de outro usuário do Windows - "dubious ownership"); ' +
+        'não foi possível conferir se o pacote corresponde ao último commit.')
+} elseif ($pendentesInicio.Count -gt 0) {
+    Write-Warning ("Havia $($pendentesInicio.Count) alteração(ões) não commitada(s) ao iniciar - este pacote NÃO corresponde " +
+        "ao commit $commitInicio. Para o pacote definitivo: revise o README.md, commite e gere de novo.")
+    $pendentesInicio | Select-Object -First 20 | ForEach-Object { Write-Host "    $_" }
 } else {
-    Write-Warning 'Git não encontrado: não foi possível conferir se o projeto está em dia com o último commit.'
+    Write-Host "  Pacote DEFINITIVO: gerado a partir do commit $commitInicio, sem alterações pendentes." -ForegroundColor Green
+    # A documentação gerada no passo 1b registra esta execução (data, testes, tempos): commitar depois, como registro
+    $docsAlterados = @(& $git -C $raiz status --porcelain -- docs 2>$null)
+    if ($docsAlterados.Count -gt 0) {
+        Write-Host '  Documentação atualizada com o resultado desta geração (commitar como registro do pacote):'
+        $docsAlterados | ForEach-Object { Write-Host "    $_" }
+    }
 }
