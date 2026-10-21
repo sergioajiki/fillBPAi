@@ -1,0 +1,151 @@
+﻿==============================================================================
+  PonteBPA 1.0.0 - Orientações de instalação e uso
+  Importação de atendimentos e geração do BPA-I
+  Uso interno - Superintendência de Saúde Digital / SES-MS
+==============================================================================
+
+O PonteBPA lê as planilhas de atendimentos (.xlsx), confere os dados e gera o
+arquivo BPA-I para envio ao SIA/SUS.
+
+
+------------------------------------------------------------------------------
+1. ANTES DE COMEÇAR
+------------------------------------------------------------------------------
+
+Computador:
+  - Windows 10 ou 11, 64 bits.
+  - Acesso à internet para a consulta de CEP. O programa só usa a internet
+    quando aparece um CEP que ainda não conhece. Precisa alcançar:
+        viacep.com.br     brasilapi.com.br     opencep.com
+    Se a rede pedir usuário e senha para navegar, peça à TI para liberar
+    esses três endereços para este computador.
+
+NÃO é preciso instalar nada além deste pacote:
+  - Java: já vem dentro do pacote.
+  - Banco de dados: é um arquivo usado pelo próprio programa.
+  - Excel: o programa lê as planilhas sozinho (o Excel só serve para editá-las).
+  - Não é preciso ser administrador do computador.
+
+
+------------------------------------------------------------------------------
+2. INSTALAÇÃO
+------------------------------------------------------------------------------
+
+  1) Extraia o arquivo PonteBPA-1.0.0.zip numa pasta do seu usuário, por exemplo:
+         C:\Users\<seu usuário>\PonteBPA
+     (clique com o botão direito no .zip > "Extrair Tudo...").
+     Não extraia em "Arquivos de Programas".
+
+  2) Dentro da pasta extraída, clique com o botão direito em PonteBPA.exe >
+     "Mostrar mais opções" > "Enviar para" > "Área de trabalho (criar atalho)".
+
+  3) Abra o programa pelo atalho.
+     Na primeira abertura o programa prepara sozinho o banco de dados, a senha
+     do banco e as pastas de trabalho. Não há nada para configurar.
+
+     Se aparecer "O Windows protegeu o computador":
+         clique em "Mais informações" > "Executar assim mesmo".
+     (O aviso aparece porque o programa não tem assinatura digital. Se o botão
+     não aparecer, peça a liberação à TI.)
+
+
+------------------------------------------------------------------------------
+3. CONFERÊNCIA DEPOIS DE INSTALAR
+------------------------------------------------------------------------------
+
+  - Botão "Sobre" (canto superior direito): deve mostrar versão 1.0.0 e as
+    pastas em ...\AppData\Local\PonteBPA.
+  - "Configurações" > "CNS de Médicos": a lista de médicos deve aparecer.
+  - Teste: "Analisar Planilha" com uma planilha de atendimentos, depois
+    "Importar Planilha" e "Gerar BPA-I". Se a planilha tiver um CEP novo, o
+    teste confere também a internet.
+
+
+------------------------------------------------------------------------------
+4. COMEÇAR COM O BANCO LIMPO (depois do teste)
+------------------------------------------------------------------------------
+
+Para que os dados do teste não entrem na primeira remessa oficial:
+
+  1) Feche o PonteBPA.
+  2) Abra a pasta de dados: tecle Windows + R, digite
+         %LOCALAPPDATA%\PonteBPA
+     e tecle Enter.
+  3) Apague SOMENTE a pasta "database".
+     NÃO apague a pasta "config": ela guarda a senha do banco.
+  4) Abra o PonteBPA de novo: o banco é recriado, vazio.
+
+
+------------------------------------------------------------------------------
+5. ONDE FICAM OS DADOS
+------------------------------------------------------------------------------
+
+Tudo fica em %LOCALAPPDATA%\PonteBPA (pasta do seu usuário do Windows):
+
+    database   banco de dados (pacientes, médicos, atendimentos, remessas)
+    logs       registro de cada importação (botão "Ver Log Importação")
+    dados      cadastros feitos em Configurações (CNS de médicos, nomes de colunas)
+    config     senha do banco (arquivo banco.properties)
+
+Esses dados contêm informações pessoais de pacientes (LGPD): não copie para
+pendrive pessoal, e-mail ou nuvem particular.
+
+Use o PonteBPA sempre no mesmo computador e com o mesmo usuário do Windows: o
+banco de dados não é compartilhado entre computadores.
+
+
+------------------------------------------------------------------------------
+6. CÓPIA DE SEGURANÇA
+------------------------------------------------------------------------------
+
+Com o programa FECHADO, copie periodicamente (por exemplo, após cada remessa):
+
+  - a pasta %LOCALAPPDATA%\PonteBPA\database  -> pasta de rede da SES com
+    acesso restrito;
+  - o arquivo %LOCALAPPDATA%\PonteBPA\config\banco.properties -> guarde em
+    OUTRO lugar, também restrito.
+
+Atenção: o banco não abre sem o arquivo banco.properties correspondente.
+Quem tiver os dois tem acesso aos dados - guarde-os separados.
+
+Para restaurar: feche o programa e copie de volta a pasta "database" e o
+arquivo "banco.properties" para os mesmos lugares.
+
+
+------------------------------------------------------------------------------
+7. ATUALIZAR PARA UMA VERSÃO NOVA
+------------------------------------------------------------------------------
+
+  1) Feche o PonteBPA.
+  2) Apague a pasta do programa (a que tem o PonteBPA.exe) e extraia a versão
+     nova no mesmo lugar.
+  3) Abra o programa: banco, logs, cadastros e senha continuam lá (ficam em
+     %LOCALAPPDATA%\PonteBPA, que não é tocada).
+
+
+------------------------------------------------------------------------------
+8. PROBLEMAS COMUNS
+------------------------------------------------------------------------------
+
+"O PonteBPA já está aberto"
+    O programa só pode ter uma janela aberta. Feche a outra (verifique a barra
+    de tarefas) e abra de novo.
+
+"Não foi possível abrir o banco de dados" / "senha diferente da guardada"
+    O arquivo config\banco.properties foi apagado ou trocado. Restaure-o da
+    cópia de segurança (item 6).
+
+CEP não encontrado / município não encontrado pelo CEP
+    Confira o CEP na planilha. Se o CEP estiver certo, o computador pode estar
+    sem acesso aos endereços de consulta de CEP (item 1) - fale com a TI.
+
+A janela não cabe na tela
+    Arraste as bordas para diminuí-la ou use o botão de maximizar.
+
+O programa não abre e o Windows fala de um arquivo .dll ausente
+    Peça à TI para instalar o "Microsoft Visual C++ Redistributable (x64)".
+
+Para pedir ajuda
+    Abra "Sobre" > "Copiar informações" e cole o texto na mensagem: ele
+    informa a versão do programa e as pastas usadas. Para problemas numa
+    importação, envie também o log (botão "Ver Log Importação" > "Copiar log").

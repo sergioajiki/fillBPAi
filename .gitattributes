@@ -1,0 +1,2 @@
+# Orientações que vão no pacote de instalação: sempre com quebra de linha do Windows (Bloco de Notas)
+pacote/*.txt text eol=crlf

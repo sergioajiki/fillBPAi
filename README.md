@@ -63,6 +63,7 @@ fillBPAi/
 ├── database/                           # Banco H2 — desenvolvimento (criado em execução)
 ├── logs/                               # Logs de importação — desenvolvimento (criados em execução)
 ├── config/                             # Senha do banco — desenvolvimento (gerada; fora do Git)
+├── pacote/                             # Arquivos que vão no .zip de instalação (LEIA-ME - Instalação.txt)
 └── src/
     ├── main/java/br/gov/ses/fillbpai/
     │   ├── app/MainApp.java                         # Ponto de entrada JavaFX
@@ -203,6 +204,8 @@ mvnw.cmd javafx:run     # executar
 | Senha do banco | `config/banco.properties` (fora do Git) | `%LOCALAPPDATA%\PonteBPA\config\banco.properties` |
 
 O modo instalado é ligado pela propriedade `-Dpontebpa.instalado=true`, que o pacote passa ao Java. A senha do banco é gerada na primeira execução; **a cópia de segurança do banco só serve junto com o `banco.properties`**. O banco só é aberto pelo PonteBPA (sem console web do H2).
+
+As orientações de instalação para o usuário (requisitos, passo a passo, onde ficam os dados, cópia de segurança, atualização, problemas comuns) estão em `pacote/LEIA-ME - Instalação.txt`, que vai dentro do `.zip`.
 
 O pacote de instalação (pasta com o Java embutido, em `.zip`) é a fase 2 do cronograma de instalação — ver `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
 
