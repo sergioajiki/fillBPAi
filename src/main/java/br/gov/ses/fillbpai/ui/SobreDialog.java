@@ -170,6 +170,10 @@ public class SobreDialog {
 
 			Button abrir = new Button("Abrir pasta");
 			abrir.setStyle("-fx-font-size: 12px;");
+			// não encolhe para "..." quando o caminho é longo (visto no teste do pacote, 21/10/2026)
+			abrir.setMinWidth(Region.USE_PREF_SIZE);
+			rotulo.setMinWidth(Math.max(74, rotulo.getMinWidth()));
+			caminho.setMinWidth(0);
 			abrir.setOnAction(e -> abrirPasta(pasta.caminho(), aviso));
 
 			HBox linha = new HBox(10, rotulo, caminho, abrir);

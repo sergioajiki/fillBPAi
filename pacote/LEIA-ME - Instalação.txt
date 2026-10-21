@@ -154,3 +154,8 @@ Para pedir ajuda
     Abra "Sobre" > "Copiar informações" e cole o texto na mensagem: ele
     informa a versão do programa e as pastas usadas. Para problemas numa
     importação, envie também o log (botão "Ver Log Importação" > "Copiar log").
+
+"Ocorreu um erro inesperado"
+    O programa grava os detalhes em
+        %LOCALAPPDATA%\PonteBPA\logs\erros_programa.log
+    Envie esse arquivo junto com o pedido de ajuda.

@@ -204,6 +204,7 @@ mvnw.cmd javafx:run     # executar
 | Cadastros (Configurações) | `src/main/resources/dados` | `%LOCALAPPDATA%\PonteBPA\dados` |
 | Senha do banco | `config/banco.properties` (fora do Git) | `%LOCALAPPDATA%\PonteBPA\config\banco.properties` |
 | Remessas BPA-I geradas | `Documentos\PonteBPA\Remessas` ou a última pasta escolhida | idem |
+| Erros inesperados do programa | `logs/erros_programa.log` | `%LOCALAPPDATA%\PonteBPA\logs\erros_programa.log` |
 
 O modo instalado é ligado pela propriedade `-Dpontebpa.instalado=true`, que o pacote passa ao Java. A senha do banco é gerada na primeira execução; **a cópia de segurança do banco só serve junto com o `banco.properties`**. O banco só é aberto pelo PonteBPA (sem console web do H2).
 
@@ -217,7 +218,7 @@ Pré-requisito: **JDK 21** com `jpackage` (definir `JAVA_HOME`). Não precisa de
 powershell -ExecutionPolicy Bypass -File pacote\gerar-pacote.ps1
 ```
 
-Compila e roda os testes, **atualiza a documentação técnica e a dos testes** (`docs/DOCUMENTACAO_TECNICA.md`, `docs/DOCUMENTACAO_TESTES.md`, precisa do Node.js), gera a pasta do programa com o Java embutido (`jpackage --type app-image`), inclui o LEIA-ME com a versão do `pom.xml`, confere o resultado e compacta. No fim informa o commit de origem e **avisa se há alterações não commitadas** — o pacote definitivo deve sair de um projeto sem pendências, com README e documentação em dia (revisar o README à mão: ele não é gerado). Saída em `target\pacote\`: `PonteBPA-<versão>.zip` (~96 MB) e `PonteBPA-<versão>.zip.sha256` (código para conferir o arquivo no computador novo). A versão vem do `pom.xml`. Cronograma da instalação: `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
+Compila e roda os testes, **atualiza a documentação técnica e a dos testes** (`docs/DOCUMENTACAO_TECNICA.md`, `docs/DOCUMENTACAO_TESTES.md`, precisa do Node.js), gera a pasta do programa com o Java embutido (`jpackage --type app-image`), inclui o LEIA-ME com a versão do `pom.xml`, confere o resultado e compacta. No fim informa o commit de origem e **avisa se há alterações não commitadas** — o pacote definitivo deve sair de um projeto sem pendências, com README e documentação em dia (revisar o README à mão: ele não é gerado). Saída em `target\pacote\`: `PonteBPA-<versão>.zip` (~96 MB) e `PonteBPA-<versão>.zip.sha256` (código para conferir o arquivo no computador novo), além de `testar-na-area-restrita.wsb` — com a Área Restrita do Windows (Windows Sandbox) ativada, um duplo clique abre um Windows limpo, extrai o pacote e abre o PonteBPA, para testar sem nada instalado. A versão vem do `pom.xml`. Cronograma da instalação: `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
 
 ---
 

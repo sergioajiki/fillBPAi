@@ -24,6 +24,14 @@ public class MainApp extends Application {
     @Override
     public void start(Stage primaryStage) {
 
+        // Erros inesperados (ex.: ao abrir uma janela) vão para logs\erros_programa.log
+        // e aparecem numa mensagem — o programa instalado não tem console (21/10/2026)
+        RegistroErros registroErros = new RegistroErros(
+                br.gov.ses.fillbpai.config.PastasApp.atual().logs());
+        Thread.UncaughtExceptionHandler tratador = (thread, erro) -> tratarErroInesperado(registroErros, erro);
+        Thread.setDefaultUncaughtExceptionHandler(tratador);
+        Thread.currentThread().setUncaughtExceptionHandler(tratador);
+
         try {
 
             // 🔹 Inicializa infraestrutura
@@ -37,6 +45,7 @@ public class MainApp extends Application {
 
             System.err.println("Erro ao iniciar aplicação:");
             e.printStackTrace();
+            registroErros.registrar("abertura do banco", e);
 
             // Mensagem na tela: o programa instalado não tem janela de console
             javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(
@@ -77,6 +86,33 @@ public class MainApp extends Application {
         }
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
+
+    /**
+     * Erro não tratado em qualquer ponto do programa: grava no registro de
+     * erros e avisa o usuário, com o caminho do arquivo para pedir ajuda.
+     */
+    private static void tratarErroInesperado(RegistroErros registro, Throwable erro) {
+
+        erro.printStackTrace();
+        boolean gravou = registro.registrar("erro inesperado", erro);
+
+        Runnable mostrar = () -> {
+            javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR);
+            alerta.setTitle("PonteBPA");
+            alerta.setHeaderText("Ocorreu um erro inesperado");
+            alerta.setContentText((erro.getMessage() != null ? erro.getMessage() : erro.toString())
+                    + (gravou ? "\n\nDetalhes gravados em:\n" + registro.arquivo().toAbsolutePath()
+                            + "\nEnvie esse arquivo ao pedir ajuda." : ""));
+            alerta.showAndWait();
+        };
+
+        if (javafx.application.Platform.isFxApplicationThread()) {
+            mostrar.run();
+        } else {
+            javafx.application.Platform.runLater(mostrar);
+        }
     }
 
     @Override

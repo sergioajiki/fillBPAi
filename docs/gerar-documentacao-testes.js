@@ -27,7 +27,8 @@ const PACOTES = [
   ['util', 'Regras por campo (CPF, CNS, CEP, datas, endereço, raça, etnia…) — funções puras, sem banco'],
   ['service', 'Análise da planilha, importação, geração do BPA-I, logs e janela Sobre'],
   ['repository', 'Consultas ao banco (H2 em memória)'],
-  ['config', 'Pastas de dados do programa e senha do banco (H2 em arquivo, em pasta temporária)'],
+  ['config', 'Pastas de dados do programa, senha do banco (H2 em arquivo, em pasta temporária) e pasta das remessas'],
+  ['app', 'Inicialização do programa: registro dos erros inesperados'],
 ];
 
 // Acentos recolocados nas frases montadas a partir dos nomes dos métodos

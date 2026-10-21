@@ -59,8 +59,22 @@ Responsável por:
 
 **Métodos:**
 - `start(Stage primaryStage): void`
+- `tratarErroInesperado(RegistroErros registro, Throwable erro): void` *(privado)* — Erro não tratado em qualquer ponto do programa: grava no registro de erros e avisa o usuário, com o caminho do arquivo para pedir ajuda.
 - `stop(): void`
 - `main(String[] args): void`
+
+### `RegistroErros`
+`src/main/java/br/gov/ses/fillbpai/app/RegistroErros.java`
+
+Registro dos erros inesperados do programa (21/10/2026). O programa instalado não tem janela de console: um erro não tratado (ex.: ao abrir uma janela) sumia sem rastro. Agora vai para `<logs>/erros_programa.log` — com data/hora, versão do Java e a pilha do erro — e o usuário vê uma mensagem dizendo onde está o arquivo (ver `MainApp`).
+
+Sem JavaFX — testável.
+
+**Métodos:**
+- `RegistroErros(Path pastaLogs) (construtor)`
+- `arquivo(): Path`
+- `registrar(String onde, Throwable erro): boolean` — Acrescenta o erro ao arquivo. Nunca lança exceção: falhar ao registrar não pode derrubar o programa.
+- `texto(String onde, Throwable erro): String` — Bloco gravado no arquivo para um erro.
 
 ---
 

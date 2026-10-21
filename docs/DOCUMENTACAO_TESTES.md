@@ -47,7 +47,7 @@ Os testes também rodam sozinhos depois de cada edição feita pelo Claude Code 
 
 ## Resultado da última execução
 
-Execução de 21/10/2026 às 14:32: **707 execuções** de 555 testes em 39 classes — **todas passaram** ✓ (15.4 s somando as classes).
+Execução de 21/10/2026 às 15:03: **710 execuções** de 558 testes em 40 classes — **todas passaram** ✓ (16.3 s somando as classes).
 
 | Classe | Pacote | Testes | Execuções | Resultado | Tempo |
 |---|---|---:|---:|:---:|---:|
@@ -55,42 +55,43 @@ Execução de 21/10/2026 às 14:32: **707 execuções** de 555 testes em 39 clas
 | [CepUtilsTest](#ceputilstest) | util | 5 | 10 | ✓ | 0.06 s |
 | [CidUtilsTest](#cidutilstest) | util | 6 | 6 | ✓ | 0.00 s |
 | [CnsProfissionalUtilsTest](#cnsprofissionalutilstest) | util | 17 | 17 | ✓ | 0.06 s |
-| [CnsUtilsTest](#cnsutilstest) | util | 11 | 11 | ✓ | 0.00 s |
-| [ColunaAliasUtilsTest](#colunaaliasutilstest) | util | 10 | 10 | ✓ | 0.03 s |
+| [CnsUtilsTest](#cnsutilstest) | util | 11 | 11 | ✓ | 0.01 s |
+| [ColunaAliasUtilsTest](#colunaaliasutilstest) | util | 10 | 10 | ✓ | 0.02 s |
 | [CpfUtilsTest](#cpfutilstest) | util | 13 | 27 | ✓ | 0.01 s |
 | [DateUtilsTest](#dateutilstest) | util | 11 | 20 | ✓ | 0.01 s |
-| [EnderecoUtilsTest](#enderecoutilstest) | util | 7 | 36 | ✓ | 0.02 s |
+| [EnderecoUtilsTest](#enderecoutilstest) | util | 7 | 36 | ✓ | 0.03 s |
 | [EspecialidadeUtilsTest](#especialidadeutilstest) | util | 10 | 10 | ✓ | 0.00 s |
-| [EtniaUtilsTest](#etniautilstest) | util | 12 | 12 | ✓ | 0.00 s |
-| [IbgeUtilsTest](#ibgeutilstest) | util | 19 | 19 | ✓ | 0.01 s |
-| [LogradouroUtilsTest](#logradouroutilstest) | util | 10 | 39 | ✓ | 0.02 s |
+| [EtniaUtilsTest](#etniautilstest) | util | 12 | 12 | ✓ | 0.01 s |
+| [IbgeUtilsTest](#ibgeutilstest) | util | 19 | 19 | ✓ | 0.00 s |
+| [LogradouroUtilsTest](#logradouroutilstest) | util | 10 | 39 | ✓ | 0.03 s |
 | [NomePacienteUtilsTest](#nomepacienteutilstest) | util | 4 | 14 | ✓ | 0.01 s |
 | [NumeroUtilsTest](#numeroutilstest) | util | 4 | 38 | ✓ | 0.01 s |
-| [RacaUtilsTest](#racautilstest) | util | 11 | 11 | ✓ | 0.00 s |
+| [RacaUtilsTest](#racautilstest) | util | 11 | 11 | ✓ | 0.01 s |
 | [StringUtilsTest](#stringutilstest) | util | 18 | 18 | ✓ | 0.00 s |
 | [TelefoneUtilsTest](#telefoneutilstest) | util | 4 | 19 | ✓ | 0.01 s |
 | [TextoUtilsTest](#textoutilstest) | util | 3 | 5 | ✓ | 0.00 s |
 | [TimeUtilsTest](#timeutilstest) | util | 6 | 11 | ✓ | 0.01 s |
-| [AgrupamentoValidacaoTest](#agrupamentovalidacaotest) | service | 6 | 6 | ✓ | 0.03 s |
-| [AtendimentoImportacaoServiceTest](#atendimentoimportacaoservicetest) | service | 56 | 56 | ✓ | 5.58 s |
-| [AtendimentoProcessorTest](#atendimentoprocessortest) | service | 88 | 88 | ✓ | 0.10 s |
-| [DataSemAnoTest](#datasemanotest) | service | 3 | 3 | ✓ | 0.25 s |
-| [ExcelImportServiceTest](#excelimportservicetest) | service | 14 | 14 | ✓ | 0.06 s |
+| [AgrupamentoValidacaoTest](#agrupamentovalidacaotest) | service | 6 | 6 | ✓ | 0.04 s |
+| [AtendimentoImportacaoServiceTest](#atendimentoimportacaoservicetest) | service | 56 | 56 | ✓ | 6.41 s |
+| [AtendimentoProcessorTest](#atendimentoprocessortest) | service | 88 | 88 | ✓ | 0.11 s |
+| [DataSemAnoTest](#datasemanotest) | service | 3 | 3 | ✓ | 0.24 s |
+| [ExcelImportServiceTest](#excelimportservicetest) | service | 14 | 14 | ✓ | 0.05 s |
 | [GeradorBPAiServiceTest](#geradorbpaiservicetest) | service | 41 | 41 | ✓ | 0.03 s |
-| [HistoricoLogsServiceTest](#historicologsservicetest) | service | 7 | 7 | ✓ | 0.04 s |
-| [PlanilhaColumnMapperTest](#planilhacolumnmappertest) | service | 14 | 14 | ✓ | 0.01 s |
+| [HistoricoLogsServiceTest](#historicologsservicetest) | service | 7 | 7 | ✓ | 0.02 s |
+| [PlanilhaColumnMapperTest](#planilhacolumnmappertest) | service | 14 | 14 | ✓ | 0.03 s |
 | [RegistroRemessaTest](#registroremessatest) | service | 1 | 1 | ✓ | 0.05 s |
-| [SobreServiceTest](#sobreservicetest) | service | 5 | 5 | ✓ | 0.03 s |
-| [ValidacaoPlanilhaServiceTest](#validacaoplanilhaservicetest) | service | 103 | 103 | ✓ | 1.14 s |
-| [AtendimentoBPAiRepositoryTest](#atendimentobpairepositorytest) | repository | 4 | 4 | ✓ | 2.61 s |
-| [EstabelecimentoRepositoryTest](#estabelecimentorepositorytest) | repository | 5 | 5 | ✓ | 0.40 s |
-| [MedicoRepositoryTest](#medicorepositorytest) | repository | 2 | 2 | ✓ | 0.14 s |
-| [PacienteRepositoryTest](#pacienterepositorytest) | repository | 2 | 2 | ✓ | 0.14 s |
-| [DatabaseInitializerTest](#databaseinitializertest) | config | 2 | 2 | ✓ | 0.09 s |
-| [PastaRemessasTest](#pastaremessastest) | config | 5 | 5 | ✓ | 0.21 s |
-| [PastasAppTest](#pastasapptest) | config | 6 | 6 | ✓ | 0.03 s |
-| [SenhaBancoTest](#senhabancotest) | config | 7 | 7 | ✓ | 4.19 s |
-| **Total** | | **555** | **707** | ✓ | 15.4 s |
+| [SobreServiceTest](#sobreservicetest) | service | 5 | 5 | ✓ | 0.01 s |
+| [ValidacaoPlanilhaServiceTest](#validacaoplanilhaservicetest) | service | 103 | 103 | ✓ | 1.28 s |
+| [AtendimentoBPAiRepositoryTest](#atendimentobpairepositorytest) | repository | 4 | 4 | ✓ | 2.63 s |
+| [EstabelecimentoRepositoryTest](#estabelecimentorepositorytest) | repository | 5 | 5 | ✓ | 0.55 s |
+| [MedicoRepositoryTest](#medicorepositorytest) | repository | 2 | 2 | ✓ | 0.18 s |
+| [PacienteRepositoryTest](#pacienterepositorytest) | repository | 2 | 2 | ✓ | 0.20 s |
+| [DatabaseInitializerTest](#databaseinitializertest) | config | 2 | 2 | ✓ | 0.00 s |
+| [PastaRemessasTest](#pastaremessastest) | config | 5 | 5 | ✓ | 0.13 s |
+| [PastasAppTest](#pastasapptest) | config | 6 | 6 | ✓ | 0.04 s |
+| [SenhaBancoTest](#senhabancotest) | config | 7 | 7 | ✓ | 3.84 s |
+| [RegistroErrosTest](#registroerrostest) | app | 3 | 3 | ✓ | 0.17 s |
+| **Total** | | **558** | **710** | ✓ | 16.3 s |
 
 "Testes" = métodos de teste; "Execuções" conta cada caso dos testes parametrizados.
 
@@ -1008,7 +1009,7 @@ Usa a persistence unit de teste `bpaPU-test` (H2 em memória, isolada do banco r
 
 ### Pacote `config`
 
-Pastas de dados do programa e senha do banco (H2 em arquivo, em pasta temporária).
+Pastas de dados do programa, senha do banco (H2 em arquivo, em pasta temporária) e pasta das remessas.
 
 #### DatabaseInitializerTest
 
@@ -1057,3 +1058,17 @@ Senha do banco H2 (21/10/2026) — com bancos H2 em arquivo, em pasta temporári
 - ✓ Arquivo de senha perdido com banco protegido da mensagem clara (`arquivoDeSenhaPerdidoComBancoProtegidoDaMensagemClara`)
 - ✓ Url não usa auto server (`urlNaoUsaAutoServer`)
 - ✓ Senhas geradas sao diferentes (`senhasGeradasSaoDiferentes`)
+
+### Pacote `app`
+
+Inicialização do programa: registro dos erros inesperados.
+
+#### RegistroErrosTest
+
+`src/test/java/br/gov/ses/fillbpai/app/RegistroErrosTest.java` · 3 testes · 3 execuções · ✓ todas passaram
+
+Registro dos erros inesperados do programa instalado (21/10/2026).
+
+- ✓ Grava o erro com local e pilha e acrescenta os seguintes (`gravaOErroComLocalEPilhaEAcrescentaOsSeguintes`)
+- ✓ Arquivo grande eh recomecado guardando o anterior (`arquivoGrandeEhRecomecadoGuardandoOAnterior`)
+- ✓ Falha ao gravar não lanca exceção (`falhaAoGravarNaoLancaExcecao`)

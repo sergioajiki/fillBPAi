@@ -157,6 +157,26 @@ Write-Host "  $zip  ($tamanhoMb MB; $pastaMb MB depois de extraído)"
 Write-Host "  SHA-256: $hash"
 Write-Host '  Confira o SHA-256 no computador novo (PowerShell: Get-FileHash PonteBPA-<versão>.zip) antes de extrair.'
 
+# ---- 6b. Teste na Área Restrita do Windows (Windows Sandbox): Windows limpo, sem Visual C++ instalado ----
+# Duplo clique no .wsb (com a Área Restrita ativada): extrai o .zip lá dentro e abre o PonteBPA.
+$wsb = Join-Path $pastaPacote 'testar-na-area-restrita.wsb'
+$destinoSandbox = 'C:\Users\WDAGUtilityAccount\PonteBPA'
+@"
+<Configuration>
+  <MappedFolders>
+    <MappedFolder>
+      <HostFolder>$pastaPacote</HostFolder>
+      <SandboxFolder>C:\pacote</SandboxFolder>
+      <ReadOnly>true</ReadOnly>
+    </MappedFolder>
+  </MappedFolders>
+  <LogonCommand>
+    <Command>powershell -ExecutionPolicy Bypass -Command "Expand-Archive -Path 'C:\pacote\PonteBPA-$versao.zip' -DestinationPath '$destinoSandbox'; Start-Process '$destinoSandbox\PonteBPA.exe'"</Command>
+  </LogonCommand>
+</Configuration>
+"@ | Out-File $wsb -Encoding utf8
+Write-Host "  Teste na Área Restrita do Windows: $wsb"
+
 # ---- 7. Projeto em dia com o Git (pacote definitivo = último commit, documentação incluída) ----
 $git = $null
 $comando = Get-Command git.exe -ErrorAction SilentlyContinue
