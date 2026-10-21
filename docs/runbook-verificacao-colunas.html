@@ -119,10 +119,11 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 558 testes (710 execuções) passando · última atualização 21/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: instalação do pacote definitivo 1.0.0 no computador novo (fase 4); depois, as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 558 testes (710 execuções) passando · última atualização 21/10/2026 (<code>mvnw.cmd test</code>) · <strong>versão 1.0.0 em testes na unidade</strong> — retomar pelo quadro "Estado em 21/10/2026" (Continuidade)</strong></span>
       <span>Atualizado: <strong>21/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
+      <a href="#estado-atual">Estado atual (21/10/2026)</a>
       <a href="#continuidade">Continuidade (ler primeiro)</a>
       <a href="#andamento">Andamento</a>
       <a href="#data">Data de agendamento</a>
@@ -159,12 +160,104 @@
   <section id="continuidade">
     <h2>Continuidade — ler primeiro</h2>
     <p>
-      Este runbook é o <strong>ponto de retomada</strong> da revisão das colunas da planilha. Ao continuar o trabalho
+      Este runbook é o <strong>ponto de retomada</strong> da revisão das colunas da planilha. <strong>Desde 21/10/2026 o programa está em testes na unidade: comece pelo quadro <a href="#estado-atual">Estado em 21/10/2026</a> abaixo.</strong> Ao continuar o trabalho
       (em outra sessão ou por outra pessoa): ler esta seção, depois <a href="#andamento">Andamento</a>,
       <a href="#recomendacoes">Recomendações</a> (as que não estão marcadas ✓) e <a href="#abertas">Decisões em aberto</a>.
       As regras já implementadas estão resumidas também no <code>CLAUDE.md</code> do projeto (tipos de ERRO/AVISO,
       utilitários e campos do BPA-I). Referência de classes e métodos em <code>docs/DOCUMENTACAO_TECNICA.md</code>; lista dos testes e resultado da última execução em <code>docs/DOCUMENTACAO_TESTES.md</code>.
     </p>
+
+    <div class="callout" id="estado-atual">
+      <span class="pill ok">Estado em 21/10/2026 — pausa para testes na unidade</span>
+      <p style="margin-top:10px">
+        <strong>Ao retomar, comece por aqui.</strong> O PonteBPA <strong>1.0.0</strong> foi instalado no computador novo do núcleo
+        e entrou em <strong>testes na unidade</strong>; o desenvolvimento fica parado até chegarem os retornos. Os detalhes de cada
+        etapa estão em <a href="#continuidade">O que foi feito</a> e em Próximos passos → Primeira instalação.
+      </p>
+
+      <h4 style="margin:16px 0 6px">1. O que está instalado</h4>
+      <ul>
+        <li><strong>Versão 1.0.0</strong> — pacote definitivo de 21/10/2026 15:15, commit <code>8614578</code>, 558 testes / 710
+          execuções sem falha. <code>PonteBPA-1.0.0.zip</code> (96,3 MB), SHA-256
+          <code>51549DB9E98678DE418B6DEEF65209CD4AED2B0331C3DBC8ABA46F850B098F53</code>.</li>
+        <li><strong>Onde:</strong> computador novo do núcleo — programa numa pasta do usuário (<code>C:\Users\&lt;usuário&gt;\PonteBPA</code>),
+          dados em <code>%LOCALAPPDATA%\PonteBPA\{database,logs,dados,config}</code>. Mídia: pendrive com a pasta
+          <code>PonteBPA 1.0.0 - Instalação</code> (zip, <code>.sha256</code>, LEIA-ME). Guardar também uma cópia do zip e do
+          <code>.sha256</code> em pasta de rede da SES (<code>target\pacote</code> é apagado na próxima compilação).</li>
+        <li><strong>Decisões da instalação:</strong> só o computador novo importa e gera a remessa oficial (I1); banco vazio, remessas
+          a partir da competência <strong>11/2026</strong> (I2); pacote <code>.zip</code> com Java embutido (I3); só senha no banco,
+          sem criptografia (I4); console H2 removido.</li>
+        <li><strong>Computador de desenvolvimento:</strong> não gera mais remessa oficial. O banco <code>database/fillbpai.mv.db</code>
+          tem senha em <code>config/banco.properties</code> (fora do Git — sem ele o banco não abre; guardar cópia);
+          <code>fillbpai_jun.mv.db</code> e <code>fillbpai_old.mv.db</code> continuam sem senha e com dados pessoais — apagar se não
+          forem mais usados.</li>
+      </ul>
+
+      <h4 style="margin:16px 0 6px">2. O que falta da instalação</h4>
+      <ul>
+        <li><strong>Fase 4 (em andamento):</strong> programa abriu no computador novo (Visual C++ confirmado). Falta conferir a janela
+          Sobre (versão, pastas, "Abrir pasta" — no teste não pôde ser confirmado porque o programa rodava com outro usuário),
+          Configurações → CNS de Médicos, um teste com planilha (CEP novo, para a internet) e <strong>apagar só a pasta
+          <code>database</code></strong> antes de novembro (manter <code>config</code>).</li>
+        <li><strong>Fase 5:</strong> primeira remessa oficial, competência 11/2026 — conferir no programa BPA (críticas) antes de enviar
+          ao SIA. A resposta do SIA decide a <a href="#abertas">Decisão 14</a> (acentos no nome).</li>
+        <li><strong>Fase 6:</strong> orientação de uso e acompanhamento das primeiras remessas; cópia de segurança periódica de
+          <code>database</code> e, separada, do <code>config\banco.properties</code>.</li>
+      </ul>
+
+      <h4 style="margin:16px 0 6px">3. Como registrar os retornos dos testes</h4>
+      <p>
+        Para cada problema ou sugestão, anotar: data; o que estava fazendo (tela e botão); o que esperava e o que aconteceu; a
+        mensagem exibida (texto ou captura); a planilha envolvida (nome e competência — <strong>sem dados de pacientes</strong>);
+        o texto de <em>Sobre → Copiar informações</em>; e, se houver, <code>logs\erros_programa.log</code> e o log da importação
+        (<em>Ver Log Importação → Copiar log</em>). Os logs e as planilhas têm dados pessoais: trazer só por meio institucional
+        e nunca para o Git. Ao retomar, cada retorno vira um item da lista abaixo (ou uma decisão em aberto).
+      </p>
+
+      <h4 style="margin:16px 0 6px">4. Próxima versão (1.0.1) — o que já está separado</h4>
+      <ol>
+        <li><strong>Acentos no aviso de telefone sem DDD:</strong> "fora do padrao… numero… sera gerado em branco" —
+          <code>AtendimentoProcessor</code> (aviso <code>TELEFONE_SEM_DDD</code>) e <code>ValidacaoPlanilhaService</code>
+          (mesmo texto na análise). Achado no teste do pacote.</li>
+        <li><strong>LEIA-ME, item 5 (onde ficam os dados):</strong> explicar que na pasta <code>dados</code> aparece só o
+          <code>medicos_cns.csv</code> — os nomes de coluna padrão e as tabelas de referência ficam dentro do programa. Dúvida real
+          da instalação.</li>
+        <li><strong>Ícone nas janelas de aviso:</strong> o aviso "O PonteBPA já está aberto" (e os demais <code>Alert</code>) usa o
+          ícone padrão do Java, não o do PonteBPA. Detalhe visual.</li>
+        <li><strong>Retornos da unidade:</strong> acrescentar aqui o que vier dos testes.</li>
+      </ol>
+      <p>Também pendentes, sem prazo: <a href="#abertas">Decisões 3 e 14</a>; <a href="#recomendacoes">recomendações</a> 31, 3, 5, 6
+        e 45; "Fora das colunas" (em Próximos passos). Para <strong>outra unidade</strong>: aba Configurações → Unidade (CNES, órgão,
+        sigla, CNPJ, INE), <code>medicos_cns.csv</code> vazio no pacote e, com várias equipes, INE por atendimento.</p>
+
+      <h4 style="margin:16px 0 6px">5. Como gerar e instalar a próxima versão</h4>
+      <ol>
+        <li>Implementar com testes; atualizar <code>CLAUDE.md</code>, <code>README.md</code>, este runbook e, se mudar algo para o
+          usuário (pastas, requisitos, atualização, mensagens), o <code>pacote/LEIA-ME - Instalação.txt</code>.</li>
+        <li>Trocar a versão em <code>pom.xml</code> (<code>&lt;version&gt;1.0.1&lt;/version&gt;</code>) — o nome do zip, o LEIA-ME e
+          a janela Sobre acompanham sozinhos.</li>
+        <li>Commitar tudo (projeto sem pendências).</li>
+        <li>Gerar: <code>powershell -ExecutionPolicy Bypass -File pacote\gerar-pacote.ps1</code> (JDK 21 em <code>JAVA_HOME</code>;
+          Node.js para a documentação). Deve terminar com "Pacote DEFINITIVO: gerado a partir do commit …". Depois commitar
+          <code>docs/DOCUMENTACAO_TESTES.md</code> como registro da geração e anotar commit e SHA-256 aqui.</li>
+        <li>Copiar o zip, o <code>.sha256</code> e o LEIA-ME (de <code>target\pacote\saida\PonteBPA</code>) para o pendrive, numa
+          pasta <code>PonteBPA 1.0.1 - Instalação</code>, e conferir o SHA-256 lá.</li>
+        <li>No computador da unidade, <strong>atualizar</strong> (item 7 do LEIA-ME): fechar o programa, conferir o SHA-256, apagar a
+          pasta do programa e extrair a nova no mesmo lugar. Banco, logs, cadastros, senha e remessas são preservados (testado em
+          21/10/2026).</li>
+      </ol>
+
+      <h4 style="margin:16px 0 6px">6. Lembretes do ambiente de desenvolvimento</h4>
+      <ul>
+        <li>Rodar: <code>mvnw.cmd javafx:run</code> (modo desenvolvimento, dados na pasta do projeto). Testes: <code>mvnw.cmd test</code>
+          — contar pelo <code>node docs/gerar-documentacao-testes.js</code> (o <code>target</code> pode ter relatórios antigos).</li>
+        <li>Documentação gerada: <code>node docs/gerar-documentacao.js</code> e <code>node docs/gerar-documentacao-testes.js</code>
+          (o script do pacote já roda as duas).</li>
+        <li>O Git deste computador fica em <code>AppData\Local\Programs\Git</code>, fora do caminho do PowerShell — o script do pacote
+          o procura lá.</li>
+        <li>Commit e push são feitos pelo usuário.</li>
+      </ul>
+    </div>
 
     <h3>Como a revisão é feita</h3>
     <ol class="plano">
@@ -201,7 +294,7 @@
       </li>
     </ol>
 
-    <h3>O que foi feito (08/10 a 20/10/2026)</h3>
+    <h3>O que foi feito (08/10 a 21/10/2026)</h3>
     <div class="tbl-wrap">
       <table>
         <thead><tr><th>Tema</th><th>Resumo</th></tr></thead>
@@ -240,13 +333,14 @@
           <tr><td class="caso">Documentação dos testes (20/10/2026)</td><td><code>docs/DOCUMENTACAO_TESTES.md</code>: todos os testes, classe por classe, com o que cada um confere (frase montada do nome do método + comentário), valores dos casos parametrizados e resultado da última execução; ambiente dos testes (H2 em memória, "hoje" fixo, internet simulada, arquivos temporários). Gerada por <code>node docs/gerar-documentacao-testes.js</code> a partir do código e de <code>target/surefire-reports</code>. O runbook de testes de setembro ficou como histórico. Contagem corrigida: 533 testes, 685 execuções — os números de 19 e 20/10 somavam 14 execuções de relatórios antigos de testes de sondagem já apagados, que continuavam em <code>target/</code>.</td></tr>
           <tr><td class="caso">Instalação — fase 1 (21/10/2026)</td><td>Pastas de dados na pasta do usuário no programa instalado (<code>PastasApp</code>), senha do banco gerada e guardada fora do código (<code>SenhaBanco</code>), console H2 e <code>AUTO_SERVER</code> removidos, aviso de programa já aberto, correção do cadastro de CNS (médico removido voltava). Ver Próximos passos → Primeira instalação.</td></tr>
           <tr><td class="caso">Orientações de instalação (21/10/2026)</td><td><code>pacote/LEIA-ME - Instalação.txt</code>, para ir dentro do <code>.zip</code>: requisitos (Windows 10/11 64 bits, sites de CEP), o que não precisa instalar, passo a passo, conferência, como começar com o banco limpo (apagar só <code>database</code>, nunca <code>config</code>), onde ficam os dados (LGPD), cópia de segurança e restauração, atualização de versão e problemas comuns. Texto sem jargão e sem contato de suporte; UTF-8 com BOM e quebras de linha do Windows (<code>.gitattributes</code>).</td></tr>
-          <tr><td class="caso">Visual C++ (21/10/2026)</td><td>Verificado: o JDK 21 e o JavaFX 21 já trazem as bibliotecas do Visual C++ que usam (<code>vcruntime140</code>, <code>msvcp140</code>, <code>ucrtbase</code>), com assinatura válida da Microsoft — o pacote não precisa do <code>vc_redist.x64.exe</code>. Confirmação final na instalação no computador novo (passo 3) — a Área Restrita do Windows, prevista para a fase 3, não pôde ser ativada no núcleo.</td></tr>
+          <tr><td class="caso">Visual C++ (21/10/2026)</td><td>Verificado: o JDK 21 e o JavaFX 21 já trazem as bibliotecas do Visual C++ que usam (<code>vcruntime140</code>, <code>msvcp140</code>, <code>ucrtbase</code>), com assinatura válida da Microsoft — o pacote não precisa do <code>vc_redist.x64.exe</code>. Confirmação final na instalação no computador novo (passo 3) — a Área Restrita do Windows, prevista para a fase 3, não pôde ser ativada no núcleo. <strong>Confirmado em 21/10/2026</strong>: o programa abriu no computador novo sem instalar nada além do pacote.</td></tr>
           <tr><td class="caso">Instalação — fase 2 (21/10/2026)</td><td>Pacote <code>.zip</code> gerado por <code>pacote\gerar-pacote.ps1</code> (Java embutido, ícone, LEIA-ME, conferências, SHA-256). Primeiro teste do pacote aprovado; corrigido o aviso de programa aberto duas vezes. Ver Próximos passos → Primeira instalação, fase 2.</td></tr>
           <tr><td class="caso">Pasta das remessas (21/10/2026)</td><td>Durante o teste do pacote não se achava onde a remessa seria salva: a janela "Salvar" do BPA-I não tinha pasta inicial. Agora abre em <code>Documentos\PonteBPA\Remessas</code> (criada se faltar) ou na última pasta usada (guardada em <code>config/preferencias.properties</code>), e a mensagem de sucesso mostra o caminho completo do arquivo gerado (<code>config.PastaRemessas</code>, 5 testes). LEIA-ME atualizado.</td></tr>
           <tr><td class="caso">Documentação no pacote (21/10/2026)</td><td>O <code>gerar-pacote.ps1</code> passa a atualizar a documentação técnica e a dos testes (com o resultado dos testes recém-rodados) e confere o Git <strong>antes</strong> de compilar: o pacote é definitivo se o projeto estava sem pendências naquele momento (conferir no fim acusava pendência sempre, porque a própria geração atualiza a documentação dos testes). A documentação regenerada é commitada depois, como registro do pacote; README revisado à mão. O Git é procurado também fora do PATH do PowerShell; se não conseguir ler o projeto, o script avisa em vez de dizer "sem pendências".</td></tr>
           <tr><td class="caso">Teste de atualização de versão (21/10/2026)</td><td>Seguindo o item 7 do LEIA-ME: pasta do programa apagada e substituída pelo pacote novo, pasta de dados mantida. Banco (577 atendimentos), senha e remessa anterior preservados; versão nova abriu em 9 s; "Salvar BPA-I Completo" abrindo em <code>Documentos\PonteBPA\Remessas</code>. A remessa gerada antes, na versão sem pasta padrão, tinha sido salva em <code>E:\BPai exports</code> (pendrive) — no uso oficial, o LEIA-ME orienta não guardar remessas (com dados de pacientes) em pendrive pessoal.</td></tr>
           <tr><td class="caso">Instalação — fase 3 (21/10/2026)</td><td>Teste do pacote concluído no computador de desenvolvimento: instalação do zero, importação, atualização de versão, pasta das remessas, aviso de programa aberto duas vezes, Configurações, Sobre e remessa <strong>idêntica byte a byte</strong> à do desenvolvimento. Corrigidos no caminho: botões "Abrir pasta" encolhidos na janela Sobre; registro de erros do programa (<code>logs\erros_programa.log</code>), já que o programa instalado não tem console. A Área Restrita do Windows não pôde ser ativada: a confirmação do Visual C++ fica para o passo 3 da instalação no computador novo.</td></tr>
           <tr><td class="caso">Pacote definitivo 1.0.0 (21/10/2026)</td><td>Gerado às 15:15 a partir do commit <code>8614578</code>, sem pendências; 558 testes / 710 execuções sem falha; <code>PonteBPA-1.0.0.zip</code> 96,3 MB, SHA-256 <code>51549DB9…098F53</code> (completo em Próximos passos). O script passou a conferir o Git antes de compilar — conferir no fim acusava pendência sempre, porque a geração atualiza a documentação dos testes.</td></tr>
+          <tr><td class="caso">Instalação — fase 4, início (21/10/2026)</td><td>Pendrive preparado (pacote, código SHA-256 conferido, LEIA-ME fora do zip). No computador novo o programa foi extraído e abriu — Visual C++ confirmado sem instalar nada. Esclarecido: só o <code>medicos_cns.csv</code> vai para a pasta <code>dados</code>; as demais tabelas ficam dentro do programa. Para a próxima versão do pacote: explicar isso também no LEIA-ME (item 5).</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -259,7 +353,7 @@
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
           junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
-          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). Em 21/10/2026: cronograma da primeira instalação (núcleo, outro computador) com decisões I1–I4 e fase 1 concluída; orientações de instalação para o usuário (<code>pacote/LEIA-ME - Instalação.txt</code>) e verificação do Visual C++ (já incluído no pacote); fase 2 (pacote <code>.zip</code>) concluída, pasta padrão das remessas, documentação atualizada pelo próprio script do pacote e teste de atualização de versão aprovado; fase 3 concluída (Área Restrita do Windows não pôde ser ativada — Visual C++ confirmado na instalação), com remessa idêntica byte a byte e registro de erros do programa; pacote definitivo 1.0.0 gerado (commit 8614578). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). Em 21/10/2026: cronograma da primeira instalação (núcleo, outro computador) com decisões I1–I4 e fase 1 concluída; orientações de instalação para o usuário (<code>pacote/LEIA-ME - Instalação.txt</code>) e verificação do Visual C++ (já incluído no pacote); fase 2 (pacote <code>.zip</code>) concluída, pasta padrão das remessas, documentação atualizada pelo próprio script do pacote e teste de atualização de versão aprovado; fase 3 concluída (Área Restrita do Windows não pôde ser ativada — Visual C++ confirmado na instalação), com remessa idêntica byte a byte e registro de erros do programa; pacote definitivo 1.0.0 gerado (commit 8614578); instalação iniciada no computador novo (programa abriu; Visual C++ confirmado). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
@@ -367,7 +461,15 @@
             Restrita exista (ex.: outra unidade).<br>
             <em>Antes do pacote definitivo:</em> o <code>gerar-pacote.ps1</code> atualiza a documentação técnica e a dos testes e
             avisa se há alterações não commitadas — o definitivo deve sair de um commit sem pendências, com o README revisado.</td><td>feito</td></tr>
-          <tr><td class="caso">4 · Instalação</td><td>Ver o roteiro "Instalação no computador novo" abaixo. O mesmo roteiro, para o usuário, vai no pacote: <code>LEIA-ME - Instalação.txt</code>.</td><td>½ dia</td></tr>
+          <tr><td class="caso">4 · Instalação — em andamento (21/10/2026)</td><td>Ver o roteiro "Instalação no computador novo" abaixo. O mesmo roteiro, para o usuário, vai no pacote: <code>LEIA-ME - Instalação.txt</code>.<br>
+            <em>Andamento:</em> pacote levado no pendrive, extraído e aberto no computador novo — a pasta
+            <code>%LOCALAPPDATA%\PonteBPA\dados</code> foi criada com o <code>medicos_cns.csv</code>, o que só acontece depois que a
+            janela do JavaFX iniciou: <strong>Visual C++ confirmado</strong> (as bibliotecas do pacote bastaram). Dúvida da
+            instalação: "só o <code>medicos_cns.csv</code> foi para a pasta <code>dados</code>" — é o esperado (decisão I2): é o único
+            cadastro copiado; os nomes de coluna padrão e as quatro tabelas de referência (municípios de MS e do Brasil, etnias,
+            tipos de logradouro) ficam dentro do programa (<code>app\fillBPAi-1.0.0.jar</code>), só leitura.
+            Falta conferir: Sobre, Configurações → CNS de Médicos, teste com uma planilha (CEP novo) e apagar só a pasta
+            <code>database</code> antes de novembro.</td><td>½ dia</td></tr>
           <tr><td class="caso">5 · Primeira remessa oficial — 11/2026</td><td>Importar as planilhas de novembro no computador
             novo e gerar a remessa (folhas a partir de 001). Antes de enviar ao SIA, conferir o arquivo no programa BPA (críticas)
             e, se possível, comparar com o arquivo do mesmo mês gerado no desenvolvimento com a mesma planilha (deve ser idêntico).
@@ -395,6 +497,9 @@
             mesmo</em>, ou liberação pela TI. <strong>Este passo confirma o Visual C++</strong> (não testado na Área Restrita, que não
             pôde ser ativada): se a janela principal abrir, as bibliotecas do pacote bastam; se aparecer erro de arquivo
             <code>.dll</code> ausente, a TI instala o "Microsoft Visual C++ Redistributable (x64)" e o teste é repetido.</li>
+          <li>Na pasta <code>%LOCALAPPDATA%\PonteBPA\dados</code> aparece só o <code>medicos_cns.csv</code> — é o esperado: os nomes de
+            coluna padrão e as tabelas de referência ficam dentro do programa; <code>colunas_aliases.csv</code> só aparece ali quando
+            um nome de coluna é acrescentado em Configurações.</li>
           <li>Conferir a janela <strong>Sobre</strong> (versão 1.0.0, pastas em <code>AppData\Local\PonteBPA</code>) e
             <strong>Configurações → CNS de Médicos</strong> (médicos do núcleo presentes).</li>
           <li>Teste: analisar e importar uma planilha com pelo menos um CEP novo (testa a internet) e gerar o BPA-I.</li>
@@ -418,6 +523,9 @@
           antes de extrair (PowerShell: <code>Get-FileHash PonteBPA-1.0.0.zip</code>). O pacote fica em
           <code>target\pacote</code>, que é apagado na próxima compilação com <code>clean</code>: guardar uma cópia do
           <code>.zip</code> e do <code>.sha256</code> em pasta de rede da SES.<br>
+          <em>Mídia de instalação (21/10/2026):</em> pendrive com a pasta <code>PonteBPA 1.0.0 - Instalação</code> —
+          <code>PonteBPA-1.0.0.zip</code>, <code>PonteBPA-1.0.0.zip.sha256</code> e o <code>LEIA-ME - Instalação.txt</code> fora do
+          zip (para ler antes de extrair); SHA-256 conferido no pendrive e as 329 entradas do zip lidas sem erro.<br>
           Trabalho restante: a instalação (fase 4, ½ dia, com a confirmação do Visual C++ no passo 3), antes do fechamento da
           competência 11/2026. Para outra unidade, depois:
           aba Unidade (CNES, órgão, sigla, CNPJ, INE), <code>medicos_cns.csv</code> vazio no pacote e, se houver várias

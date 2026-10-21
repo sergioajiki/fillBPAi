@@ -14,6 +14,7 @@ O Núcleo de Telessaúde de MS utiliza esta aplicação para importar dados de a
 - Maven para build
 
 ## Continuidade (ler ao retomar o trabalho)
+- **Desde 21/10/2026 a versão 1.0.0 está em testes na unidade** (instalada no computador novo do núcleo; pacote do commit `8614578`). Ao retomar, ler primeiro o quadro **"Estado em 21/10/2026"** no início da seção Continuidade do runbook (`docs/runbook-verificacao-colunas.html#estado-atual`): o que está instalado, o que falta da instalação (fases 4–6), como registrar os retornos, a lista da versão 1.0.1 e o roteiro para gerar/instalar a próxima versão.
 - A revisão coluna por coluna da planilha está em andamento. Ponto de retomada: **`docs/runbook-verificacao-colunas.html`, seção "Continuidade — ler primeiro"** — método de trabalho, princípios decididos, o que já foi feito, colunas que faltam, recomendações e decisões pendentes.
 - Ao concluir uma etapa, atualizar essa seção do runbook (e marcar ✓ nas recomendações/decisões e na lista "Andamento").
 
