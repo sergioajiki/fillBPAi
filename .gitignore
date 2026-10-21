@@ -44,3 +44,8 @@ Thumbs.db
 # Logs
 # =========================
 logs/
+
+# =========================
+# Senha do banco (gerada pelo programa — config/banco.properties)
+# =========================
+/config/

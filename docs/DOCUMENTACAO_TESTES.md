@@ -1,6 +1,6 @@
 # Documentação dos Testes — PonteBPA (código: fillBPAi)
 
-> Lista de todos os testes automatizados de `src/test/java/br/gov/ses/fillbpai/`, classe por classe, com o que cada um confere e o resultado da última execução. Gerada em 20/10/2026 por `node docs/gerar-documentacao-testes.js`, a partir do código dos testes e dos relatórios do Maven (`target/surefire-reports`). Para o histórico de como os testes foram criados (sprints de setembro/2026), ver `docs/runbook-testes-sprint-0-2.html`.
+> Lista de todos os testes automatizados de `src/test/java/br/gov/ses/fillbpai/`, classe por classe, com o que cada um confere e o resultado da última execução. Gerada em 21/10/2026 por `node docs/gerar-documentacao-testes.js`, a partir do código dos testes e dos relatórios do Maven (`target/surefire-reports`). Para o histórico de como os testes foram criados (sprints de setembro/2026), ver `docs/runbook-testes-sprint-0-2.html`.
 
 ## Sumário
 
@@ -47,16 +47,16 @@ Os testes também rodam sozinhos depois de cada edição feita pelo Claude Code 
 
 ## Resultado da última execução
 
-Execução de 20/10/2026 às 18:42: **685 execuções** de 533 testes em 35 classes — **todas passaram** ✓ (11.9 s somando as classes).
+Execução de 21/10/2026 às 10:32: **700 execuções** de 548 testes em 37 classes — **todas passaram** ✓ (15.3 s somando as classes).
 
 | Classe | Pacote | Testes | Execuções | Resultado | Tempo |
 |---|---|---:|---:|:---:|---:|
 | [CboUtilsTest](#cboutilstest) | util | 3 | 3 | ✓ | 0.00 s |
-| [CepUtilsTest](#ceputilstest) | util | 5 | 10 | ✓ | 0.07 s |
+| [CepUtilsTest](#ceputilstest) | util | 5 | 10 | ✓ | 0.05 s |
 | [CidUtilsTest](#cidutilstest) | util | 6 | 6 | ✓ | 0.00 s |
-| [CnsProfissionalUtilsTest](#cnsprofissionalutilstest) | util | 15 | 15 | ✓ | 0.06 s |
+| [CnsProfissionalUtilsTest](#cnsprofissionalutilstest) | util | 17 | 17 | ✓ | 0.06 s |
 | [CnsUtilsTest](#cnsutilstest) | util | 11 | 11 | ✓ | 0.00 s |
-| [ColunaAliasUtilsTest](#colunaaliasutilstest) | util | 10 | 10 | ✓ | 0.02 s |
+| [ColunaAliasUtilsTest](#colunaaliasutilstest) | util | 10 | 10 | ✓ | 0.03 s |
 | [CpfUtilsTest](#cpfutilstest) | util | 13 | 27 | ✓ | 0.01 s |
 | [DateUtilsTest](#dateutilstest) | util | 11 | 20 | ✓ | 0.01 s |
 | [EnderecoUtilsTest](#enderecoutilstest) | util | 7 | 36 | ✓ | 0.02 s |
@@ -65,28 +65,30 @@ Execução de 20/10/2026 às 18:42: **685 execuções** de 533 testes em 35 clas
 | [IbgeUtilsTest](#ibgeutilstest) | util | 19 | 19 | ✓ | 0.01 s |
 | [LogradouroUtilsTest](#logradouroutilstest) | util | 10 | 39 | ✓ | 0.02 s |
 | [NomePacienteUtilsTest](#nomepacienteutilstest) | util | 4 | 14 | ✓ | 0.01 s |
-| [NumeroUtilsTest](#numeroutilstest) | util | 4 | 38 | ✓ | 0.02 s |
+| [NumeroUtilsTest](#numeroutilstest) | util | 4 | 38 | ✓ | 0.01 s |
 | [RacaUtilsTest](#racautilstest) | util | 11 | 11 | ✓ | 0.00 s |
 | [StringUtilsTest](#stringutilstest) | util | 18 | 18 | ✓ | 0.00 s |
 | [TelefoneUtilsTest](#telefoneutilstest) | util | 4 | 19 | ✓ | 0.01 s |
 | [TextoUtilsTest](#textoutilstest) | util | 3 | 5 | ✓ | 0.00 s |
-| [TimeUtilsTest](#timeutilstest) | util | 6 | 11 | ✓ | 0.01 s |
-| [AgrupamentoValidacaoTest](#agrupamentovalidacaotest) | service | 6 | 6 | ✓ | 0.05 s |
-| [AtendimentoImportacaoServiceTest](#atendimentoimportacaoservicetest) | service | 56 | 56 | ✓ | 6.17 s |
-| [AtendimentoProcessorTest](#atendimentoprocessortest) | service | 88 | 88 | ✓ | 0.10 s |
-| [DataSemAnoTest](#datasemanotest) | service | 3 | 3 | ✓ | 0.23 s |
-| [ExcelImportServiceTest](#excelimportservicetest) | service | 14 | 14 | ✓ | 0.05 s |
+| [TimeUtilsTest](#timeutilstest) | util | 6 | 11 | ✓ | 0.00 s |
+| [AgrupamentoValidacaoTest](#agrupamentovalidacaotest) | service | 6 | 6 | ✓ | 0.02 s |
+| [AtendimentoImportacaoServiceTest](#atendimentoimportacaoservicetest) | service | 56 | 56 | ✓ | 5.08 s |
+| [AtendimentoProcessorTest](#atendimentoprocessortest) | service | 88 | 88 | ✓ | 0.07 s |
+| [DataSemAnoTest](#datasemanotest) | service | 3 | 3 | ✓ | 0.25 s |
+| [ExcelImportServiceTest](#excelimportservicetest) | service | 14 | 14 | ✓ | 0.04 s |
 | [GeradorBPAiServiceTest](#geradorbpaiservicetest) | service | 41 | 41 | ✓ | 0.03 s |
-| [HistoricoLogsServiceTest](#historicologsservicetest) | service | 7 | 7 | ✓ | 0.04 s |
-| [PlanilhaColumnMapperTest](#planilhacolumnmappertest) | service | 14 | 14 | ✓ | 0.03 s |
-| [RegistroRemessaTest](#registroremessatest) | service | 1 | 1 | ✓ | 0.06 s |
-| [SobreServiceTest](#sobreservicetest) | service | 5 | 5 | ✓ | 0.02 s |
-| [ValidacaoPlanilhaServiceTest](#validacaoplanilhaservicetest) | service | 103 | 103 | ✓ | 1.26 s |
-| [AtendimentoBPAiRepositoryTest](#atendimentobpairepositorytest) | repository | 4 | 4 | ✓ | 2.61 s |
-| [EstabelecimentoRepositoryTest](#estabelecimentorepositorytest) | repository | 5 | 5 | ✓ | 0.57 s |
-| [MedicoRepositoryTest](#medicorepositorytest) | repository | 2 | 2 | ✓ | 0.20 s |
-| [PacienteRepositoryTest](#pacienterepositorytest) | repository | 2 | 2 | ✓ | 0.20 s |
-| **Total** | | **533** | **685** | ✓ | 11.9 s |
+| [HistoricoLogsServiceTest](#historicologsservicetest) | service | 7 | 7 | ✓ | 0.03 s |
+| [PlanilhaColumnMapperTest](#planilhacolumnmappertest) | service | 14 | 14 | ✓ | 0.02 s |
+| [RegistroRemessaTest](#registroremessatest) | service | 1 | 1 | ✓ | 0.05 s |
+| [SobreServiceTest](#sobreservicetest) | service | 5 | 5 | ✓ | 0.01 s |
+| [ValidacaoPlanilhaServiceTest](#validacaoplanilhaservicetest) | service | 103 | 103 | ✓ | 1.12 s |
+| [AtendimentoBPAiRepositoryTest](#atendimentobpairepositorytest) | repository | 4 | 4 | ✓ | 2.14 s |
+| [EstabelecimentoRepositoryTest](#estabelecimentorepositorytest) | repository | 5 | 5 | ✓ | 0.39 s |
+| [MedicoRepositoryTest](#medicorepositorytest) | repository | 2 | 2 | ✓ | 0.13 s |
+| [PacienteRepositoryTest](#pacienterepositorytest) | repository | 2 | 2 | ✓ | 0.14 s |
+| [PastasAppTest](#pastasapptest) | config | 6 | 6 | ✓ | 0.16 s |
+| [SenhaBancoTest](#senhabancotest) | config | 7 | 7 | ✓ | 5.36 s |
+| **Total** | | **548** | **700** | ✓ | 15.3 s |
 
 "Testes" = métodos de teste; "Execuções" conta cada caso dos testes parametrizados.
 
@@ -129,7 +131,7 @@ Regras por campo (CPF, CNS, CEP, datas, endereço, raça, etnia…) — funçõe
 
 #### CnsProfissionalUtilsTest
 
-`src/test/java/br/gov/ses/fillbpai/util/CnsProfissionalUtilsTest.java` · 15 testes · 15 execuções · ✓ todas passaram
+`src/test/java/br/gov/ses/fillbpai/util/CnsProfissionalUtilsTest.java` · 17 testes · 17 execuções · ✓ todas passaram
 
 Usa `CnsProfissionalUtils#usarCaminhoParaTeste` para redirecionar a camada "arquivo externo" (gravável) para um arquivo temporário — nunca escreve no CSV real do projeto. A camada classpath (os 47 médicos reais) continua carregando normalmente; por isso os testes usam CNS/nomes obviamente falsos, e reaproveitam o médico real conhecido (RODRIGO SILVA GRILO → CNS 700207960618529) só para os casos de leitura.
 
@@ -146,6 +148,8 @@ Usa `CnsProfissionalUtils#usarCaminhoParaTeste` para redirecionar a camada "arqu
 - ✓ Alterar CNS de médico existente atualiza resolução dos apelidos antigos (`alterarCnsDeMedicoExistenteAtualizaResolucaoDosApelidosAntigos`)
 - ✓ Alterar CNS para valor já usado pelo médico real lanca exceção (`alterarCnsParaValorJaUsadoPeloMedicoRealLancaExcecao`)
 - ✓ Remover médico remove todos os apelidos (`removerMedicoRemoveTodosOsApelidos`)
+- ✓ Médico do pacote removido não volta depois de reabrir (`medicoDoPacoteRemovidoNaoVoltaDepoisDeReabrir`) — Programa instalado (21/10/2026): o arquivo da pasta de dados é o cadastro completo; antes, o CSV do pacote era somado a ele e o médico removido voltava na próxima abertura
+- ✓ CNS alterado não volta ao valor do pacote depois de reabrir (`cnsAlteradoNaoVoltaAoValorDoPacoteDepoisDeReabrir`)
 - ✓ Limpar cache forca releitura do arquivo temporario (`limparCacheForcaReleituraDoArquivoTemporario`)
 - ✓ Obter todos médicos devolve apelidos em ordem de cadastro (`obterTodosMedicosDevolveApelidosEmOrdemDeCadastro`)
 
@@ -999,3 +1003,34 @@ Usa a persistence unit de teste `bpaPU-test` (H2 em memória, isolada do banco r
 
 - ✓ Salvar e buscar por CPF encontra o paciente com o endereço junto (`salvarEBuscarPorCpfEncontraOPacienteComOEnderecoJunto`)
 - ✓ Buscar por CPF com CPF inexistente devolve vazio (`buscarPorCpfComCpfInexistenteDevolveVazio`)
+
+### Pacote `config`
+
+Pastas de dados do programa e senha do banco (H2 em arquivo, em pasta temporária).
+
+#### PastasAppTest
+
+`src/test/java/br/gov/ses/fillbpai/config/PastasAppTest.java` · 6 testes · 6 execuções · ✓ todas passaram
+
+Pastas de dados do programa (21/10/2026).
+
+- ✓ Desenvolvimento usa as pastas do projeto (`desenvolvimentoUsaAsPastasDoProjeto`)
+- ✓ Programa instalado usa a pasta do usuario (`programaInstaladoUsaAPastaDoUsuario`)
+- ✓ Sem local app data usa app data local do usuario (`semLocalAppDataUsaAppDataLocalDoUsuario`)
+- ✓ Preparar pastas cria as pastas e copia o cadastro de médicos do pacote (`prepararPastasCriaAsPastasECopiaOCadastroDeMedicosDoPacote`)
+- ✓ Preparar pastas não sobrescreve o cadastro já existente (`prepararPastasNaoSobrescreveOCadastroJaExistente`)
+- ✓ Desenvolvimento não cria nem copia nada (`desenvolvimentoNaoCriaNemCopiaNada`)
+
+#### SenhaBancoTest
+
+`src/test/java/br/gov/ses/fillbpai/config/SenhaBancoTest.java` · 7 testes · 7 execuções · ✓ todas passaram
+
+Senha do banco H2 (21/10/2026) — com bancos H2 em arquivo, em pasta temporária.
+
+- ✓ Primeira execucao sem banco gera e guarda a senha (`primeiraExecucaoSemBancoGeraEGuardaASenha`)
+- ✓ Execucoes seguintes devolvem a mesma senha (`execucoesSeguintesDevolvemAMesmaSenha`)
+- ✓ Banco existente sem senha recebe a senha sem perder dados (`bancoExistenteSemSenhaRecebeASenhaSemPerderDados`)
+- ✓ Troca interrompida eh retomada na próxima abertura (`trocaInterrompidaEhRetomadaNaProximaAbertura`)
+- ✓ Arquivo de senha perdido com banco protegido da mensagem clara (`arquivoDeSenhaPerdidoComBancoProtegidoDaMensagemClara`)
+- ✓ Url não usa auto server (`urlNaoUsaAutoServer`)
+- ✓ Senhas geradas sao diferentes (`senhasGeradasSaoDiferentes`)

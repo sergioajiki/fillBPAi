@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 533 testes (685 execuções) passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 548 testes (700 execuções) passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>20/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -238,6 +238,7 @@
           <tr><td class="caso">Documentação técnica (20/10/2026)</td><td><code>docs/DOCUMENTACAO_TECNICA.md</code> (de 10/09, desatualizada: faltavam ~20 classes) refeita a partir dos javadocs pelo script <code>node docs/gerar-documentacao.js</code>; introdução e tabela "Pastas e arquivos em execução" em <code>docs/documentacao-tecnica-cabecalho.md</code>, editado à mão. Javadocs de classe acrescentados em <code>RelatorioController</code> e <code>StringUtils</code>. Regenerar sempre que a documentação dos métodos mudar.</td></tr>
           <tr><td class="caso">INE em branco (20/10/2026)</td><td>Decisão 30: o núcleo não tem INE. O gerador lê o INE padrão da unidade em <code>DadosUnidade.INE</code> (vazio no núcleo → 10 brancos; <code>campoIne</code> aceita só 10 dígitos), e a janela Sobre mostra "INE: não informado" — quando existir a aba Unidade, o INE vira um campo editável ali. Coluna "INE" retirada da tabela e campos <code>codIne</code> (nunca preenchidos) removidos do atendimento e do DTO da planilha.</td></tr>
           <tr><td class="caso">Documentação dos testes (20/10/2026)</td><td><code>docs/DOCUMENTACAO_TESTES.md</code>: todos os testes, classe por classe, com o que cada um confere (frase montada do nome do método + comentário), valores dos casos parametrizados e resultado da última execução; ambiente dos testes (H2 em memória, "hoje" fixo, internet simulada, arquivos temporários). Gerada por <code>node docs/gerar-documentacao-testes.js</code> a partir do código e de <code>target/surefire-reports</code>. O runbook de testes de setembro ficou como histórico. Contagem corrigida: 533 testes, 685 execuções — os números de 19 e 20/10 somavam 14 execuções de relatórios antigos de testes de sondagem já apagados, que continuavam em <code>target/</code>.</td></tr>
+          <tr><td class="caso">Instalação — fase 1 (21/10/2026)</td><td>Pastas de dados na pasta do usuário no programa instalado (<code>PastasApp</code>), senha do banco gerada e guardada fora do código (<code>SenhaBanco</code>), console H2 e <code>AUTO_SERVER</code> removidos, aviso de programa já aberto, correção do cadastro de CNS (médico removido voltava). Ver Próximos passos → Primeira instalação.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -250,7 +251,7 @@
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
           junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
-          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). Em 21/10/2026: cronograma da primeira instalação (núcleo, outro computador) com decisões I1–I4 e fase 1 concluída. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
@@ -263,14 +264,115 @@
         </p>
       </li>
       <li>
-        <h4>Instalação em outra unidade (cronograma proposto, aguardando decisão)</h4>
+        <h4>Primeira instalação: mesma unidade (núcleo), outro computador (cronograma de 21/10/2026)</h4>
         <p>
-          Já feito: versão 1.0.0 no <code>pom.xml</code>, janela Sobre e dados da unidade numa fonte única
-          (<code>config/DadosUnidade</code>). Falta: aba <strong>Configurações → Unidade</strong> (CNES, órgão, sigla,
-          CNPJ e INE padrão editáveis, gravados fora do código); INE por atendimento para unidade com várias equipes, se necessário; banco, logs e cadastros na pasta do usuário
-          (<code>AppData\Local\PonteBPA\…</code>) em vez de relativos à pasta do programa e de <code>src/main/resources</code>;
-          console H2 (porta 8082) desligado; <code>medicos_cns.csv</code> vazio no pacote (o atual é do núcleo);
-          pacote com Java embutido (<code>jpackage</code>); homologação, instalação, treinamento e acompanhamento.
+          Por ser o próprio núcleo, ficam <strong>fora</strong> desta etapa: a aba Configurações → Unidade (CNES, órgão,
+          sigla, CNPJ e INE já são os do núcleo em <code>config/DadosUnidade</code>), o <code>medicos_cns.csv</code> vazio
+          (vai o atual, do núcleo) e o INE por atendimento. Voltam ao plano quando outra unidade pedir. Já feito: versão
+          1.0.0, janela Sobre, dados da unidade numa fonte única, logs em pasta própria e, em 21/10/2026, a fase 1 (pastas na pasta do usuário, senha do banco, console H2 removido).
+        </p>
+        <p><strong>Decisões (21/10/2026):</strong></p>
+        <ul>
+          <li><strong>✓ I1 — Computador oficial:</strong> o programa será usado <strong>só no computador novo</strong>, que passa
+            a ser o responsável pela geração oficial do BPA-I. O de desenvolvimento não importa planilhas reais nem gera
+            remessa oficial.</li>
+          <li><strong>✓ I2 — Banco vazio:</strong> o computador novo começa com o banco vazio; as remessas começam pela
+            competência <strong>11/2026</strong> (folhas numeradas do zero). Vão só os arquivos CSV em uso — os 6 de
+            <code>dados/</code>: os cadastros <code>medicos_cns.csv</code> e <code>colunas_aliases.csv</code> (conteúdo atual do
+            núcleo, copiados para a pasta de dados do usuário, onde Configurações grava) e as tabelas de referência, só de
+            leitura dentro do pacote (<code>municipios_ibge.csv</code>, <code>municipios_brasil.csv</code>,
+            <code>etnias_indigenas.csv</code>, <code>tipos_logradouro.csv</code>). Não vão banco, logs, PDFs de <code>data/</code>,
+            testes nem documentação.</li>
+          <li><strong>✓ Console H2:</strong> não será usado — o código do console sai do programa (também no desenvolvimento).
+            Sai também o <code>AUTO_SERVER=TRUE</code> da conexão, que abre uma porta de rede para um segundo programa usar o
+            mesmo banco; sem ele, abrir o PonteBPA duas vezes dá aviso de banco em uso.</li>
+          <li><strong>✓ Senha do banco:</strong> trocar o <code>sa</code> sem senha.</li>
+          <li><strong>✓ I3 — Formato do pacote: <code>.zip</code>.</strong> Pasta pronta com o Java embutido
+            (<code>jpackage --type app-image</code>) — não pede administrador nem Java instalado. Instalador <code>.msi</code>
+            descartado (precisaria de WiX e, em geral, de administrador).</li>
+          <li><strong>✓ I4 — Só senha, sem criptografia do arquivo.</strong> Senha aleatória gerada na primeira execução,
+            guardada em <code>config\banco.properties</code> na pasta do usuário (outros usuários do Windows não leem), nunca no
+            código nem no Git. Limite conhecido: a senha não criptografa o arquivo — quem copiar o <code>fillbpai.mv.db</code>
+            consegue ler o conteúdo; por isso a cópia de segurança do banco fica em pasta de rede restrita, e a cópia do arquivo
+            de senha em lugar separado (o banco não abre sem ela). Criptografia (<code>CIPHER=AES</code>) pode ser ligada depois,
+            mas com o banco já em uso exige migração.</li>
+        </ul>
+        <table>
+          <tr><th>Fase</th><th>O que é feito</th><th>Prazo</th></tr>
+          <tr><td class="caso">0 · Levantamento do computador novo</td><td>Windows 10/11 64 bits; acesso à internet para as APIs
+            de CEP (<code>viacep.com.br</code>, <code>brasilapi.com.br</code>, <code>opencep.com</code>, HTTPS 443) — se o proxy da
+            SES pedir usuário e senha, a TI libera esses três endereços para o computador; pasta de rede restrita para a cópia de
+            segurança do banco e outro lugar para a do arquivo de senha; tela (a janela principal abre com 1500 × 700 — em tela
+            1366 × 768 precisa ser redimensionada); se a TI bloqueia programas sem assinatura digital; quem vai usar.</td><td>½ dia</td></tr>
+          <tr><td class="caso">1 · Ajustes no código — ✓ feito em 21/10/2026</td><td>
+            <code>config.PastasApp</code>: pastas do projeto no desenvolvimento; com <code>-Dpontebpa.instalado=true</code>,
+            <code>%LOCALAPPDATA%\PonteBPA\{database,logs,dados,config}</code>, criadas na primeira execução, com cópia do
+            <code>medicos_cns.csv</code> do pacote (o <code>colunas_aliases.csv</code> não é copiado: os nomes padrão vêm do pacote e
+            o arquivo da pasta guarda só os acrescentados). Antes Configurações gravava em <code>src/main/resources/dados</code>, que
+            não existe no programa instalado.<br>
+            <code>config.SenhaBanco</code>: senha gerada em <code>config\banco.properties</code> (<code>/config/</code> no
+            <code>.gitignore</code>); banco existente sem senha recebe a senha na primeira abertura — inclusive o do desenvolvimento,
+            que guarda a senha em <code>config/banco.properties</code> na pasta do projeto; troca interrompida é retomada; banco com
+            senha diferente da guardada dá mensagem para restaurar o arquivo de senha.<br>
+            Console H2 (porta 8082, aberto à rede, <code>sa</code> sem senha) e <code>AUTO_SERVER</code> removidos; programa aberto
+            duas vezes → "O PonteBPA já está aberto"; erro ao abrir o banco aparece em janela.<br>
+            Correção encontrada: o cadastro de CNS somava o CSV do pacote ao da pasta de dados, e um médico removido ou com CNS
+            alterado voltava na próxima abertura; agora, existindo o arquivo da pasta, só ele vale.<br>
+            15 testes novos (548 testes, 700 execuções); CLAUDE.md, README e documentações geradas atualizados.</td><td>feito</td></tr>
+          <tr><td class="caso">2 · Empacotamento</td><td>Classe de partida separada (o JavaFX exige quando o programa roda fora
+            do Maven); pacote com <code>jpackage --type app-image</code> (Java embutido, nome PonteBPA, ícone, versão 1.0.0) com as
+            opções <code>-Dpontebpa.instalado=true</code> (modo instalado) e <code>-Djava.net.useSystemProxies=true</code> (usar o
+            proxy do Windows nas APIs de CEP); <code>.zip</code> da pasta gerada; comando único de geração documentado no README.</td><td>1–2 dias</td></tr>
+          <tr><td class="caso">3 · Teste do pacote no computador de desenvolvimento</td><td>Rodar o pacote como se fosse o
+            computador novo (outro usuário do Windows, sem pasta <code>PonteBPA</code> em <code>AppData</code>): conferir criação
+            de pastas, senha e banco; Configurações gravando na pasta nova; logs; Sobre; "Abrir pasta"; aviso de programa aberto
+            duas vezes. Teste de aceitação: importar a planilha de uma competência já enviada e gerar o BPA-I — o arquivo deve ser
+            <strong>idêntico</strong> ao gerado pelo desenvolvimento (comparação byte a byte). Conferir também se o Java/JavaFX do
+            pacote não pede bibliotecas do Windows ausentes (Visual C++ Redistributable) — se pedir, incluir no pacote ou
+            pedir a instalação à TI.</td><td>½–1 dia</td></tr>
+          <tr><td class="caso">4 · Instalação</td><td>Ver o roteiro "Instalação no computador novo" abaixo.</td><td>½ dia</td></tr>
+          <tr><td class="caso">5 · Primeira remessa oficial — 11/2026</td><td>Importar as planilhas de novembro no computador
+            novo e gerar a remessa (folhas a partir de 001). Antes de enviar ao SIA, conferir o arquivo no programa BPA (críticas)
+            e, se possível, comparar com o arquivo do mesmo mês gerado no desenvolvimento com a mesma planilha (deve ser idêntico).
+            A partir daí, só o computador novo gera remessa (I1).</td><td>competência 11/2026</td></tr>
+          <tr><td class="caso">6 · Orientação e acompanhamento</td><td>Roteiro de uma página (analisar → Ciente → importar →
+            gerar; onde ficam os logs; cópia de segurança da pasta <code>database</code> e, separada, do arquivo de senha); atualização de versão = trocar a pasta
+            do programa (os dados ficam em <code>%LOCALAPPDATA%</code> e são preservados); acompanhamento das primeiras
+            remessas.</td><td>1–2 semanas</td></tr>
+        </table>
+        <p><strong>Instalação no computador novo (roteiro da fase 4)</strong></p>
+        <p>
+          <em>Não é preciso instalar:</em> Java (vai dentro do pacote), banco de dados ou driver (o H2 é um arquivo usado pelo
+          próprio programa), Excel (o programa lê <code>.xlsx</code> sozinho; o Excel só serve para editar as planilhas),
+          extensões ou plugins. Não é preciso ser administrador: tudo fica na pasta do usuário.
+        </p>
+        <ol>
+          <li>Copiar o <code>PonteBPA-1.0.0.zip</code> por meio institucional e extrair numa pasta do usuário, por exemplo
+            <code>C:\Users\&lt;usuário&gt;\PonteBPA</code> (não em <code>Arquivos de Programas</code>).</li>
+          <li>Criar um atalho de <code>PonteBPA.exe</code> na área de trabalho.</li>
+          <li>Abrir o programa — cria o banco vazio, a senha e as pastas em <code>%LOCALAPPDATA%\PonteBPA</code>. Se o Windows
+            mostrar "O Windows protegeu o computador" (programa sem assinatura digital): <em>Mais informações → Executar assim
+            mesmo</em>, ou liberação pela TI.</li>
+          <li>Conferir a janela <strong>Sobre</strong> (versão 1.0.0, pastas em <code>AppData\Local\PonteBPA</code>) e
+            <strong>Configurações → CNS de Médicos</strong> (médicos do núcleo presentes).</li>
+          <li>Teste: analisar e importar uma planilha com pelo menos um CEP novo (testa a internet) e gerar o BPA-I.</li>
+          <li>Fechar o programa e apagar a pasta <code>%LOCALAPPDATA%\PonteBPA\database</code>, para novembro começar com o banco
+            limpo. <strong>Não apagar a pasta <code>config</code></strong> — o banco recriado usa a senha guardada nela.</li>
+          <li>A partir da competência 11/2026, importar as planilhas reais e gerar a remessa oficial só nesse computador.</li>
+        </ol>
+        <p>
+          <em>Cópia de segurança:</em> com o programa fechado, copiar periodicamente <code>%LOCALAPPDATA%\PonteBPA\database</code>
+          para pasta de rede restrita da SES; guardar uma cópia de <code>config\banco.properties</code> em outro lugar (sem ele o
+          banco não abre; quem tiver os dois acessa os dados). <em>Versão nova:</em> fechar o programa e substituir a pasta do
+          programa — banco, logs, cadastros e senha ficam em <code>AppData</code> e não são tocados. <em>Computador de
+          desenvolvimento:</em> o banco <code>database/fillbpai.mv.db</code> ganha senha na próxima abertura (guardada em
+          <code>config/banco.properties</code> no projeto); <code>fillbpai_jun.mv.db</code> e <code>fillbpai_old.mv.db</code>
+          continuam sem senha e com dados pessoais — apagar se não forem mais usados.
+        </p>
+        <p>
+          Trabalho restante: fases 2 e 3 (cerca de 2–3 dias) e a instalação (½ dia), prontas antes do fechamento da competência 11/2026. Para outra unidade, depois:
+          aba Unidade (CNES, órgão, sigla, CNPJ, INE), <code>medicos_cns.csv</code> vazio no pacote e, se houver várias
+          equipes, INE por atendimento.
         </p>
       </li>
       <li>

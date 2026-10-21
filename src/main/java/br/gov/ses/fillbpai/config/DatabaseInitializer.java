@@ -3,70 +3,67 @@ package br.gov.ses.fillbpai.config;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.Persistence;
-import org.h2.tools.Server;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Responsável por inicializar e encerrar
- * a infraestrutura de banco de dados.
- *
- * Arquitetura adotada:
- *
- * Aplicação (Hibernate)
- *        ↓
- *   H2 FILE + AUTO_SERVER
- *        ↓
- *   Arquivo físico (.mv.db)
- *
- * O AUTO_SERVER permite que o console
- * conecte simultaneamente ao banco.
+ * Abre e fecha o banco de dados (H2 em arquivo, via JPA/Hibernate).
+ * <p>
+ * Desde 21/10/2026: o banco fica na pasta de dados do programa
+ * ({@link PastasApp} — no programa instalado, {@code %LOCALAPPDATA%\PonteBPA\database}),
+ * com senha guardada fora do código ({@link SenhaBanco}). O console web do
+ * H2 (porta 8082, aberto a outros computadores, com {@code sa} sem senha) e o
+ * {@code AUTO_SERVER} (porta para um segundo programa usar o mesmo banco)
+ * foram retirados: só o PonteBPA abre o banco. Abrir o programa duas vezes
+ * dá o aviso de banco em uso ({@link #isBancoEmUso}).
  */
 public class DatabaseInitializer {
 
-    private Server webServer; // Console H2
+    /** Código de erro do H2 para banco já aberto por outro programa. */
+    private static final int ERRO_BANCO_EM_USO = 90020;
+
     private EntityManagerFactory emf;
     private EntityManager entityManager;
 
     /**
-     * Inicializa:
-     * - H2 Console
-     * - JPA/Hibernate
+     * Prepara as pastas, obtém a senha e abre o banco. Erros sobem para quem
+     * chamou ({@code MainApp}), que mostra a mensagem ao usuário.
      */
-    public void iniciar() {
+    public void iniciar() throws Exception {
 
-        try {
+        PastasApp pastas = PastasApp.atual();
+        pastas.prepararPastas();
 
-            // 🔹 Inicia apenas o console web do H2
-            webServer = Server.createWebServer(
-                    "-web",
-                    "-webAllowOthers",
-                    "-webPort", "8082"
-            ).start();
+        String senha = SenhaBanco.obter(pastas.config(), pastas.database());
 
-            System.out.println("H2 Console iniciado em: " + webServer.getURL());
+        // URL, usuário e senha definidos aqui, sobre o persistence.xml
+        Map<String, Object> conexao = new HashMap<>();
+        conexao.put("jakarta.persistence.jdbc.url", SenhaBanco.url(pastas.database()));
+        conexao.put("jakarta.persistence.jdbc.user", SenhaBanco.USUARIO);
+        conexao.put("jakarta.persistence.jdbc.password", senha);
 
-        } catch (Exception e) {
-            System.err.println("Erro ao iniciar H2 Console:");
-            e.printStackTrace();
-        }
+        emf = Persistence.createEntityManagerFactory("bpaPU", conexao);
+        entityManager = emf.createEntityManager();
 
-        try {
-
-            // 🔹 Inicializa JPA/Hibernate
-            emf = Persistence.createEntityManagerFactory("bpaPU");
-            entityManager = emf.createEntityManager();
-
-            System.out.println("JPA/Hibernate iniciado com sucesso!");
-
-        } catch (Exception e) {
-
-            System.err.println("Erro ao inicializar JPA:");
-            e.printStackTrace();
-            System.exit(1);
-        }
+        System.out.println("Banco aberto em " + pastas.database().toAbsolutePath());
     }
 
     public EntityManager getEntityManager() {
         return entityManager;
+    }
+
+    /** {@code true} se o erro (ou alguma causa dele) é o de banco já aberto por outro programa. */
+    public static boolean isBancoEmUso(Throwable erro) {
+        for (Throwable t = erro; t != null; t = t.getCause()) {
+            if (t instanceof java.sql.SQLException sql && sql.getErrorCode() == ERRO_BANCO_EM_USO) {
+                return true;
+            }
+            if (t.getMessage() != null && t.getMessage().contains(String.valueOf(ERRO_BANCO_EM_USO))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -84,11 +81,6 @@ public class DatabaseInitializer {
             if (emf != null && emf.isOpen()) {
                 emf.close();
                 System.out.println("EntityManagerFactory fechada.");
-            }
-
-            if (webServer != null) {
-                webServer.stop();
-                System.out.println("H2 Console finalizado.");
             }
 
         } catch (Exception e) {

@@ -1,6 +1,6 @@
 # Documentação Técnica — PonteBPA (código: fillBPAi)
 
-> Referência de todas as classes de `src/main/java/br/gov/ses/fillbpai/`, pacote por pacote: o que cada classe faz e seus métodos (públicos e privados documentados), com o texto tirado da documentação (javadoc) do próprio código. Atualizada em 20/10/2026. Para a arquitetura, os fluxos e as regras de negócio, ver `CLAUDE.md`; para o uso, `README.md`.
+> Referência de todas as classes de `src/main/java/br/gov/ses/fillbpai/`, pacote por pacote: o que cada classe faz e seus métodos (públicos e privados documentados), com o texto tirado da documentação (javadoc) do próprio código. Atualizada em 21/10/2026. Para a arquitetura, os fluxos e as regras de negócio, ver `CLAUDE.md`; para o uso, `README.md`.
 >
 > O nome exibido do programa é **PonteBPA**. Pacote, classes, métodos, `artifactId` e arquivo do banco continuam `fillbpai` — a troca de nome é só visual.
 
@@ -21,10 +21,11 @@
 
 ## Pastas e arquivos em execução
 
-Relativos à pasta onde o programa é executado. `database/` e `logs/` contêm dados pessoais (LGPD) e ficam fora do Git (`.gitignore`); os dois CSV de cadastro são versionados — nunca gravar CPF neles.
+Definidas por `PastasApp` (21/10/2026). No **desenvolvimento**, relativas à pasta do projeto (caminhos abaixo). No **programa instalado** (`-Dpontebpa.instalado=true`), tudo em `%LOCALAPPDATA%\PonteBPA\` — `database\`, `logs\`, `dados\` (cadastros) e `config\` (senha). `database/`, `logs/` e `config/` contêm dados pessoais ou a senha (LGPD) e ficam fora do Git (`.gitignore`); os dois CSV de cadastro do projeto são versionados — nunca gravar CPF neles.
 
 | Pasta / arquivo | Conteúdo | Quem grava |
 |---|---|---|
+| `config/banco.properties` | Senha do banco (gerada na primeira execução). A cópia de segurança do banco só serve junto com ele | `SenhaBanco` |
 | `database/fillbpai.mv.db` | Banco H2: pacientes, médicos, estabelecimentos, atendimentos (com folha, linha e data da remessa) | `DatabaseInitializer` (JPA/Hibernate, `hbm2ddl update`) |
 | `logs/log_importacao_<planilha>_<aaaa-MM-dd_HHmm>.txt` | Log de cada importação: planilha, pasta, data/hora, conferência de linhas, avisos e ciência dos avisos. Pasta própria desde 20/10/2026; logs que estavam em `database/` são movidos para cá ao abrir o programa | `MainController.salvarLogEmArquivo`, `HistoricoLogsService` |
 | `src/main/resources/dados/medicos_cns.csv` | CNS dos profissionais por grafia do nome (`nome;cns`) — o CPF do médico fica só no banco | Configurações → CNS de Médicos (`CnsProfissionalUtils`) |
@@ -66,17 +67,47 @@ Ainda fixos no código: para instalar em outra unidade, estes valores passarão 
 ### `DatabaseInitializer`
 `src/main/java/br/gov/ses/fillbpai/config/DatabaseInitializer.java`
 
-Responsável por inicializar e encerrar a infraestrutura de banco de dados.
+Abre e fecha o banco de dados (H2 em arquivo, via JPA/Hibernate).
 
-Arquitetura adotada:
-
-Aplicação (Hibernate) ↓ H2 FILE + AUTO_SERVER ↓ Arquivo físico (.mv.db)
-
-O AUTO_SERVER permite que o console conecte simultaneamente ao banco.
+Desde 21/10/2026: o banco fica na pasta de dados do programa (`PastasApp` — no programa instalado, `%LOCALAPPDATA%\PonteBPA\database`), com senha guardada fora do código (`SenhaBanco`). O console web do H2 (porta 8082, aberto a outros computadores, com `sa` sem senha) e o `AUTO_SERVER` (porta para um segundo programa usar o mesmo banco) foram retirados: só o PonteBPA abre o banco. Abrir o programa duas vezes dá o aviso de banco em uso (`#isBancoEmUso`).
 
 **Métodos:**
-- `iniciar(): void` — Inicializa:; H2 Console; JPA/Hibernate
+- `iniciar(): void` — Prepara as pastas, obtém a senha e abre o banco. Erros sobem para quem chamou (`MainApp`), que mostra a mensagem ao usuário.
+- `isBancoEmUso(Throwable erro): boolean` — `true` se o erro (ou alguma causa dele) é o de banco já aberto por outro programa.
 - `finalizar(): void` — Encerra todos os recursos corretamente.
+
+### `PastasApp`
+`src/main/java/br/gov/ses/fillbpai/config/PastasApp.java`
+
+Pastas onde o programa grava os dados (21/10/2026):
+
+- **Programa instalado** (pacote com a propriedade `-Dpontebpa.instalado=true`): tudo na pasta do usuário do Windows, `%LOCALAPPDATA%\PonteBPA\{database,logs,dados,config`} — a pasta do programa pode ser só leitura, e trocar de versão (substituir a pasta do programa) não apaga os dados;
+
+- **Desenvolvimento** (sem a propriedade): como antes, relativo à pasta do projeto — `database/`, `logs/`, `config/` e os cadastros em `src/main/resources/dados`.
+
+Antes, banco e logs dependiam da pasta de onde o programa era aberto, e Configurações gravava em `src/main/resources/dados`, que não existe no programa instalado.
+
+**Métodos:**
+- `atual(): PastasApp` — Pastas desta execução (lidas uma vez).
+- `de(boolean instalado, String localAppData, String home): PastasApp` — Monta as pastas para o modo informado.
+- `prepararPastas(): void` — Programa instalado: cria as pastas e, na primeira execução, copia o cadastro de CNS de médicos do pacote para a pasta de dados — a partir daí, Configurações edita essa cópia. Nunca sobrescreve uma cópia existente. Os nomes de colunas não são copiados: o arquivo da pasta de dados guarda só os nomes acrescentados pelo usuário (os padrões vêm do pacote). No desenvolvimento não faz nada.
+- `copiarDoPacoteSeFaltar(String nome): void` — Copia `/dados/<nome>` do pacote para a pasta de dados, se ainda não existir lá.
+
+### `SenhaBanco`
+`src/main/java/br/gov/ses/fillbpai/config/SenhaBanco.java`
+
+Senha do banco H2 (21/10/2026). Antes o banco usava o usuário `sa` sem senha, fixo no `persistence.xml`.
+
+A senha é gerada na primeira execução (aleatória, 32 caracteres) e guardada em `<config>/banco.properties` — fora do código e do Git (no programa instalado, `%LOCALAPPDATA%\PonteBPA\config`, que outros usuários do Windows não leem). Um banco que já existia sem senha (o do desenvolvimento) recebe a senha nova na primeira abertura, sem perder dados.
+
+A senha não criptografa o arquivo do banco (decisão I4 de 21/10/2026: só senha). A cópia de segurança do banco precisa do `banco.properties` junto — sem ele o banco não abre.
+
+**Métodos:**
+- `url(Path pastaDatabase): String` — URL JDBC do banco na pasta informada (sem `AUTO_SERVER`: só o PonteBPA abre o banco).
+- `obter(Path pastaConfig, Path pastaDatabase): String` — Senha do banco: lida de `banco.properties`, ou gerada e gravada na primeira execução. Se o banco já existe sem senha, aplica a senha nele — também quando uma troca anterior foi interrompida (arquivo gravado, banco ainda sem senha).
+- `gerar(): String` — 24 bytes aleatórios em Base64 sem preenchimento: 32 caracteres (letras, dígitos,; e _).
+- `conecta(String url, String senha): boolean` *(privado)* — Abre e fecha uma conexão; `false` se a senha estiver errada. Outros erros (banco em uso…) sobem.
+- `aplicarSenha(String url, String senha): void` *(privado)* — Troca a senha vazia do `sa` pela senha nova. A senha gerada só tem letras, dígitos,; e _.
 
 ---
 
@@ -601,9 +632,9 @@ Profissionais não encontrados são reportados como avisos no log de importaçã
 - `removerMedico(String cns): void` — Remove um médico e todos os seus apelidos.
 - `limparCache(): void` — Limpa o cache em memória, forçando recarga na próxima busca. Útil para testes e recarregamento manual.
 - `usarCaminhoParaTeste(String caminho): void` — Só para testes: aponta o armazenamento local para outro arquivo (ex.: um arquivo temporário) e força recarga, para não gravar no CSV real do projeto durante a suíte de testes.
-- `carregarCsvSeNecessario(): void` *(privado)* — Carrega o arquivo CSV de profissionais do classpath e arquivo externo (lazy loading). Formato: nome;cns (separador ponto-e-vírgula) Encoding: UTF-8
+- `carregarCsvSeNecessario(): void` *(privado)* — Carrega o cadastro de profissionais (lazy loading): o arquivo da pasta de dados quando existe, senão o CSV do pacote. Formato: nome;cns (separador ponto-e-vírgula) Encoding: UTF-8
 - `carregarDeClasspath(): void` *(privado)* — Carrega entradas do CSV embutido no classpath.
-- `carregarDeArquivoExterno(): void` *(privado)* — Carrega entradas do arquivo externo (src/main/resources). Usado para capturar entradas adicionadas pelo cadastro que ainda não foram recompiladas no classpath.
+- `carregarDeArquivoExterno(): void` *(privado)* — Carrega o cadastro da pasta de dados (`PastasApp.dados()`: no desenvolvimento, `src/main/resources/dados`; no programa instalado, `%LOCALAPPDATA%\PonteBPA\dados`). É o cadastro completo — cada alteração em Configurações reescreve o arquivo inteiro.
 - `carregarDeReader(BufferedReader reader): void` *(privado)* — Carrega entradas de um BufferedReader. Formato aceito: nome;cns (novo) ou cpf;cns;nome (legado — migrado automaticamente)
 - `reescreverArquivoExterno(): void` *(privado)* — Reescreve o arquivo externo inteiro a partir do estado atual em memória — necessário porque atualização e remoção não são operações de append. Uma linha por apelido, ordenadas por nome para diffs de git legíveis. Nunca toca no CSV do classpath.
 - `normalizar(String texto): String` — Normaliza texto para busca: remove acentos, converte para maiúsculo, trim. Garante que "José da Silva" encontra "JOSE DA SILVA".

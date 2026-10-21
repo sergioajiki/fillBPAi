@@ -60,13 +60,16 @@ fillBPAi/
 ├── mvnw / mvnw.cmd                     # Maven Wrapper
 ├── data/                               # Layouts oficiais do BPA (PDF)
 ├── docs/                               # Runbooks de decisões e revisões (HTML)
-├── database/                           # Banco H2 (criado em execução)
-├── logs/                               # Logs de importação, um por importação (criados em execução)
+├── database/                           # Banco H2 — desenvolvimento (criado em execução)
+├── logs/                               # Logs de importação — desenvolvimento (criados em execução)
+├── config/                             # Senha do banco — desenvolvimento (gerada; fora do Git)
 └── src/
     ├── main/java/br/gov/ses/fillbpai/
     │   ├── app/MainApp.java                         # Ponto de entrada JavaFX
     │   ├── config/DatabaseInitializer.java          # H2 + Hibernate
     │   ├── config/DadosUnidade.java                 # CNES, órgão, sigla, CNPJ e versão do header do BPA-I
+    │   ├── config/PastasApp.java                    # Pastas de dados (projeto ou %LOCALAPPDATA%\PonteBPA)
+    │   ├── config/SenhaBanco.java                   # Senha do banco (gerada, fora do código)
     │   ├── controller/MainController.java           # Barra superior, análise, importação, logs
     │   ├── dto/                                     # LinhaImportacaoDTO (planilha), AtendimentoBPAiDTO (tabela)
     │   ├── model/                                   # AtendimentoBPAi, Paciente, Endereco, Medico, Estabelecimento
@@ -190,7 +193,18 @@ mvnw.cmd test           # testes
 mvnw.cmd javafx:run     # executar
 ```
 
-O banco H2 fica em `database/` e os logs de importação em `logs/`, criados na primeira execução. Ainda não há instalador: para levar o programa a outra unidade é preciso, antes, tornar configuráveis os dados da unidade (hoje o CNES, o nome, a sigla e o CNPJ do núcleo estão fixos em `config/DadosUnidade.java`), mover banco, logs e cadastros para a pasta do usuário e gerar um pacote com o Java embutido (`jpackage`).
+### Onde ficam os dados
+
+| | Desenvolvimento (`javafx:run`, IDE) | Programa instalado |
+|---|---|---|
+| Banco H2 | `database/fillbpai.mv.db` | `%LOCALAPPDATA%\PonteBPA\database` |
+| Logs de importação | `logs/` | `%LOCALAPPDATA%\PonteBPA\logs` |
+| Cadastros (Configurações) | `src/main/resources/dados` | `%LOCALAPPDATA%\PonteBPA\dados` |
+| Senha do banco | `config/banco.properties` (fora do Git) | `%LOCALAPPDATA%\PonteBPA\config\banco.properties` |
+
+O modo instalado é ligado pela propriedade `-Dpontebpa.instalado=true`, que o pacote passa ao Java. A senha do banco é gerada na primeira execução; **a cópia de segurança do banco só serve junto com o `banco.properties`**. O banco só é aberto pelo PonteBPA (sem console web do H2).
+
+O pacote de instalação (pasta com o Java embutido, em `.zip`) é a fase 2 do cronograma de instalação — ver `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
 
 ---
 

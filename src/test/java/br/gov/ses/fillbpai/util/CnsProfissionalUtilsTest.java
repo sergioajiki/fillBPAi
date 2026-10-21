@@ -35,7 +35,8 @@ class CnsProfissionalUtilsTest {
 
 	@AfterEach
 	void restaurarCaminhoReal() {
-		CnsProfissionalUtils.usarCaminhoParaTeste("src/main/resources/dados/medicos_cns.csv");
+		CnsProfissionalUtils.usarCaminhoParaTeste(
+				br.gov.ses.fillbpai.config.PastasApp.atual().dados().resolve("medicos_cns.csv").toString());
 	}
 
 	@Test
@@ -167,6 +168,26 @@ class CnsProfissionalUtilsTest {
 		assertThat(CnsProfissionalUtils.buscar("F. DE TESTE").getCns()).isNull();
 		assertThat(CnsProfissionalUtils.obterTodosMedicos())
 				.noneMatch(m -> m.cns().equals(CNS_TESTE));
+	}
+
+	// Programa instalado (21/10/2026): o arquivo da pasta de dados é o cadastro completo;
+	// antes, o CSV do pacote era somado a ele e o médico removido voltava na próxima abertura
+	@Test
+	void medicoDoPacoteRemovidoNaoVoltaDepoisDeReabrir() {
+		CnsProfissionalUtils.removerMedico("700207960618529");
+
+		CnsProfissionalUtils.limparCache();
+
+		assertThat(CnsProfissionalUtils.buscar("RODRIGO SILVA GRILO").getCns()).isNull();
+	}
+
+	@Test
+	void cnsAlteradoNaoVoltaAoValorDoPacoteDepoisDeReabrir() {
+		CnsProfissionalUtils.alterarCns("700207960618529", "222222222222222");
+
+		CnsProfissionalUtils.limparCache();
+
+		assertThat(CnsProfissionalUtils.buscar("RODRIGO SILVA GRILO").getCns()).isEqualTo("222222222222222");
 	}
 
 	@Test

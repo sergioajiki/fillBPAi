@@ -37,6 +37,21 @@ public class MainApp extends Application {
 
             System.err.println("Erro ao iniciar aplicação:");
             e.printStackTrace();
+
+            // Mensagem na tela: o programa instalado não tem janela de console
+            javafx.scene.control.Alert alerta = new javafx.scene.control.Alert(
+                    javafx.scene.control.Alert.AlertType.ERROR);
+            alerta.setTitle("PonteBPA");
+            if (DatabaseInitializer.isBancoEmUso(e)) {
+                alerta.setHeaderText("O PonteBPA já está aberto");
+                alerta.setContentText("O banco de dados está em uso por outra janela do PonteBPA. "
+                        + "Feche a outra janela e abra o programa de novo.");
+            } else {
+                alerta.setHeaderText("Não foi possível abrir o banco de dados");
+                alerta.setContentText(e.getMessage() != null ? e.getMessage() : e.toString());
+            }
+            alerta.showAndWait();
+
             System.exit(1);
             return;
         }

@@ -39,7 +39,7 @@ public class CnsProfissionalUtils {
 	private static final Logger log = LoggerFactory.getLogger(CnsProfissionalUtils.class);
 
 	/** Caminho do arquivo CSV cache local (para gravação). Sobrescrito nos testes via {@link #usarCaminhoParaTeste}. */
-	private static String caminhoCsvFonte = "src/main/resources/dados/medicos_cns.csv";
+	private static String caminhoCsvFonte = br.gov.ses.fillbpai.config.PastasApp.atual().dados().resolve("medicos_cns.csv").toString();
 
 	/** Mapa: CNS → apelidos (nomes originais), em ordem de cadastro. Índice 0 = nome principal. Lazy loading. */
 	private static Map<String, List<String>> apelidosPorCns = null;
@@ -276,7 +276,8 @@ public class CnsProfissionalUtils {
 	}
 
 	/**
-	 * Carrega o arquivo CSV de profissionais do classpath e arquivo externo (lazy loading).
+	 * Carrega o cadastro de profissionais (lazy loading): o arquivo da pasta de
+	 * dados quando existe, senão o CSV do pacote.
 	 * Formato: nome;cns (separador ponto-e-vírgula)
 	 * Encoding: UTF-8
 	 */
@@ -289,11 +290,16 @@ public class CnsProfissionalUtils {
 		apelidosPorCns = new LinkedHashMap<>();
 		cnsPorNome = new LinkedHashMap<>();
 
-		// Carrega do classpath (recurso embutido)
-		carregarDeClasspath();
-
-		// Carrega do arquivo externo (mesma fonte, em desenvolvimento; complementa em produção)
-		carregarDeArquivoExterno();
+		// O arquivo externo (pasta de dados) é o cadastro completo: toda alteração
+		// reescreve o arquivo inteiro. Quando ele existe, só ele vale (21/10/2026) —
+		// antes as duas fontes eram somadas, e um médico removido ou com CNS alterado
+		// voltava na próxima abertura, porque continuava no CSV do pacote, que não muda.
+		// Sem o arquivo externo, vale o CSV do pacote (conteúdo inicial).
+		if (Files.exists(Path.of(caminhoCsvFonte))) {
+			carregarDeArquivoExterno();
+		} else {
+			carregarDeClasspath();
+		}
 
 		log.info("Cache CNS profissional carregado: {} médicos", apelidosPorCns.size());
 	}
@@ -320,9 +326,11 @@ public class CnsProfissionalUtils {
 	}
 
 	/**
-	 * Carrega entradas do arquivo externo (src/main/resources).
-	 * Usado para capturar entradas adicionadas pelo cadastro
-	 * que ainda não foram recompiladas no classpath.
+	 * Carrega o cadastro da pasta de dados ({@code PastasApp.dados()}: no
+	 * desenvolvimento, {@code src/main/resources/dados}; no programa instalado,
+	 * {@code %LOCALAPPDATA%\PonteBPA\dados}).
+	 * É o cadastro completo — cada alteração em Configurações reescreve o
+	 * arquivo inteiro.
 	 */
 	private static void carregarDeArquivoExterno() {
 

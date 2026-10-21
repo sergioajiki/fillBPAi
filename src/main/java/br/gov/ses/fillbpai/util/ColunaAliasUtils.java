@@ -38,7 +38,7 @@ public class ColunaAliasUtils {
 	private static final Logger log = LoggerFactory.getLogger(ColunaAliasUtils.class);
 
 	/** Caminho do arquivo CSV local (para leitura e gravação). Sobrescrito nos testes via {@link #usarCaminhoParaTeste}. */
-	private static String caminhoCsvFonte = "src/main/resources/dados/colunas_aliases.csv";
+	private static String caminhoCsvFonte = br.gov.ses.fillbpai.config.PastasApp.atual().dados().resolve("colunas_aliases.csv").toString();
 
 	public enum Origem { PADRAO, LOCAL }
 

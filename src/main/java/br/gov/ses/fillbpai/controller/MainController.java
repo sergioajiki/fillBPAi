@@ -49,14 +49,14 @@ public class MainController {
 
 	private static final Logger log = LoggerFactory.getLogger(MainController.class);
 
-	/** Pasta dos logs de importação — um arquivo por importação, separada do banco (20/10/2026). */
-	private static final Path PASTA_LOGS = Path.of("logs");
+	/** Pasta dos logs de importação — um arquivo por importação, separada do banco (20/10/2026). Programa instalado: na pasta do usuário ({@link br.gov.ses.fillbpai.config.PastasApp}). */
+	private static final Path PASTA_LOGS = br.gov.ses.fillbpai.config.PastasApp.atual().logs();
 
 	/** Pasta dos cadastros editados em Configurações (CNS de médicos, nomes de colunas) — mostrada na janela "Sobre". */
-	private static final Path PASTA_CADASTROS = Path.of("src", "main", "resources", "dados");
+	private static final Path PASTA_CADASTROS = br.gov.ses.fillbpai.config.PastasApp.atual().dados();
 
 	/** Pasta onde os logs ficavam até 20/10/2026, junto do banco — migrados ao abrir o programa. */
-	private static final Path PASTA_LOGS_ANTIGA = Path.of("database");
+	private static final Path PASTA_LOGS_ANTIGA = br.gov.ses.fillbpai.config.PastasApp.atual().database();
 
 	/** Histórico dos logs de importação — lido pelo botão "Ver Log Importação". */
 	private final HistoricoLogsService historicoLogs = new HistoricoLogsService(PASTA_LOGS);

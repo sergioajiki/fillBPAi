@@ -20,12 +20,14 @@
             <property name="jakarta.persistence.jdbc.driver"
                       value="org.h2.Driver"/>
 
-            <!-- Banco em arquivo com AUTO_SERVER (permite múltiplas conexões) -->
+            <!-- URL, usuário e senha são definidos em DatabaseInitializer (21/10/2026): pasta de
+                 dados do programa (PastasApp) e senha em config/banco.properties (SenhaBanco).
+                 Sem AUTO_SERVER: só o PonteBPA abre o banco. -->
+
             <property name="jakarta.persistence.jdbc.url"
-                      value="jdbc:h2:file:./database/fillbpai;AUTO_SERVER=TRUE"/>
+                      value="jdbc:h2:file:./database/fillbpai"/>
 
             <property name="jakarta.persistence.jdbc.user" value="sa"/>
-            <property name="jakarta.persistence.jdbc.password" value=""/>
 
             <!-- Persistência: atualiza schema sem destruir dados existentes -->
             <property name="hibernate.hbm2ddl.auto" value="update"/>
