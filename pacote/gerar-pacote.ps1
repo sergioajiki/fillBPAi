@@ -61,6 +61,20 @@ $argsMaven = @('-q', 'clean', 'package')
 if ($SemTestes) { $argsMaven += '-DskipTests' } else { Write-Host '(com os testes automatizados - leva alguns minutos)' }
 Executar (Join-Path $raiz 'mvnw.cmd') $argsMaven
 
+# ---- 1b. Documentação gerada (técnica e testes), para o pacote sair com ela em dia ----
+Passo 'Atualizando a documentação técnica e a dos testes'
+$node = Get-Command node.exe -ErrorAction SilentlyContinue
+if (-not $node) {
+    Write-Warning 'Node.js não encontrado: docs\DOCUMENTACAO_TECNICA.md e docs\DOCUMENTACAO_TESTES.md não foram atualizadas.'
+} else {
+    Executar $node.Source @((Join-Path $raiz 'docs\gerar-documentacao.js'))
+    if ($SemTestes) {
+        Write-Warning 'Sem testes: a documentação dos testes continua com a execução anterior.'
+    } else {
+        Executar $node.Source @((Join-Path $raiz 'docs\gerar-documentacao-testes.js'))
+    }
+}
+
 # ---- 2. Juntar o programa e as bibliotecas ----
 Passo 'Juntando o programa e as bibliotecas'
 Executar (Join-Path $raiz 'mvnw.cmd') @('-q', 'dependency:copy-dependencies', '-DincludeScope=runtime', "-DoutputDirectory=$entrada")
@@ -142,3 +156,32 @@ Write-Host "`nPacote pronto:" -ForegroundColor Green
 Write-Host "  $zip  ($tamanhoMb MB; $pastaMb MB depois de extraído)"
 Write-Host "  SHA-256: $hash"
 Write-Host '  Confira o SHA-256 no computador novo (PowerShell: Get-FileHash PonteBPA-<versão>.zip) antes de extrair.'
+
+# ---- 7. Projeto em dia com o Git (pacote definitivo = último commit, documentação incluída) ----
+$git = $null
+$comando = Get-Command git.exe -ErrorAction SilentlyContinue
+if ($comando) { $git = $comando.Source }
+if (-not $git) {
+    # Git for Windows instalado só para o usuário ou fora do PATH do PowerShell
+    $git = @("$env:LOCALAPPDATA\Programs\Git\cmd\git.exe", "$env:LOCALAPPDATA\Programs\Git\mingw64\bin\git.exe",
+        "$env:ProgramFiles\Git\cmd\git.exe", "$env:USERPROFILE\AppData\Local\Programs\Git\cmd\git.exe",
+        (Join-Path (Split-Path $raiz -Qualifier) '\Users\*\AppData\Local\Programs\Git\cmd\git.exe')) |
+        ForEach-Object { Get-Item $_ -ErrorAction SilentlyContinue } | Select-Object -First 1 -ExpandProperty FullName
+}
+if ($git) {
+    $commit = (& $git -C $raiz rev-parse --short HEAD 2>$null)
+    $pendentes = @(& $git -C $raiz status --porcelain 2>$null)
+    $statusOk = ($LASTEXITCODE -eq 0) -and $commit
+    if (-not $statusOk) {
+        Write-Warning ('O Git não conseguiu ler o projeto (ex.: pasta de outro usuário do Windows - "dubious ownership"); ' +
+            'não foi possível conferir se o pacote corresponde ao último commit.')
+    } elseif ($pendentes.Count -gt 0) {
+        Write-Warning ("Há $($pendentes.Count) alteração(ões) não commitada(s) - este pacote NÃO corresponde ao commit $commit. " +
+            'Para o pacote definitivo: revise o README.md, commite (inclusive a documentação gerada agora) e gere de novo.')
+        $pendentes | Select-Object -First 20 | ForEach-Object { Write-Host "    $_" }
+    } else {
+        Write-Host "  Gerado a partir do commit $commit, sem alterações pendentes (documentação em dia)." -ForegroundColor Green
+    }
+} else {
+    Write-Warning 'Git não encontrado: não foi possível conferir se o projeto está em dia com o último commit.'
+}

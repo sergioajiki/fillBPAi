@@ -217,7 +217,7 @@ Pré-requisito: **JDK 21** com `jpackage` (definir `JAVA_HOME`). Não precisa de
 powershell -ExecutionPolicy Bypass -File pacote\gerar-pacote.ps1
 ```
 
-Compila e roda os testes, gera a pasta do programa com o Java embutido (`jpackage --type app-image`), inclui o LEIA-ME com a versão do `pom.xml`, confere o resultado e compacta. Saída em `target\pacote\`: `PonteBPA-<versão>.zip` (~96 MB) e `PonteBPA-<versão>.zip.sha256` (código para conferir o arquivo no computador novo). A versão vem do `pom.xml`. Cronograma da instalação: `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
+Compila e roda os testes, **atualiza a documentação técnica e a dos testes** (`docs/DOCUMENTACAO_TECNICA.md`, `docs/DOCUMENTACAO_TESTES.md`, precisa do Node.js), gera a pasta do programa com o Java embutido (`jpackage --type app-image`), inclui o LEIA-ME com a versão do `pom.xml`, confere o resultado e compacta. No fim informa o commit de origem e **avisa se há alterações não commitadas** — o pacote definitivo deve sair de um projeto sem pendências, com README e documentação em dia (revisar o README à mão: ele não é gerado). Saída em `target\pacote\`: `PonteBPA-<versão>.zip` (~96 MB) e `PonteBPA-<versão>.zip.sha256` (código para conferir o arquivo no computador novo). A versão vem do `pom.xml`. Cronograma da instalação: `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
 
 ---
 
