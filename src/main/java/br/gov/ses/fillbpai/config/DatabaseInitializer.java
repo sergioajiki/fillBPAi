@@ -53,13 +53,22 @@ public class DatabaseInitializer {
         return entityManager;
     }
 
-    /** {@code true} se o erro (ou alguma causa dele) é o de banco já aberto por outro programa. */
+    /**
+     * {@code true} se o erro (ou alguma causa dele) é o de banco já aberto por
+     * outro programa. O H2 avisa de dois jeitos: o código 90020 ("Database may
+     * be already in use") ou, no formato de arquivo atual, "The file is locked"
+     * dentro de um erro geral — visto no teste do pacote em 21/10/2026, com o
+     * programa aberto duas vezes.
+     */
     public static boolean isBancoEmUso(Throwable erro) {
         for (Throwable t = erro; t != null; t = t.getCause()) {
             if (t instanceof java.sql.SQLException sql && sql.getErrorCode() == ERRO_BANCO_EM_USO) {
                 return true;
             }
-            if (t.getMessage() != null && t.getMessage().contains(String.valueOf(ERRO_BANCO_EM_USO))) {
+            String mensagem = t.getMessage();
+            if (mensagem != null && (mensagem.contains(String.valueOf(ERRO_BANCO_EM_USO))
+                    || mensagem.contains("The file is locked")
+                    || mensagem.contains("already in use"))) {
                 return true;
             }
         }

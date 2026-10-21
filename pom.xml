@@ -33,7 +33,8 @@
         <maven.build.timestamp.format>yyyy-MM-dd'T'HH:mm:ss'Z'</maven.build.timestamp.format>
 
         <!-- Versões das dependências -->
-        <javafx.version>21.0.2</javafx.version>
+        <!-- Mesma versão para todos os módulos JavaFX (21/10/2026: controls estava em 21.0.10 e fxml em 21.0.2) -->
+        <javafx.version>21.0.10</javafx.version>
         <hibernate.version>6.4.4.Final</hibernate.version>
         <h2.version>2.2.224</h2.version>
         <poi.version>5.5.1</poi.version>
@@ -58,7 +59,7 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
-            <version>21.0.10</version>
+            <version>${javafx.version}</version>
         </dependency>
 
         <!-- Suporte a FXML -->

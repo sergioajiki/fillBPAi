@@ -1,5 +1,5 @@
 ﻿==============================================================================
-  PonteBPA 1.0.0 - Orientações de instalação e uso
+  PonteBPA {{VERSAO}} - Orientações de instalação e uso
   Importação de atendimentos e geração do BPA-I
   Uso interno - Superintendência de Saúde Digital / SES-MS
 ==============================================================================
@@ -31,7 +31,7 @@ NÃO é preciso instalar nada além deste pacote:
 2. INSTALAÇÃO
 ------------------------------------------------------------------------------
 
-  1) Extraia o arquivo PonteBPA-1.0.0.zip numa pasta do seu usuário, por exemplo:
+  1) Extraia o arquivo PonteBPA-{{VERSAO}}.zip numa pasta do seu usuário, por exemplo:
          C:\Users\<seu usuário>\PonteBPA
      (clique com o botão direito no .zip > "Extrair Tudo...").
      Não extraia em "Arquivos de Programas".
@@ -53,7 +53,7 @@ NÃO é preciso instalar nada além deste pacote:
 3. CONFERÊNCIA DEPOIS DE INSTALAR
 ------------------------------------------------------------------------------
 
-  - Botão "Sobre" (canto superior direito): deve mostrar versão 1.0.0 e as
+  - Botão "Sobre" (canto superior direito): deve mostrar versão {{VERSAO}} e as
     pastas em ...\AppData\Local\PonteBPA.
   - "Configurações" > "CNS de Médicos": a lista de médicos deve aparecer.
   - Teste: "Analisar Planilha" com uma planilha de atendimentos, depois
@@ -86,6 +86,11 @@ Tudo fica em %LOCALAPPDATA%\PonteBPA (pasta do seu usuário do Windows):
     logs       registro de cada importação (botão "Ver Log Importação")
     dados      cadastros feitos em Configurações (CNS de médicos, nomes de colunas)
     config     senha do banco (arquivo banco.properties)
+
+Remessas (arquivos BPA-I gerados): a janela "Salvar" abre em
+    Documentos\PonteBPA\Remessas
+na primeira vez; depois, na última pasta que você escolheu. Ao terminar, o
+programa mostra o caminho completo do arquivo gerado.
 
 Esses dados contêm informações pessoais de pacientes (LGPD): não copie para
 pendrive pessoal, e-mail ou nuvem particular.

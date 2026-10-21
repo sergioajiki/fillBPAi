@@ -937,21 +937,21 @@ public class RelatorioController {
 			Window window =
 					tabela.getScene().getWindow();
 
-			boolean gerado = service.gerarArquivoComFileChooser(
+			java.nio.file.Path gerado = service.gerarArquivoComFileChooser(
 					window,
 					especialidade,
 					medico,
 					competenciaSelecionada
 			);
 
-			if (!gerado) {
+			if (gerado == null) {
 				return; // escolha do arquivo cancelada
 			}
 
 			// Recarrega a tabela: folha, linha e remessa gravadas na geração
 			carregarDoBanco();
 
-			mostrarMensagem("Arquivo gerado com sucesso.");
+			mostrarMensagem("Arquivo BPA-I gerado com sucesso:\n" + gerado.toAbsolutePath());
 
 		}
 		catch (Exception ex) {
@@ -987,14 +987,16 @@ public class RelatorioController {
 			Window window =
 					tabela.getScene().getWindow();
 
-			if (!service.gerarArquivoCompletoComFileChooser(window, competenciaSelecionada)) {
+			java.nio.file.Path gerado = service.gerarArquivoCompletoComFileChooser(window, competenciaSelecionada);
+
+			if (gerado == null) {
 				return; // escolha do arquivo cancelada
 			}
 
 			// Recarrega a tabela: folha, linha e remessa gravadas na geração
 			carregarDoBanco();
 
-			mostrarMensagem("Arquivo BPA-I completo gerado com sucesso.");
+			mostrarMensagem("Arquivo BPA-I completo gerado com sucesso:\n" + gerado.toAbsolutePath());
 
 		} catch (Exception ex) {
 

@@ -63,14 +63,15 @@ fillBPAi/
 ├── database/                           # Banco H2 — desenvolvimento (criado em execução)
 ├── logs/                               # Logs de importação — desenvolvimento (criados em execução)
 ├── config/                             # Senha do banco — desenvolvimento (gerada; fora do Git)
-├── pacote/                             # Arquivos que vão no .zip de instalação (LEIA-ME - Instalação.txt)
+├── pacote/                             # Arquivos que vão no .zip de instalação: gerar-pacote.ps1, LEIA-ME, ícone
 └── src/
     ├── main/java/br/gov/ses/fillbpai/
-    │   ├── app/MainApp.java                         # Ponto de entrada JavaFX
+    │   ├── app/MainApp.java                         # Ponto de entrada JavaFX (app/Inicio.java: partida do pacote)
     │   ├── config/DatabaseInitializer.java          # H2 + Hibernate
     │   ├── config/DadosUnidade.java                 # CNES, órgão, sigla, CNPJ e versão do header do BPA-I
     │   ├── config/PastasApp.java                    # Pastas de dados (projeto ou %LOCALAPPDATA%\PonteBPA)
     │   ├── config/SenhaBanco.java                   # Senha do banco (gerada, fora do código)
+    │   ├── config/PastaRemessas.java                # Pasta inicial do "Salvar" do BPA-I
     │   ├── controller/MainController.java           # Barra superior, análise, importação, logs
     │   ├── dto/                                     # LinhaImportacaoDTO (planilha), AtendimentoBPAiDTO (tabela)
     │   ├── model/                                   # AtendimentoBPAi, Paciente, Endereco, Medico, Estabelecimento
@@ -202,12 +203,21 @@ mvnw.cmd javafx:run     # executar
 | Logs de importação | `logs/` | `%LOCALAPPDATA%\PonteBPA\logs` |
 | Cadastros (Configurações) | `src/main/resources/dados` | `%LOCALAPPDATA%\PonteBPA\dados` |
 | Senha do banco | `config/banco.properties` (fora do Git) | `%LOCALAPPDATA%\PonteBPA\config\banco.properties` |
+| Remessas BPA-I geradas | `Documentos\PonteBPA\Remessas` ou a última pasta escolhida | idem |
 
 O modo instalado é ligado pela propriedade `-Dpontebpa.instalado=true`, que o pacote passa ao Java. A senha do banco é gerada na primeira execução; **a cópia de segurança do banco só serve junto com o `banco.properties`**. O banco só é aberto pelo PonteBPA (sem console web do H2).
 
 As orientações de instalação para o usuário (requisitos, passo a passo, onde ficam os dados, cópia de segurança, atualização, problemas comuns) estão em `pacote/LEIA-ME - Instalação.txt`, que vai dentro do `.zip`.
 
-O pacote de instalação (pasta com o Java embutido, em `.zip`) é a fase 2 do cronograma de instalação — ver `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
+### Gerar o pacote de instalação
+
+Pré-requisito: **JDK 21** com `jpackage` (definir `JAVA_HOME`). Não precisa de WiX nem de administrador.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File pacote\gerar-pacote.ps1
+```
+
+Compila e roda os testes, gera a pasta do programa com o Java embutido (`jpackage --type app-image`), inclui o LEIA-ME com a versão do `pom.xml`, confere o resultado e compacta. Saída em `target\pacote\`: `PonteBPA-<versão>.zip` (~96 MB) e `PonteBPA-<versão>.zip.sha256` (código para conferir o arquivo no computador novo). A versão vem do `pom.xml`. Cronograma da instalação: `docs/runbook-verificacao-colunas.html`, Próximos passos. Para outra unidade, os dados da unidade (CNES, órgão, sigla, CNPJ, INE) ainda estão fixos em `config/DadosUnidade.java`.
 
 ---
 

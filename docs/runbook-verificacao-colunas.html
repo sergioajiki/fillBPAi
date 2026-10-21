@@ -119,7 +119,7 @@
     </p>
     <div class="meta">
       <span>Área: <strong>PlanilhaColumnMapper · ExcelImportService · ValidacaoPlanilhaService · AtendimentoProcessor · AtendimentoImportacaoService · GeradorBPAiService</strong></span>
-      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 548 testes (700 execuções) passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
+      <span>Status: <strong>27 de 27 colunas revisadas (médico e CPF do médico em runbook próprio) · 555 testes (707 execuções) passando · última atualização 20/10/2026 (<code>mvnw.cmd test</code>) · próxima etapa: decidir as pendências listadas em Continuidade</strong></span>
       <span>Atualizado: <strong>20/10/2026</strong> (iniciado em 08/10/2026)</span>
     </div>
     <nav class="toc" aria-label="Seções do documento">
@@ -241,6 +241,8 @@
           <tr><td class="caso">Instalação — fase 1 (21/10/2026)</td><td>Pastas de dados na pasta do usuário no programa instalado (<code>PastasApp</code>), senha do banco gerada e guardada fora do código (<code>SenhaBanco</code>), console H2 e <code>AUTO_SERVER</code> removidos, aviso de programa já aberto, correção do cadastro de CNS (médico removido voltava). Ver Próximos passos → Primeira instalação.</td></tr>
           <tr><td class="caso">Orientações de instalação (21/10/2026)</td><td><code>pacote/LEIA-ME - Instalação.txt</code>, para ir dentro do <code>.zip</code>: requisitos (Windows 10/11 64 bits, sites de CEP), o que não precisa instalar, passo a passo, conferência, como começar com o banco limpo (apagar só <code>database</code>, nunca <code>config</code>), onde ficam os dados (LGPD), cópia de segurança e restauração, atualização de versão e problemas comuns. Texto sem jargão e sem contato de suporte; UTF-8 com BOM e quebras de linha do Windows (<code>.gitattributes</code>).</td></tr>
           <tr><td class="caso">Visual C++ (21/10/2026)</td><td>Verificado: o JDK 21 e o JavaFX 21 já trazem as bibliotecas do Visual C++ que usam (<code>vcruntime140</code>, <code>msvcp140</code>, <code>ucrtbase</code>), com assinatura válida da Microsoft — o pacote não precisa do <code>vc_redist.x64.exe</code>. Confirmação final na fase 3, rodando o pacote na Área Restrita do Windows.</td></tr>
+          <tr><td class="caso">Instalação — fase 2 (21/10/2026)</td><td>Pacote <code>.zip</code> gerado por <code>pacote\gerar-pacote.ps1</code> (Java embutido, ícone, LEIA-ME, conferências, SHA-256). Primeiro teste do pacote aprovado; corrigido o aviso de programa aberto duas vezes. Ver Próximos passos → Primeira instalação, fase 2.</td></tr>
+          <tr><td class="caso">Pasta das remessas (21/10/2026)</td><td>Durante o teste do pacote não se achava onde a remessa seria salva: a janela "Salvar" do BPA-I não tinha pasta inicial. Agora abre em <code>Documentos\PonteBPA\Remessas</code> (criada se faltar) ou na última pasta usada (guardada em <code>config/preferencias.properties</code>), e a mensagem de sucesso mostra o caminho completo do arquivo gerado (<code>config.PastaRemessas</code>, 5 testes). LEIA-ME atualizado.</td></tr>
           <tr><td class="caso">Tela</td><td>Análise agrupada por tipo com chips; janelas com largura/altura limitadas e rolagem (análise, estrutura, erro de importação). Log de importação (19/10/2026): janela mais larga (até 1200 px), redimensionável, abrindo no começo; a rolagem não funcionava porque o botão "Importar Planilha" abria o log no mesmo clique que fechava a janela de análise — o log agora abre com <code>Platform.runLater</code>, depois de a janela anterior fechar (mesma causa já corrigida em "Abrir Configurações"). Regra: <strong>nunca abrir um diálogo no mesmo handler que fecha outro</strong>.</td></tr>
         </tbody>
       </table>
@@ -253,7 +255,7 @@
         <p>
           <code>PACIENTE_SEM_CPF</code>, a última, foi revisada em 16/10/2026 (ver <a href="#sem-cpf">Paciente sem CPF</a>),
           junto com a <a href="#abertas">Decisão 25</a> (situação de rua sem CEP → aviso, implementada). Decisões 12 e 26 implementadas como aviso em 16/10/2026 (recomendações 24 e 69). Decisão 13 implementada em 16/10/2026 (CNS vazio com CPF sem aviso). Rolagem do log de importação corrigida em 19/10/2026.
-          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). Em 21/10/2026: cronograma da primeira instalação (núcleo, outro computador) com decisões I1–I4 e fase 1 concluída; orientações de instalação para o usuário (<code>pacote/LEIA-ME - Instalação.txt</code>) e verificação do Visual C++ (já incluído no pacote). <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
+          Recomendação 68 (chave do paciente sem CPF pelo CNS) implementada em 19/10/2026. Recomendação 4 (aviso de data do atendimento futura ou com mais de 2 anos) implementada em 19/10/2026. Recomendações 26, 27, 29 e 30 (CNS e nome do paciente) implementadas em 19/10/2026. Ajustes de regras, janelas e logs em 19/10/2026 (ver "O que foi feito"). Ciência dos avisos antes de importar em 20/10/2026. Também em 20/10/2026: histórico de logs (em pasta própria <code>logs/</code>), folha e remessa, nome PonteBPA, janela Sobre (versão 1.0.0), Decisão 30 (INE da unidade, vazio no núcleo → brancos; coluna INE fora da tabela), documentação técnica gerada dos javadocs e documentação dos testes (533 testes, 685 execuções). Em 21/10/2026: cronograma da primeira instalação (núcleo, outro computador) com decisões I1–I4 e fase 1 concluída; orientações de instalação para o usuário (<code>pacote/LEIA-ME - Instalação.txt</code>) e verificação do Visual C++ (já incluído no pacote); fase 2 (pacote <code>.zip</code>) concluída e pasta padrão das remessas. <code>MEDICO</code> e <code>CPF_MEDICO</code> têm runbook
           próprio (<code>docs/runbook-medico-sem-cns.html</code>).
         </p>
       </li>
@@ -321,10 +323,20 @@
             Correção encontrada: o cadastro de CNS somava o CSV do pacote ao da pasta de dados, e um médico removido ou com CNS
             alterado voltava na próxima abertura; agora, existindo o arquivo da pasta, só ele vale.<br>
             15 testes novos (548 testes, 700 execuções); CLAUDE.md, README e documentações geradas atualizados.</td><td>feito</td></tr>
-          <tr><td class="caso">2 · Empacotamento</td><td>Classe de partida separada (o JavaFX exige quando o programa roda fora
-            do Maven); pacote com <code>jpackage --type app-image</code> (Java embutido, nome PonteBPA, ícone, versão 1.0.0) com as
-            opções <code>-Dpontebpa.instalado=true</code> (modo instalado) e <code>-Djava.net.useSystemProxies=true</code> (usar o
-            proxy do Windows nas APIs de CEP); <code>.zip</code> da pasta gerada; o <code>.zip</code> leva também <code>LEIA-ME - Instalação.txt</code> (orientações ao usuário, em <code>pacote/</code> no projeto — criado em 21/10/2026); comando único de geração documentado no README.</td><td>1–2 dias</td></tr>
+          <tr><td class="caso">2 · Empacotamento — ✓ feito em 21/10/2026</td><td>
+            Comando único: <code>powershell -ExecutionPolicy Bypass -File pacote\gerar-pacote.ps1</code> (README, "Gerar o pacote de
+            instalação"). Compila com os testes, junta o programa e as 42 bibliotecas, gera a pasta com o Java embutido
+            (<code>jpackage --type app-image</code> do JDK 21; classe de partida <code>app.Inicio</code>, que não estende
+            <code>Application</code>; opções <code>-Dpontebpa.instalado=true</code> e <code>-Djava.net.useSystemProxies=true</code>;
+            ícone novo — quadrado verde com "BPA", também na janela e na barra de tarefas), inclui o LEIA-ME com a versão do
+            <code>pom.xml</code>, confere o resultado (opções, JavaFX para Windows, Visual C++ assinado pela Microsoft) e compacta:
+            <code>target\pacote\PonteBPA-1.0.0.zip</code> (96 MB; 197 MB extraído) + <code>.zip.sha256</code> para conferir o arquivo
+            no computador novo. Ajustes no caminho: versões do JavaFX alinhadas (controls estava em 21.0.10 e fxml em 21.0.2);
+            <code>.zip</code> com caminhos internos em <code>/</code> (o PowerShell 5.1 gravava <code>\</code>).<br>
+            Primeiro teste do pacote (pasta de dados temporária): abriu, criou senha, banco, pastas e a cópia do cadastro de médicos;
+            reabriu com a mesma senha; janela principal, ícone e seletor de planilha corretos; importação de 577 linhas conferida.
+            Encontrado e corrigido: com o programa aberto duas vezes o H2 avisa "The file is locked" (não o código 90020), e a
+            mensagem amigável não aparecia (<code>DatabaseInitializer.isBancoEmUso</code>).</td><td>feito</td></tr>
           <tr><td class="caso">3 · Teste do pacote no computador de desenvolvimento</td><td>Rodar o pacote como se fosse o
             computador novo (outro usuário do Windows, sem pasta <code>PonteBPA</code> em <code>AppData</code>): conferir criação
             de pastas, senha e banco; Configurações gravando na pasta nova; logs; Sobre; "Abrir pasta"; aviso de programa aberto

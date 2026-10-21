@@ -77,9 +77,9 @@ public class GeradorBPAiService {
 	 * @param especialidade          especialidade selecionada
 	 * @param medico                 nome do médico selecionado
 	 * @param competenciaAtendimento competência no formato AAAAMM do mês de atendimento
-	 * @return {@code false} se o usuário cancelou a escolha do arquivo
+	 * @return o arquivo gerado, ou {@code null} se o usuário cancelou a escolha do arquivo
 	 */
-	public boolean gerarArquivoComFileChooser(
+	public java.nio.file.Path gerarArquivoComFileChooser(
 			Window parentWindow,
 			String especialidade,
 			String medico,
@@ -114,6 +114,9 @@ public class GeradorBPAiService {
 
 			chooser.setTitle("Salvar BPA-I");
 
+			// Abre na pasta das remessas: Documentos\PonteBPA\Remessas ou a última usada (21/10/2026)
+			definirPastaInicial(chooser);
+
 			chooser.getExtensionFilters().add(
 					new FileChooser.ExtensionFilter("Arquivo BPA-I (*.txt)", "*.txt"));
 
@@ -124,7 +127,7 @@ public class GeradorBPAiService {
 			File file = chooser.showSaveDialog(parentWindow);
 
 			if (file == null)
-				return false;
+				return null;
 
 			file = garantirExtensaoTxt(file);
 
@@ -134,7 +137,9 @@ public class GeradorBPAiService {
 
 			registrarRemessa(lista, numeracao, java.time.LocalDateTime.now());
 
-			return true;
+			br.gov.ses.fillbpai.config.PastaRemessas.atual().lembrar(file.toPath());
+
+			return file.toPath();
 
 		} catch (Exception ex) {
 
@@ -155,9 +160,9 @@ public class GeradorBPAiService {
 	 * @param parentWindow           janela dona do diálogo de salvar
 	 * @param competenciaAtendimento competência no formato AAAAMM do mês de atendimento
 	 *                               (ex.: "202503" para atendimentos de março de 2025)
-	 * @return {@code false} se o usuário cancelou a escolha do arquivo
+	 * @return o arquivo gerado, ou {@code null} se o usuário cancelou a escolha do arquivo
 	 */
-	public boolean gerarArquivoCompletoComFileChooser(Window parentWindow, String competenciaAtendimento) {
+	public java.nio.file.Path gerarArquivoCompletoComFileChooser(Window parentWindow, String competenciaAtendimento) {
 
 		try {
 
@@ -180,6 +185,9 @@ public class GeradorBPAiService {
 			FileChooser chooser = new FileChooser();
 			chooser.setTitle("Salvar BPA-I Completo");
 
+			// Abre na pasta das remessas: Documentos\PonteBPA\Remessas ou a última usada (21/10/2026)
+			definirPastaInicial(chooser);
+
 			chooser.getExtensionFilters().add(
 					new FileChooser.ExtensionFilter("Arquivo BPA-I (*.txt)", "*.txt"));
 
@@ -188,7 +196,7 @@ public class GeradorBPAiService {
 			File file = chooser.showSaveDialog(parentWindow);
 
 			if (file == null)
-				return false;
+				return null;
 
 			file = garantirExtensaoTxt(file);
 
@@ -198,7 +206,9 @@ public class GeradorBPAiService {
 
 			registrarRemessa(lista, numeracao, java.time.LocalDateTime.now());
 
-			return true;
+			br.gov.ses.fillbpai.config.PastaRemessas.atual().lembrar(file.toPath());
+
+			return file.toPath();
 
 		} catch (Exception ex) {
 
@@ -351,6 +361,19 @@ public class GeradorBPAiService {
 		}
 
 		return sb.toString();
+	}
+
+	/**
+	 * Abre a janela "Salvar" na pasta das remessas
+	 * ({@link br.gov.ses.fillbpai.config.PastaRemessas}: a última pasta usada ou
+	 * {@code Documentos\PonteBPA\Remessas}). Sem pasta disponível, a janela abre
+	 * na pasta padrão do Windows, como antes.
+	 */
+	private static void definirPastaInicial(FileChooser chooser) {
+		java.nio.file.Path pasta = br.gov.ses.fillbpai.config.PastaRemessas.atual().inicial();
+		if (pasta != null) {
+			chooser.setInitialDirectory(pasta.toFile());
+		}
 	}
 
 	/**

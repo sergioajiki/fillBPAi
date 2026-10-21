@@ -37,6 +37,16 @@ O relatório da análise (`Analisar Planilha`) só é gravado pelo botão "Salva
 
 ## Pacote `app`
 
+### `Inicio`
+`src/main/java/br/gov/ses/fillbpai/app/Inicio.java`
+
+Ponto de partida do programa instalado (pacote gerado por `pacote/gerar-pacote.ps1`, 21/10/2026).
+
+Fora do Maven, o JavaFX recusa iniciar quando a classe principal estende `Application` e as bibliotecas do JavaFX estão no classpath ("JavaFX runtime components are missing"). Esta classe, que não estende `Application`, só repassa para `MainApp`. No desenvolvimento (`mvnw.cmd javafx:run`) continua sendo usada a `MainApp`.
+
+**Métodos:**
+- `main(String[] args): void`
+
 ### `MainApp`
 `src/main/java/br/gov/ses/fillbpai/app/MainApp.java`
 
@@ -73,8 +83,25 @@ Desde 21/10/2026: o banco fica na pasta de dados do programa (`PastasApp` — no
 
 **Métodos:**
 - `iniciar(): void` — Prepara as pastas, obtém a senha e abre o banco. Erros sobem para quem chamou (`MainApp`), que mostra a mensagem ao usuário.
-- `isBancoEmUso(Throwable erro): boolean` — `true` se o erro (ou alguma causa dele) é o de banco já aberto por outro programa.
+- `isBancoEmUso(Throwable erro): boolean` — `true` se o erro (ou alguma causa dele) é o de banco já aberto por outro programa. O H2 avisa de dois jeitos: o código 90020 ("Database may be already in use") ou, no formato de arquivo atual, "The file is locked" dentro de um erro geral — visto no teste do pacote em 21/10/2026, com o programa aberto duas vezes.
 - `finalizar(): void` — Encerra todos os recursos corretamente.
+
+### `PastaRemessas`
+`src/main/java/br/gov/ses/fillbpai/config/PastaRemessas.java`
+
+Pasta onde a janela "Salvar" do BPA-I abre (21/10/2026). Antes não havia pasta inicial: a janela abria na pasta padrão do Windows e o usuário não sabia onde a remessa tinha ido parar.
+
+- Padrão: `Documentos\PonteBPA\Remessas`, criada quando falta;
+
+- depois da primeira geração, a última pasta escolhida (guardada em `<config>/preferencias.properties`); se ela não existir mais, volta ao padrão.
+
+**Métodos:**
+- `PastaRemessas(Path padrao, Path preferencias) (construtor)`
+- `atual(): PastaRemessas` — Pasta padrão em Documentos do usuário e preferências na pasta de configuração do programa.
+- `documentos(): Path` — Pasta "Documentos" do Windows (inclusive quando redirecionada, ex.: OneDrive).
+- `padrao(): Path` — Pasta padrão das remessas (`Documentos\PonteBPA\Remessas`).
+- `inicial(): Path` — Pasta em que a janela "Salvar" deve abrir: a última usada, se ainda existir; senão a padrão (criada aqui). `null` se nem a padrão puder ser criada — a janela abre na pasta do Windows, como antes.
+- `lembrar(Path arquivoGerado): void` — Guarda a pasta do arquivo gerado, para a próxima geração abrir nela. Falha ao gravar não atrapalha a geração.
 
 ### `PastasApp`
 `src/main/java/br/gov/ses/fillbpai/config/PastasApp.java`
@@ -422,14 +449,15 @@ Campos NUM opcionais: brancos quando vazios, zeros à esquerda quando preenchido
 
 **Métodos:**
 - `GeradorBPAiService(EntityManager entityManager) (construtor)`
-- `gerarArquivoComFileChooser(Window parentWindow, String especialidade, String medico, String competenciaAtendimento): boolean` — Geração parcial: arquivo BPA-I só com os atendimentos de um médico numa especialidade, na competência informada (botão "Gerar BPA-I" com um médico selecionado na árvore). Bloqueia se algum atendimento estiver sem CNS do profissional ou sem código IBGE, como a geração completa. A folha e a linha vêm da numeração da competência inteira (`#numerarFolhas`) — as mesmas da geração completa. Depois de gravar o arquivo, folha, linha e data/hora da remessa ficam gravadas nos atendimentos do médico (`#registrarRemessa`).
-- `gerarArquivoCompletoComFileChooser(Window parentWindow, String competenciaAtendimento): boolean` — Geração completa: um único arquivo BPA-I com todos os atendimentos da competência, de todos os médicos e especialidades. Antes de gravar, bloqueia se algum atendimento estiver sem CNS do profissional (`#validarCnsProfissional`) ou sem código IBGE (`#validarIbge`). Folhas e linhas por `#numerarFolhas`; depois de gravar o arquivo, ficam gravadas nos atendimentos com a data/hora da remessa (`#registrarRemessa`) — a tabela mostra o que foi enviado.
+- `gerarArquivoComFileChooser(Window parentWindow, String especialidade, String medico, String competenciaAtendimento): java.nio.file.Path` — Geração parcial: arquivo BPA-I só com os atendimentos de um médico numa especialidade, na competência informada (botão "Gerar BPA-I" com um médico selecionado na árvore). Bloqueia se algum atendimento estiver sem CNS do profissional ou sem código IBGE, como a geração completa. A folha e a linha vêm da numeração da competência inteira (`#numerarFolhas`) — as mesmas da geração completa. Depois de gravar o arquivo, folha, linha e data/hora da remessa ficam gravadas nos atendimentos do médico (`#registrarRemessa`).
+- `gerarArquivoCompletoComFileChooser(Window parentWindow, String competenciaAtendimento): java.nio.file.Path` — Geração completa: um único arquivo BPA-I com todos os atendimentos da competência, de todos os médicos e especialidades. Antes de gravar, bloqueia se algum atendimento estiver sem CNS do profissional (`#validarCnsProfissional`) ou sem código IBGE (`#validarIbge`). Folhas e linhas por `#numerarFolhas`; depois de gravar o arquivo, ficam gravadas nos atendimentos com a data/hora da remessa (`#registrarRemessa`) — a tabela mostra o que foi enviado.
 - `carregarCompetencia(int ano, int mes): List<AtendimentoBPAi>` *(privado)* — Todos os atendimentos da competência (mês da data do atendimento), com as entidades do registro.
 - `PosicaoFolha(int folha, int linha): record` — Folha (`prd-flh`, 1 a 999) e linha dentro dela (`prd-seq`, 1 a 99) de um registro.
 - `numerarFolhas(List<AtendimentoBPAi> competencia): Map<AtendimentoBPAi, PosicaoFolha>` — Numeração das folhas de uma competência (regra única, 20/10/2026 — antes a geração completa numerava o ano inteiro e a parcial usava a folha definida à mão): ; atendimentos em ordem especialidade → médico → data → hora; ; cada especialidade + médico começa uma folha nova (001, 002…); ; folha nova também a cada 99 linhas (a linha nunca volta para 01 dentro da mesma folha). Não altera os atendimentos — o resultado só é gravado depois que o arquivo é salvo (`#registrarRemessa`).
 - `registrarRemessa(List<AtendimentoBPAi> enviados, Map<AtendimentoBPAi, PosicaoFolha> numeracao, java.time.LocalDateTime quando): void` — Grava nos atendimentos enviados a folha, a linha e a data/hora da remessa, numa transação — chamado só depois que o arquivo foi salvo.
 - `gerarConteudo(List<AtendimentoBPAi> lista, String competencia): String` — Conteúdo do arquivo numerando as folhas da própria lista (testes).
 - `gerarConteudo(List<AtendimentoBPAi> lista, String competencia, Map<AtendimentoBPAi, PosicaoFolha> numeracao): String` — Monta o conteúdo do arquivo BPA-I (header + registros) — geração parcial e completa. Não acessa banco, arquivo nem JavaFX. Os registros saem na ordem de folha e linha; o header leva o total de linhas e de folhas distintas do arquivo.
+- `definirPastaInicial(FileChooser chooser): void` *(privado)* — Abre a janela "Salvar" na pasta das remessas (`br.gov.ses.fillbpai.config.PastaRemessas`: a última pasta usada ou `Documentos\PonteBPA\Remessas`). Sem pasta disponível, a janela abre na pasta padrão do Windows, como antes.
 - `garantirExtensaoTxt(File file): File` *(privado)* — Garante que o arquivo escolhido no FileChooser tenha extensão .txt. O diálogo nativo de salvar do Windows nem sempre preserva a extensão do nome inicial sugerido (ex.: ao usar "Todos os arquivos"), então a extensão é reforçada aqui antes da gravação.
 - `montarChaveMedico(AtendimentoBPAi a): String` *(privado)* — Monta a chave única para identificar uma combinação especialidade + médico.
 - `validarIbge(List<AtendimentoBPAi> lista): void` — Bloqueia a geração se algum atendimento estiver sem código IBGE do município do paciente (`prd-ibge`, obrigatório no BPA-I) — mesmo padrão de `#validarCnsProfissional`. Acontece quando nem o nome do município nem o CEP resolveram o IBGE na importação (decisão de 08/10/2026 — antes o campo saía em branco sem aviso na geração).

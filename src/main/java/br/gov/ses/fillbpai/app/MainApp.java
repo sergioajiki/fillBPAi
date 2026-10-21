@@ -68,6 +68,13 @@ public class MainApp extends Application {
         // Nome exibido do programa (20/10/2026): só o texto visível mudou —
         // pacotes, classes e o projeto Maven continuam como fillbpai
         primaryStage.setTitle("PonteBPA");
+        // Ícone da janela e da barra de tarefas (21/10/2026) — o mesmo do PonteBPA.exe
+        for (int tamanho : new int[] { 16, 32, 48, 256 }) {
+            java.io.InputStream icone = MainApp.class.getResourceAsStream("/icones/pontebpa-" + tamanho + ".png");
+            if (icone != null) {
+                primaryStage.getIcons().add(new javafx.scene.image.Image(icone));
+            }
+        }
         primaryStage.setScene(scene);
         primaryStage.show();
     }
